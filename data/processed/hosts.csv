@@ -1,0 +1,4 @@
+host_id,hostname,asset_type,os_name,critical_level,owner_department,status,risk_score,created_at
+H001,WIN10-001,WORKSTATION,Windows 10,2,办公网络,ONLINE,25,2026-03-01T09:00:00+08:00
+H002,FILE-SRV-01,FILE_SERVER,Windows Server 2019,5,基础设施部,ONLINE,72,2026-03-01T09:05:00+08:00
+H003,DB-SRV-01,DATABASE_SERVER,CentOS 7,5,数据平台部,ONLINE,90,2026-03-01T09:10:00+08:00

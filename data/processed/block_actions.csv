@@ -1,0 +1,3 @@
+action_id,action_type,target_type,status,executed_at,executor,ticket_no,rollback_supported,remark
+BA001,BLOCK_IP,IP,SUCCESS,2026-03-15T09:12:00+08:00,auto_engine,T20260315001,true,自动封禁外部恶意地址
+BA002,BLOCK_IP,IP,SUCCESS,2026-03-15T10:10:00+08:00,auto_engine,T20260315002,true,自动封禁疑似横向移动来源地址

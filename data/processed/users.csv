@@ -1,0 +1,4 @@
+user_id,username,display_name,department,role,privilege_level,status,is_whitelisted,risk_score,created_at
+U001,zhangsan,张三,运维部,运维工程师,4,ACTIVE,false,88,2026-03-01T09:00:00+08:00
+U002,lisi,李四,财务部,财务专员,2,ACTIVE,false,40,2026-03-01T09:05:00+08:00
+U003,sec_admin,安全管理员,安全部,安全管理员,5,ACTIVE,true,5,2026-03-01T09:10:00+08:00

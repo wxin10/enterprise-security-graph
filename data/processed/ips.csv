@@ -1,0 +1,4 @@
+ip_id,ip_address,ip_type,geo_location,reputation_level,is_blocked,risk_score,created_at
+IP001,10.10.1.23,INTERNAL,华东办公区,LOW,false,15,2026-03-01T09:00:00+08:00
+IP002,10.10.9.99,INTERNAL,VPN接入区,HIGH,true,85,2026-03-01T09:05:00+08:00
+IP003,183.62.211.45,EXTERNAL,境外节点,HIGH,true,92,2026-03-01T09:10:00+08:00

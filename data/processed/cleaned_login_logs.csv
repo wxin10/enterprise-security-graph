@@ -1,0 +1,4 @@
+raw_log_id,session_hint,log_source,log_type,event_time,start_time,end_time,username,display_name,department,role,privilege_level,src_ip,dst_ip,src_port,dst_port,hostname,protocol,action,result,auth_method,message
+RAW202603150001,S003,VPN,AUTH,2026-03-15T09:10:10+08:00,2026-03-15T09:10:00+08:00,2026-03-15T09:10:12+08:00,lisi,李四,财务部,财务专员,2,183.62.211.45,10.10.1.23,49152,443,WIN10-001,VPN,LOGIN,FAILED,PASSWORD,外部地址对办公终端发起连续失败登录
+RAW202603150004,S001,VPN,AUTH,2026-03-15T10:05:02+08:00,2026-03-15T10:05:00+08:00,2026-03-15T10:06:30+08:00,zhangsan,张三,运维部,运维工程师,4,10.10.9.99,,55124,22,FILE-SRV-01,SSH,LOGIN,SUCCESS,PASSWORD,运维账号通过VPN访问文件服务器
+RAW202603150005,S002,VPN,AUTH,2026-03-15T10:08:05+08:00,2026-03-15T10:08:00+08:00,2026-03-15T10:08:50+08:00,zhangsan,张三,运维部,运维工程师,4,10.10.9.99,,49811,3389,DB-SRV-01,RDP,LOGIN,SUCCESS,PASSWORD,同一账号继续访问数据库服务器

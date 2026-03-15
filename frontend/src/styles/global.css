@@ -1,0 +1,298 @@
+:root {
+  /* 全局颜色变量：
+     当前系统整体视觉方向偏企业安全平台，采用深蓝 / 蓝黑风格。 */
+  --page-bg: #07111f;
+  --panel-bg: rgba(10, 24, 44, 0.92);
+  --panel-border: rgba(78, 140, 255, 0.22);
+  --panel-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  --text-primary: #e8f1ff;
+  --text-secondary: #9cb3d9;
+  --text-muted: #6f86ab;
+  --brand-primary: #2b7cff;
+  --brand-secondary: #36b7ff;
+  --success-color: #23c16b;
+  --warning-color: #ffb020;
+  --danger-color: #ff5d6c;
+  --layout-bg: #081423;
+  --menu-bg: #081423;
+  --menu-hover-bg: rgba(43, 124, 255, 0.14);
+  --topbar-bg: rgba(8, 20, 35, 0.88);
+
+  /* 表格与分页器深色主题变量：
+     这些变量用于统一告警页、封禁页及后续所有表格型页面的暗色表现。 */
+  --table-row-bg: rgba(9, 21, 38, 0.76);
+  --table-row-stripe-bg: rgba(12, 27, 48, 0.9);
+  --table-row-hover-bg: rgba(30, 73, 139, 0.34);
+  --table-row-current-bg: rgba(43, 124, 255, 0.24);
+  --table-header-bg: rgba(20, 40, 70, 0.72);
+  --table-border-color: rgba(84, 129, 194, 0.14);
+  --table-empty-bg: rgba(9, 21, 38, 0.72);
+  --pagination-item-bg: rgba(8, 20, 35, 0.94);
+  --pagination-item-hover-bg: rgba(22, 51, 95, 0.96);
+  --pagination-item-active-bg: linear-gradient(135deg, rgba(43, 124, 255, 0.92), rgba(54, 183, 255, 0.88));
+  --dropdown-bg: rgba(8, 20, 35, 0.98);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(43, 124, 255, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(54, 183, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, #06101c 0%, #07111f 42%, #050b15 100%);
+  color: var(--text-primary);
+  font-family:
+    "Segoe UI",
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-page {
+  min-height: 100vh;
+}
+
+.security-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.page-subtitle {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-dot--success {
+  background: var(--success-color);
+}
+
+.status-dot--warning {
+  background: var(--warning-color);
+}
+
+.status-dot--danger {
+  background: var(--danger-color);
+}
+
+/* 统一覆盖 Element Plus 的部分浅色默认样式，使其更贴合深蓝安全平台风格。 */
+.el-card {
+  --el-card-bg-color: transparent;
+  --el-card-border-color: transparent;
+  color: var(--text-primary);
+}
+
+/* 表单组件暗色化：
+   统一输入框、下拉框和文本域背景，避免与深色布局割裂。 */
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  background: rgba(11, 25, 44, 0.88) !important;
+  box-shadow: 0 0 0 1px rgba(79, 131, 214, 0.16) inset !important;
+  color: var(--text-primary) !important;
+}
+
+.el-input__inner,
+.el-textarea__inner,
+.el-select__placeholder {
+  color: var(--text-primary) !important;
+}
+
+.el-form-item__label {
+  color: #b7cae8 !important;
+}
+
+/* 表格深色主题修复：
+   重点处理普通行、斑马纹、悬停、高亮行以及边框线。
+   之所以需要显式覆盖，是因为 Element Plus 的 striped / hover 默认颜色偏浅，
+   在暗色背景下会形成白条或浅灰条。 */
+.el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: var(--table-row-bg);
+  --el-table-header-bg-color: var(--table-header-bg);
+  --el-table-border-color: var(--table-border-color);
+  --el-table-row-hover-bg-color: var(--table-row-hover-bg);
+  --el-table-current-row-bg-color: var(--table-row-current-bg);
+  --el-table-text-color: var(--text-primary);
+  --el-table-header-text-color: #b7cae8;
+  --el-bg-color: var(--table-row-bg);
+  --el-fill-color-light: var(--table-row-stripe-bg);
+  --el-fill-color-lighter: var(--table-row-stripe-bg);
+  --el-mask-color: rgba(6, 16, 28, 0.56);
+  background: transparent !important;
+  color: var(--text-primary);
+}
+
+.el-table::before,
+.el-table__inner-wrapper::before,
+.el-table--border::after,
+.el-table--group::after {
+  background-color: var(--table-border-color) !important;
+}
+
+.el-table th.el-table__cell {
+  background: var(--table-header-bg) !important;
+  color: #b7cae8 !important;
+  border-bottom-color: var(--table-border-color) !important;
+}
+
+.el-table tr {
+  background: transparent !important;
+}
+
+.el-table td.el-table__cell,
+.el-table th.el-table__cell.is-leaf {
+  border-bottom-color: var(--table-border-color) !important;
+}
+
+.el-table .el-table__body td.el-table__cell {
+  background: var(--table-row-bg) !important;
+  color: var(--text-primary);
+  transition: background-color 0.2s ease;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--table-row-stripe-bg) !important;
+}
+
+.el-table__body tr.hover-row > td.el-table__cell,
+.el-table__body tr:hover > td.el-table__cell,
+.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
+  background: var(--table-row-hover-bg) !important;
+}
+
+.el-table__body tr.current-row > td.el-table__cell {
+  background: var(--table-row-current-bg) !important;
+}
+
+.el-table__empty-block,
+.el-table__expanded-cell {
+  background: var(--table-empty-bg) !important;
+}
+
+.el-table__empty-text {
+  color: var(--text-secondary) !important;
+}
+
+.el-loading-mask {
+  background-color: rgba(6, 16, 28, 0.52) !important;
+}
+
+/* 分页器暗色适配：
+   包括分页按钮、激活态、禁用态与页大小选择器。 */
+.el-pagination {
+  color: var(--text-secondary);
+}
+
+.el-pagination .el-pagination__total,
+.el-pagination .el-pagination__jump {
+  color: var(--text-secondary);
+}
+
+.el-pagination.is-background .btn-next,
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .el-pager li,
+.el-pagination .btn-next,
+.el-pagination .btn-prev,
+.el-pagination .el-pager li {
+  background: var(--pagination-item-bg) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid rgba(84, 129, 194, 0.14);
+}
+
+.el-pagination.is-background .el-pager li:hover,
+.el-pagination .btn-next:hover,
+.el-pagination .btn-prev:hover {
+  background: var(--pagination-item-hover-bg) !important;
+  color: #eef5ff !important;
+}
+
+.el-pagination.is-background .el-pager li.is-active,
+.el-pagination .el-pager li.is-active {
+  background: var(--pagination-item-active-bg) !important;
+  color: #ffffff !important;
+  border-color: rgba(54, 183, 255, 0.28);
+}
+
+.el-pagination button:disabled,
+.el-pagination .btn-prev:disabled,
+.el-pagination .btn-next:disabled {
+  background: rgba(8, 20, 35, 0.58) !important;
+  color: rgba(159, 180, 213, 0.48) !important;
+  border-color: rgba(84, 129, 194, 0.08) !important;
+}
+
+.el-pagination .el-select .el-select__wrapper,
+.el-pagination .el-input__wrapper {
+  background: rgba(11, 25, 44, 0.9) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 分页器页大小下拉框暗色适配：
+   该下拉框会被 Teleport 到 body，因此必须在全局样式中统一覆盖。 */
+.el-select-dropdown,
+.el-popper.is-light {
+  background: var(--dropdown-bg) !important;
+  border-color: rgba(84, 129, 194, 0.16) !important;
+  color: var(--text-primary) !important;
+}
+
+.el-popper.is-light .el-popper__arrow::before {
+  background: var(--dropdown-bg) !important;
+  border-color: rgba(84, 129, 194, 0.16) !important;
+}
+
+.el-select-dropdown__item {
+  color: var(--text-secondary) !important;
+}
+
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover,
+.el-select-dropdown__item.is-hovering {
+  background: rgba(30, 73, 139, 0.3) !important;
+  color: #eef5ff !important;
+}
+
+.el-select-dropdown__item.selected {
+  color: #67a8ff !important;
+  font-weight: 700;
+}
+
+.el-tag {
+  border-radius: 999px;
+}
