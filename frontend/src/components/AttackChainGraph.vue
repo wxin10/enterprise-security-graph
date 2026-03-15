@@ -7,22 +7,33 @@
     3. 在图谱下方展示当前选中节点的详情卡片，方便答辩时解释攻击链语义。
   -->
   <div class="attack-chain-graph">
-    <div class="attack-chain-graph__legend">
-      <span class="legend-item">
-        <i class="legend-dot legend-dot--source"></i>
-        攻击源
-      </span>
-      <span class="legend-item">
-        <i class="legend-dot legend-dot--event"></i>
-        安全事件
-      </span>
-      <span class="legend-item">
-        <i class="legend-dot legend-dot--alert"></i>
-        告警 / 封禁重点高亮
-      </span>
-      <span class="legend-item legend-item--tip">
-        提示：可拖拽节点、滚轮缩放、点击节点查看相邻关系
-      </span>
+    <div class="attack-chain-graph__header">
+      <div class="attack-chain-graph__legend">
+        <span class="legend-item">
+          <i class="legend-dot legend-dot--source"></i>
+          攻击源
+        </span>
+        <span class="legend-item">
+          <i class="legend-dot legend-dot--event"></i>
+          安全事件
+        </span>
+        <span class="legend-item">
+          <i class="legend-dot legend-dot--alert"></i>
+          告警 / 封禁重点高亮
+        </span>
+        <span class="legend-item legend-item--tip">
+          提示：可拖拽节点、滚轮缩放、点击节点查看相邻关系
+        </span>
+      </div>
+
+      <div class="attack-chain-graph__toolbar">
+        <el-tag size="small" effect="dark" :type="layoutMode === 'force' ? 'warning' : 'success'">
+          {{ layoutMode === "force" ? "自动排布中" : "自由拖动模式" }}
+        </el-tag>
+        <el-button type="primary" plain size="small" @click="handleRelayout">
+          重新布局
+        </el-button>
+      </div>
     </div>
 
     <div class="attack-chain-graph__chart-shell" v-loading="loading">
@@ -109,10 +120,12 @@ const props = defineProps({
 
 const chartRef = ref(null);
 const selectedNode = ref(null);
+const layoutMode = ref("force");
 
 let chartInstance = null;
 let resizeHandler = null;
 let zrClickHandler = null;
+let freezeAfterNextFinished = true;
 
 // 用于保存节点最近一次布局或拖拽后的坐标。
 // 这样在抽屉再次刷新或同一条告警重新渲染时，节点不会突然回到初始位置。
@@ -332,6 +345,44 @@ function cleanupNodePositionState() {
   });
 }
 
+function clearNodePositionState() {
+  Object.keys(nodePositionState).forEach((nodeId) => {
+    delete nodePositionState[nodeId];
+  });
+}
+
+function hasStablePositions(nodes) {
+  if (!nodes.length) {
+    return false;
+  }
+
+  return nodes.every((item) => {
+    const position = nodePositionState[item.id];
+    return position && Number.isFinite(position.x) && Number.isFinite(position.y);
+  });
+}
+
+function prepareLayoutMode(forceRelayout = false) {
+  cleanupNodePositionState();
+
+  const nodes = props.graphData?.nodes || [];
+  if (!nodes.length) {
+    layoutMode.value = "none";
+    freezeAfterNextFinished = false;
+    return;
+  }
+
+  if (forceRelayout) {
+    layoutMode.value = "force";
+    freezeAfterNextFinished = true;
+    return;
+  }
+
+  const canUseFrozenLayout = hasStablePositions(nodes);
+  layoutMode.value = canUseFrozenLayout ? "none" : "force";
+  freezeAfterNextFinished = !canUseFrozenLayout;
+}
+
 function captureNodePositions() {
   if (!chartInstance) {
     return;
@@ -346,6 +397,12 @@ function captureNodePositions() {
       };
     }
   });
+}
+
+function handleRelayout() {
+  clearNodePositionState();
+  prepareLayoutMode(true);
+  renderChart({ forceRelayout: true });
 }
 
 function buildChartOption() {
@@ -432,7 +489,7 @@ function buildChartOption() {
     series: [
       {
         type: "graph",
-        layout: "force",
+        layout: layoutMode.value,
         roam: true,
         draggable: true,
         focusNodeAdjacency: true,
@@ -441,13 +498,18 @@ function buildChartOption() {
         labelLayout: {
           hideOverlap: true
         },
-        force: {
-          repulsion: 360,
-          gravity: 0.07,
-          edgeLength: [100, 180],
-          friction: 0.08,
-          layoutAnimation: true
-        },
+        ...(layoutMode.value === "force"
+          ? {
+              force: {
+                repulsion: 760,
+                gravity: 0.02,
+                edgeLength: [150, 280],
+                friction: 0.12,
+                layoutAnimation: true,
+                preventOverlap: true
+              }
+            }
+          : {}),
         scaleLimit: {
           min: 0.45,
           max: 2.2
@@ -498,6 +560,12 @@ function bindChartEvents() {
 
   chartInstance.on("finished", () => {
     captureNodePositions();
+
+    if (layoutMode.value === "force" && freezeAfterNextFinished) {
+      freezeAfterNextFinished = false;
+      layoutMode.value = "none";
+      renderChart();
+    }
   });
 
   chartInstance.on("mouseup", () => {
@@ -528,9 +596,9 @@ function ensureChart() {
   }
 }
 
-function renderChart() {
+function renderChart(options = {}) {
   const nodes = props.graphData?.nodes || [];
-  cleanupNodePositionState();
+  prepareLayoutMode(options.forceRelayout === true);
   syncSelectedNode();
 
   if (!chartRef.value || nodes.length === 0) {
@@ -600,12 +668,27 @@ onBeforeUnmount(() => {
   gap: 14px;
 }
 
+.attack-chain-graph__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .attack-chain-graph__legend {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
   color: #a6badb;
   font-size: 13px;
+}
+
+.attack-chain-graph__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .legend-item {
@@ -733,6 +816,7 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 992px) {
+  .attack-chain-graph__header,
   .attack-chain-graph__legend {
     flex-direction: column;
     align-items: flex-start;
