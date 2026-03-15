@@ -4,14 +4,14 @@
 文件路径：backend/app/services/ban_service.py
 
 文件作用：
-1. 将封禁管理从“单次动作展示”升级为“当前状态管理 + 历史动作审计”模式。
-2. 统一处理封禁记录查询、人工放行、人工重新封禁以及 Neo4j 状态同步。
-3. 兼容旧数据缺少 release/history 字段的情况，避免历史样例因为字段缺失而报错。
+1. 统一封装封禁目标的当前状态管理、历史动作审计、真实执行与规则校验逻辑。
+2. 在不重构现有图模型的前提下，为 BlockAction / IP / Alert 同步写入最新封禁状态与执行状态。
+3. 对旧数据做兼容处理，保证缺少 history / release / enforcement 字段的样例记录也能稳定展示。
 
-设计说明：
-1. 当前最小可运行版本仍然复用既有 BlockAction 节点，不额外引入新的复杂审计子图。
-2. “当前状态”通过 current_ban_status / current_block_status 表达，“历史动作”通过 history_actions_json 记录。
-3. 每次状态切换都会追加一条历史动作，并同步更新 IP、Alert 的当前状态与最近操作字段。
+设计原则：
+1. “当前状态”和“动作历史”严格分离：current_ban_status 表示当前状态，history_actions_json 表示审计历史。
+2. “业务状态”和“执行状态”严格分离：即使业务状态已切到 BLOCKED，真实规则也可能下发失败，此时由 enforcement_status 表达。
+3. 所有真实执行细节都下沉到 firewall_service，ban_service 只负责编排业务流程与图数据库同步。
 """
 
 from __future__ import annotations
@@ -22,16 +22,19 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from app.core.errors import NotFoundError, ValidationError
 from app.db import neo4j_client
+from app.services.firewall_service import firewall_service
 
 
 class BanService:
     """
     封禁与放行服务。
 
-    当前支持的状态切换：
-    1. BLOCKED -> RELEASED：人工放行 / 解封。
-    2. RELEASED -> BLOCKED：人工重新封禁。
-    3. 相同状态重复操作采用幂等处理，返回友好提示而不是 500。
+    当前支持的核心能力：
+    1. 获取封禁列表与详情。
+    2. 已封禁 -> 放行。
+    3. 已放行 -> 重新封禁。
+    4. 对当前规则执行状态做真实校验。
+    5. 把“当前状态 + 最近动作 + 历史动作 + 真实执行结果”统一返回给前端。
     """
 
     BLOCKED_STATUS = "BLOCKED"
@@ -53,11 +56,9 @@ class BanService:
         target_ip: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        获取封禁记录列表。
+        获取封禁列表。
 
-        兼容性说明：
-        1. 旧数据没有 current_ban_status/history_actions_json 时，会在服务层自动推断并补齐展示字段。
-        2. status 查询既兼容旧字段 status，也兼容 current_ban_status/current_block_status。
+        返回结构中额外补充 enforcement_profile，供前端页面展示当前是模拟执行模式还是真实执行模式。
         """
         normalized_status = self._normalize_text(status).upper() or None
         normalized_target_ip = self._normalize_text(target_ip) or None
@@ -134,6 +135,7 @@ LIMIT $limit
                 "status": normalized_status,
                 "target_ip": normalized_target_ip,
             },
+            "enforcement_profile": firewall_service.get_enforcement_profile(),
         }
 
     def get_ban_detail(self, ban_id: str) -> Dict[str, Any]:
@@ -148,7 +150,7 @@ LIMIT $limit
 
     def unban(self, ban_id: str, release_reason: str, released_by: str) -> Dict[str, Any]:
         """
-        从 BLOCKED 切换到 RELEASED。
+        从 BLOCKED 切换为 RELEASED。
         """
         return self._switch_ban_status(
             ban_id=ban_id,
@@ -161,7 +163,7 @@ LIMIT $limit
 
     def reblock(self, ban_id: str, block_reason: str, blocked_by: str) -> Dict[str, Any]:
         """
-        从 RELEASED 切换回 BLOCKED。
+        从 RELEASED 切回 BLOCKED。
         """
         return self._switch_ban_status(
             ban_id=ban_id,
@@ -171,6 +173,27 @@ LIMIT $limit
             action_operator=blocked_by,
             default_reason="人工复核后重新封禁",
         )
+
+    def verify(self, ban_id: str) -> Dict[str, Any]:
+        """
+        校验当前封禁记录的真实执行状态。
+        """
+        current_item = self.get_ban_detail(ban_id)
+        self._ensure_supported_ip_target(current_item)
+
+        enforcement_result = self._verify_current_state(current_item)
+        self._persist_enforcement_state(
+            ban_id=ban_id,
+            current_status=current_item["current_ban_status"],
+            enforcement_result=enforcement_result,
+        )
+
+        latest_item = self.get_ban_detail(ban_id)
+        return {
+            "item": latest_item,
+            "enforcement": enforcement_result,
+            "message": enforcement_result.get("message") or "规则校验完成",
+        }
 
     def _switch_ban_status(
         self,
@@ -184,17 +207,14 @@ LIMIT $limit
         """
         执行统一的状态切换逻辑。
 
-        说明：
-        1. 当前状态与最近动作分离，当前状态写 current_ban_status，最近动作写 latest_action_*。
-        2. 每次切换都会向 history_actions_json 追加一条审计记录。
+        先更新业务状态，再执行宿主机规则下发或移除，最后把执行结果同步写回图数据库。
         """
         record = self._fetch_ban_context(ban_id)
         if not record:
             raise NotFoundError(f"未找到封禁记录 {ban_id}")
 
         current_item = self._build_ban_item(record)
-        if self._normalize_text(current_item.get("target_type")).upper() != "IP":
-            raise ValidationError("当前最小可运行版本仅支持 IP 类型封禁记录的状态切换")
+        self._ensure_supported_ip_target(current_item)
 
         current_status = self._normalize_text(current_item.get("current_ban_status")).upper()
         if current_status not in {self.BLOCKED_STATUS, self.RELEASED_STATUS}:
@@ -249,11 +269,90 @@ LIMIT $limit
         )
 
         latest_item = self.get_ban_detail(ban_id)
+        enforcement_result = self._enforce_current_state(latest_item)
+        self._persist_enforcement_state(
+            ban_id=ban_id,
+            current_status=target_status,
+            enforcement_result=enforcement_result,
+        )
+
+        latest_item = self.get_ban_detail(ban_id)
         return {
             "already_in_target_status": False,
             "item": latest_item,
-            "message": self._build_success_message(target_status),
+            "enforcement": enforcement_result,
+            "message": self._build_success_message(target_status, enforcement_result),
         }
+
+    def _ensure_supported_ip_target(self, current_item: Dict[str, Any]) -> None:
+        """
+        当前最小可运行版本仅对 IP 目标做真实执行。
+        """
+        if self._normalize_text(current_item.get("target_type")).upper() != "IP":
+            raise ValidationError("当前最小可运行版本仅支持 IP 类型封禁记录的状态切换与真实执行")
+
+        if not self._normalize_text(current_item.get("ip_address")):
+            raise ValidationError("当前封禁记录缺少目标 IP，无法执行真实封禁或校验")
+
+    def _enforce_current_state(self, current_item: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        按当前业务状态触发真实执行。
+        """
+        current_status = self._normalize_text(current_item.get("current_ban_status")).upper()
+        action_id = self._normalize_text(current_item.get("action_id"))
+        target_ip = self._normalize_text(current_item.get("ip_address"))
+
+        if current_status == self.BLOCKED_STATUS:
+            return firewall_service.apply_block(action_id, target_ip)
+        if current_status == self.RELEASED_STATUS:
+            return firewall_service.remove_block(action_id, target_ip)
+
+        raise ValidationError(f"当前状态 {current_status or 'UNKNOWN'} 暂不支持执行宿主机规则")
+
+    def _verify_current_state(self, current_item: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        根据当前状态执行规则校验。
+        """
+        current_status = self._normalize_text(current_item.get("current_ban_status")).upper()
+        action_id = self._normalize_text(current_item.get("action_id"))
+        target_ip = self._normalize_text(current_item.get("ip_address"))
+        return firewall_service.verify_rule(action_id, target_ip, current_status)
+
+    def _persist_enforcement_state(
+        self,
+        ban_id: str,
+        current_status: str,
+        enforcement_result: Dict[str, Any],
+    ) -> None:
+        """
+        把真实执行结果与校验结果写回 Neo4j。
+
+        同步范围：
+        1. BlockAction：作为主要审计对象。
+        2. IP：作为当前处置目标状态展示对象。
+        3. Alert：作为前端攻击链摘要的联动字段。
+        """
+        profile = firewall_service.get_enforcement_profile()
+        local_ports = ",".join(profile.get("local_ports", []))
+        verified_at = self._normalize_text(enforcement_result.get("verified_at")) or self._build_local_timestamp()
+
+        self.client.execute_write(
+            self._build_enforcement_query(),
+            {
+                "action_id": ban_id,
+                "current_status": current_status,
+                "enforcement_mode": self._normalize_text(enforcement_result.get("mode")) or profile["mode"],
+                "enforcement_backend": self._normalize_text(enforcement_result.get("backend")) or profile["backend"],
+                "enforcement_status": self._normalize_text(enforcement_result.get("enforcement_status")) or "PENDING",
+                "enforcement_rule_name": self._normalize_text(enforcement_result.get("enforcement_rule_name")),
+                "enforcement_message": self._normalize_text(enforcement_result.get("message")),
+                "verification_status": self._normalize_text(enforcement_result.get("verification_status")) or "NOT_VERIFIED",
+                "verified_at": verified_at,
+                "verification_message": self._normalize_text(enforcement_result.get("verification_message")),
+                "enforcement_scope_ports": local_ports,
+                "updated_at": self._build_local_timestamp(),
+            },
+        )
 
     def _fetch_ban_context(self, ban_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -285,316 +384,353 @@ SET b.current_ban_status = $target_status,
     b.latest_action_at = $action_at,
     b.latest_action_by = $action_by,
     b.latest_action_reason = $action_reason,
+    b.latest_operator = $action_by,
+    b.latest_reason = $action_reason,
+    b.updated_at = $action_at,
     b.history_actions_json = $history_actions_json,
     b.history_summary = $history_summary,
     b.history_action_count = $history_action_count,
     b.block_count = $block_count,
     b.release_count = $release_count,
-    b.updated_at = $action_at,
-    b.is_released = CASE WHEN $target_status = 'RELEASED' THEN true ELSE false END,
-    b.first_blocked_at = coalesce(b.first_blocked_at, b.executed_at, b.blocked_at, $action_at),
-    b.blocked_at = CASE WHEN $target_status = 'BLOCKED' THEN $action_at ELSE coalesce(b.blocked_at, b.executed_at) END,
-    b.blocked_by = CASE WHEN $target_status = 'BLOCKED' THEN $action_by ELSE b.blocked_by END,
-    b.block_reason = CASE WHEN $target_status = 'BLOCKED' THEN $action_reason ELSE b.block_reason END,
-    b.released_at = CASE WHEN $target_status = 'RELEASED' THEN $action_at ELSE b.released_at END,
-    b.released_by = CASE WHEN $target_status = 'RELEASED' THEN $action_by ELSE b.released_by END,
-    b.release_reason = CASE WHEN $target_status = 'RELEASED' THEN $action_reason ELSE b.release_reason END
-FOREACH (_ IN CASE WHEN ip IS NULL THEN [] ELSE [1] END |
-    SET ip.is_blocked = CASE WHEN $target_status = 'BLOCKED' THEN true ELSE false END,
-        ip.ip_block_status = $target_status,
-        ip.current_block_status = $target_status,
-        ip.latest_action_type = $latest_action_type,
-        ip.latest_action_at = $action_at,
-        ip.latest_action_by = $action_by,
-        ip.latest_action_reason = $action_reason,
-        ip.last_status_change_at = $action_at,
-        ip.last_blocked_at = CASE WHEN $target_status = 'BLOCKED' THEN $action_at ELSE ip.last_blocked_at END,
-        ip.last_released_at = CASE WHEN $target_status = 'RELEASED' THEN $action_at ELSE ip.last_released_at END,
-        ip.blocked_at = CASE WHEN $target_status = 'BLOCKED' THEN $action_at ELSE coalesce(ip.blocked_at, b.executed_at) END,
-        ip.blocked_by = CASE WHEN $target_status = 'BLOCKED' THEN $action_by ELSE ip.blocked_by END,
-        ip.block_reason = CASE WHEN $target_status = 'BLOCKED' THEN $action_reason ELSE ip.block_reason END,
-        ip.released_at = CASE WHEN $target_status = 'RELEASED' THEN $action_at ELSE ip.released_at END,
-        ip.released_by = CASE WHEN $target_status = 'RELEASED' THEN $action_by ELSE ip.released_by END,
-        ip.release_reason = CASE WHEN $target_status = 'RELEASED' THEN $action_reason ELSE ip.release_reason END
-)
-FOREACH (_ IN CASE WHEN a IS NULL THEN [] ELSE [1] END |
-    SET a.disposition_status = $target_status,
-        a.latest_action_type = $latest_action_type,
-        a.latest_action_at = $action_at,
-        a.latest_action_by = $action_by,
-        a.latest_action_reason = $action_reason,
-        a.block_count = $block_count,
-        a.release_count = $release_count
-)
+    b.blocked_at = CASE WHEN $target_status = 'BLOCKED' THEN $action_at ELSE coalesce(b.blocked_at, b.executed_at, '') END,
+    b.blocked_by = CASE WHEN $target_status = 'BLOCKED' THEN $action_by ELSE coalesce(b.blocked_by, b.executor, '') END,
+    b.block_reason = CASE WHEN $target_status = 'BLOCKED' THEN $action_reason ELSE coalesce(b.block_reason, '') END,
+    b.released_at = CASE WHEN $target_status = 'RELEASED' THEN $action_at ELSE coalesce(b.released_at, '') END,
+    b.released_by = CASE WHEN $target_status = 'RELEASED' THEN $action_by ELSE coalesce(b.released_by, '') END,
+    b.release_reason = CASE WHEN $target_status = 'RELEASED' THEN $action_reason ELSE coalesce(b.release_reason, '') END
+SET ip.is_blocked = CASE WHEN $target_status = 'BLOCKED' THEN true ELSE false END,
+    ip.ip_block_status = $target_status,
+    ip.current_block_status = $target_status,
+    ip.latest_action_type = $latest_action_type,
+    ip.latest_action_at = $action_at,
+    ip.latest_action_by = $action_by,
+    ip.latest_action_reason = $action_reason,
+    ip.blocked_at = CASE WHEN $target_status = 'BLOCKED' THEN $action_at ELSE coalesce(ip.blocked_at, b.executed_at, '') END,
+    ip.released_at = CASE WHEN $target_status = 'RELEASED' THEN $action_at ELSE coalesce(ip.released_at, '') END
+SET a.disposition_status = $target_status,
+    a.latest_action_type = $latest_action_type,
+    a.latest_action_at = $action_at,
+    a.latest_action_by = $action_by,
+    a.latest_action_reason = $action_reason
+RETURN b.action_id AS action_id
+"""
+
+    def _build_enforcement_query(self) -> str:
+        """
+        构造执行结果与校验结果回写 Cypher。
+        """
+        return """
+MATCH (b:BlockAction {action_id: $action_id})
+OPTIONAL MATCH (b)-[:TARGETS_IP]->(ip:IP)
+OPTIONAL MATCH (b)-[:DISPOSES]->(a:Alert)
+SET b.enforcement_mode = $enforcement_mode,
+    b.enforcement_backend = $enforcement_backend,
+    b.enforcement_status = $enforcement_status,
+    b.enforcement_rule_name = $enforcement_rule_name,
+    b.enforcement_message = $enforcement_message,
+    b.verification_status = $verification_status,
+    b.verified_at = $verified_at,
+    b.verification_message = $verification_message,
+    b.enforcement_scope_ports = $enforcement_scope_ports,
+    b.updated_at = $updated_at
+SET ip.enforcement_mode = $enforcement_mode,
+    ip.enforcement_backend = $enforcement_backend,
+    ip.enforcement_status = $enforcement_status,
+    ip.enforcement_rule_name = $enforcement_rule_name,
+    ip.enforcement_message = $enforcement_message,
+    ip.verification_status = $verification_status,
+    ip.verified_at = $verified_at,
+    ip.verification_message = $verification_message,
+    ip.current_block_status = $current_status,
+    ip.ip_block_status = $current_status
+SET a.enforcement_mode = $enforcement_mode,
+    a.enforcement_backend = $enforcement_backend,
+    a.enforcement_status = $enforcement_status,
+    a.enforcement_rule_name = $enforcement_rule_name,
+    a.verification_status = $verification_status,
+    a.verified_at = $verified_at,
+    a.verification_message = $verification_message
 RETURN b.action_id AS action_id
 """
 
     def _build_ban_item(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """
-        将 Neo4j 查询结果标准化为前端可直接消费的封禁记录。
+        将 Neo4j 查询结果转换为前端可直接消费的封禁记录对象。
         """
         ban = record.get("ban") or {}
         alert = record.get("alert") or {}
         ip = record.get("ip") or {}
 
-        action_type = self._normalize_text(ban.get("action_type")).upper() or "BLOCK_IP"
-        status = self._normalize_text(ban.get("status")).upper() or "UNKNOWN"
-        ip_is_blocked = bool(ip.get("is_blocked")) if ip else False
+        profile = firewall_service.get_enforcement_profile()
+        action_id = self._normalize_text(ban.get("action_id"))
+        ip_address = self._normalize_text(ip.get("ip_address"))
+        current_status = self._resolve_current_status(ban=ban, ip=ip)
+        history_actions = self._normalize_history_actions(self._build_history_actions(ban=ban))
 
-        current_ban_status = self._resolve_current_status(ban, ip_is_blocked)
-        history_actions = self._build_history_actions(record, current_ban_status, action_type)
-        history_action_count = len(history_actions)
-
-        latest_action_type = self._normalize_text(ban.get("latest_action_type")).upper()
-        if not latest_action_type and history_actions:
-            latest_action_type = self._normalize_text(history_actions[-1].get("action_type")).upper()
-        if not latest_action_type:
-            latest_action_type = "MANUAL_UNBLOCK_IP" if current_ban_status == self.RELEASED_STATUS else action_type
-
-        latest_history_action = history_actions[-1] if history_actions else {}
-        latest_action_at = self._normalize_text(ban.get("latest_action_at")) or self._normalize_text(
-            latest_history_action.get("operated_at")
+        stored_mode = self._normalize_text(ban.get("enforcement_mode")).upper()
+        enforcement_mode = stored_mode if stored_mode in {"REAL", "MOCK"} else profile["mode"]
+        enforcement_backend = self._normalize_text(ban.get("enforcement_backend")).upper() or profile["backend"]
+        enforcement_rule_name = (
+            self._normalize_text(ban.get("enforcement_rule_name"))
+            or (firewall_service.build_rule_name(action_id, ip_address) if action_id and ip_address else "")
         )
-        latest_action_by = self._normalize_text(ban.get("latest_action_by")) or self._normalize_text(
-            latest_history_action.get("operated_by")
-        )
-        latest_action_reason = self._normalize_text(ban.get("latest_action_reason")) or self._normalize_text(
-            latest_history_action.get("reason")
-        )
+        enforcement_status = self._normalize_text(ban.get("enforcement_status")).upper()
+        verification_status = self._normalize_text(ban.get("verification_status")).upper()
 
-        blocked_at = self._normalize_text(ban.get("blocked_at")) or self._normalize_text(ban.get("executed_at"))
-        blocked_by = self._normalize_text(ban.get("blocked_by")) or self._normalize_text(ban.get("executor"))
-        block_reason = self._normalize_text(ban.get("block_reason")) or self._normalize_text(ban.get("remark"))
-        released_at = self._normalize_text(ban.get("released_at"))
-        released_by = self._normalize_text(ban.get("released_by"))
-        release_reason = self._normalize_text(ban.get("release_reason"))
+        if not enforcement_status:
+            if enforcement_mode == "MOCK":
+                enforcement_status = "SIMULATED" if current_status == self.BLOCKED_STATUS else "REMOVED"
+            else:
+                enforcement_status = "PENDING"
 
-        block_count = self._safe_int(ban.get("block_count")) or self._count_status_transitions(history_actions, self.BLOCKED_STATUS)
-        release_count = self._safe_int(ban.get("release_count")) or self._count_status_transitions(history_actions, self.RELEASED_STATUS)
+        if not verification_status:
+            verification_status = "NOT_VERIFIED"
 
-        can_unban = bool(ban.get("rollback_supported")) and current_ban_status == self.BLOCKED_STATUS
-        can_reblock = current_ban_status == self.RELEASED_STATUS
+        verification_message = self._normalize_text(ban.get("verification_message"))
+        if not verification_message:
+            if enforcement_mode == "MOCK":
+                verification_message = "当前为模拟执行模式，未真正校验宿主机规则"
+            else:
+                verification_message = "尚未执行规则校验"
 
-        return {
-            "action_id": self._normalize_text(ban.get("action_id")) or "-",
-            "action_type": action_type,
-            "latest_action_type": latest_action_type,
-            "target_type": self._normalize_text(ban.get("target_type")).upper() or "IP",
-            "status": status,
-            "current_ban_status": current_ban_status,
-            "current_block_status": current_ban_status,
-            "executed_at": self._normalize_text(ban.get("executed_at")) or "-",
-            "executor": self._normalize_text(ban.get("executor")) or "-",
-            "ticket_no": self._normalize_text(ban.get("ticket_no")) or "-",
-            "rollback_supported": bool(ban.get("rollback_supported")),
-            "remark": self._normalize_text(ban.get("remark")) or "-",
-            "alert_id": self._normalize_text(alert.get("alert_id")) or "-",
-            "alert_name": self._normalize_text(alert.get("alert_name")) or "-",
-            "severity": self._normalize_text(alert.get("severity")) or "-",
-            "ip_id": self._normalize_text(ip.get("ip_id")) or "-",
-            "ip_address": self._normalize_text(ip.get("ip_address")) or "-",
-            "ip_block_status": self._normalize_text(ip.get("ip_block_status")).upper() or current_ban_status,
-            "is_blocked": bool(ip.get("is_blocked")) if ip else current_ban_status == self.BLOCKED_STATUS,
-            "blocked_at": blocked_at or "-",
-            "blocked_by": blocked_by or "-",
-            "block_reason": block_reason or "-",
-            "released_at": released_at or "-",
-            "released_by": released_by or "-",
-            "release_reason": release_reason or "-",
-            "latest_action_at": latest_action_at or blocked_at or released_at or "-",
-            "latest_action_by": latest_action_by or blocked_by or released_by or "-",
-            "latest_action_reason": latest_action_reason or block_reason or release_reason or "-",
-            "latest_operator": latest_action_by or blocked_by or released_by or "-",
-            "latest_reason": latest_action_reason or block_reason or release_reason or "-",
-            "history_action_count": history_action_count,
+        history_summary = self._build_history_summary(history_actions)
+        block_count = self._safe_int(ban.get("block_count"))
+        release_count = self._safe_int(ban.get("release_count"))
+        if block_count == 0:
+            block_count = self._count_status_transitions(history_actions, self.BLOCKED_STATUS)
+        if release_count == 0:
+            release_count = self._count_status_transitions(history_actions, self.RELEASED_STATUS)
+
+        item = {
+            "action_id": action_id,
+            "action_type": self._normalize_text(ban.get("action_type")) or "BLOCK_IP",
+            "latest_action_type": self._normalize_text(ban.get("latest_action_type")) or self._normalize_text(ban.get("action_type")) or "BLOCK_IP",
+            "target_type": self._normalize_text(ban.get("target_type")) or "IP",
+            "status": self._normalize_text(ban.get("status")),
+            "current_ban_status": current_status,
+            "current_block_status": current_status,
+            "executed_at": self._normalize_text(ban.get("executed_at")),
+            "executor": self._normalize_text(ban.get("executor")),
+            "ticket_no": self._normalize_text(ban.get("ticket_no")),
+            "rollback_supported": bool(ban.get("rollback_supported", False)),
+            "remark": self._normalize_text(ban.get("remark")),
+            "alert_id": self._normalize_text(alert.get("alert_id")),
+            "alert_name": self._normalize_text(alert.get("alert_name")),
+            "severity": self._normalize_text(alert.get("severity")),
+            "ip_id": self._normalize_text(ip.get("ip_id")),
+            "ip_address": ip_address,
+            "ip_block_status": self._normalize_text(ip.get("ip_block_status")) or current_status,
+            "is_blocked": bool(ip.get("is_blocked", current_status == self.BLOCKED_STATUS)),
+            "blocked_at": self._normalize_text(ban.get("blocked_at")) or self._normalize_text(ban.get("executed_at")),
+            "blocked_by": self._normalize_text(ban.get("blocked_by")) or self._normalize_text(ban.get("executor")),
+            "block_reason": self._normalize_text(ban.get("block_reason")) or self._normalize_text(ban.get("remark")),
+            "released_at": self._normalize_text(ban.get("released_at")),
+            "released_by": self._normalize_text(ban.get("released_by")),
+            "release_reason": self._normalize_text(ban.get("release_reason")),
+            "latest_action_at": self._normalize_text(ban.get("latest_action_at")) or self._normalize_text(ban.get("executed_at")),
+            "latest_action_by": self._normalize_text(ban.get("latest_action_by")) or self._normalize_text(ban.get("executor")),
+            "latest_action_reason": self._normalize_text(ban.get("latest_action_reason")) or self._normalize_text(ban.get("remark")),
+            "latest_operator": self._normalize_text(ban.get("latest_operator")) or self._normalize_text(ban.get("latest_action_by")) or self._normalize_text(ban.get("executor")),
+            "latest_reason": self._normalize_text(ban.get("latest_reason")) or self._normalize_text(ban.get("latest_action_reason")) or self._normalize_text(ban.get("remark")),
+            "history_action_count": len(history_actions),
             "history_actions": history_actions,
-            "history_actions_brief": list(reversed(history_actions[-3:])),
-            "history_summary": self._build_history_summary(history_actions),
+            "history_actions_brief": history_actions[-3:],
+            "history_summary": history_summary,
             "block_count": block_count,
             "release_count": release_count,
-            "is_released": current_ban_status == self.RELEASED_STATUS,
-            "can_unban": can_unban,
-            "can_reblock": can_reblock,
+            "is_released": current_status == self.RELEASED_STATUS,
+            "can_unban": current_status == self.BLOCKED_STATUS,
+            "can_reblock": current_status == self.RELEASED_STATUS,
+            "can_verify": self._normalize_text(ban.get("target_type") or "IP").upper() == "IP",
+            "enforcement_mode": enforcement_mode,
+            "enforcement_backend": enforcement_backend,
+            "enforcement_status": enforcement_status,
+            "enforcement_rule_name": enforcement_rule_name,
+            "enforcement_message": self._normalize_text(ban.get("enforcement_message")),
+            "verification_status": verification_status,
+            "verified_at": self._normalize_text(ban.get("verified_at")),
+            "verification_message": verification_message,
+            "enforcement_scope_ports": self._normalize_text(ban.get("enforcement_scope_ports")) or ",".join(profile.get("local_ports", [])),
+            "enforcement_scope_description": profile.get("scope_description"),
         }
+        return item
 
-    def _resolve_current_status(self, ban: Dict[str, Any], ip_is_blocked: bool) -> str:
+    def _resolve_current_status(self, ban: Dict[str, Any], ip: Dict[str, Any]) -> str:
         """
-        兼容旧字段，推断当前封禁状态。
+        解析当前封禁状态。
+
+        解析优先级：
+        1. current_ban_status
+        2. current_block_status
+        3. released_at / ip.is_blocked
+        4. 旧字段 status
         """
-        explicit_status = self._normalize_text(
-            ban.get("current_ban_status") or ban.get("current_block_status")
-        ).upper()
-        if explicit_status:
-            return explicit_status
+        current_ban_status = self._normalize_text(ban.get("current_ban_status")).upper()
+        if current_ban_status in {self.BLOCKED_STATUS, self.RELEASED_STATUS}:
+            return current_ban_status
 
-        status = self._normalize_text(ban.get("status")).upper()
-        released_at = self._normalize_text(ban.get("released_at"))
-        action_type = self._normalize_text(ban.get("action_type")).upper()
+        current_block_status = self._normalize_text(ban.get("current_block_status")).upper()
+        if current_block_status in {self.BLOCKED_STATUS, self.RELEASED_STATUS}:
+            return current_block_status
 
-        if ip_is_blocked:
-            return self.BLOCKED_STATUS
-        if released_at or status in self.RELEASED_STATUS_SET:
+        if self._normalize_text(ban.get("released_at")):
             return self.RELEASED_STATUS
-        if status in self.FAILED_STATUS_SET:
-            return "FAILED"
-        if status in self.PENDING_STATUS_SET:
-            return "PENDING"
-        if action_type.startswith("BLOCK") and status in self.ACTIVE_BLOCK_STATUS_SET:
-            return self.BLOCKED_STATUS
-        return "UNKNOWN"
 
-    def _build_history_actions(
-        self,
-        record: Dict[str, Any],
-        current_ban_status: str,
-        default_action_type: str,
-    ) -> List[Dict[str, Any]]:
+        if "is_blocked" in ip:
+            return self.BLOCKED_STATUS if bool(ip.get("is_blocked")) else self.RELEASED_STATUS
+
+        raw_status = self._normalize_text(ban.get("status")).upper()
+        if raw_status in self.ACTIVE_BLOCK_STATUS_SET:
+            return self.BLOCKED_STATUS
+        if raw_status in self.RELEASED_STATUS_SET:
+            return self.RELEASED_STATUS
+        if raw_status in self.FAILED_STATUS_SET:
+            return "FAILED"
+        if raw_status in self.PENDING_STATUS_SET:
+            return "PENDING"
+        return self.BLOCKED_STATUS
+
+    def _build_history_actions(self, ban: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         构造历史动作列表。
 
-        兼容逻辑：
-        1. 优先读取 history_actions_json。
-        2. 若旧记录没有该字段，则根据 executed_at / released_at / latest_action_type 回填最小历史。
+        优先使用 history_actions_json；若旧数据缺失，则由原始动作和放行字段自动补齐。
         """
-        ban = record.get("ban") or {}
-        raw_history_json = self._normalize_text(ban.get("history_actions_json"))
-        if raw_history_json:
+        history_json = self._normalize_text(ban.get("history_actions_json"))
+        if history_json:
             try:
-                loaded_history = json.loads(raw_history_json)
-                if isinstance(loaded_history, list):
-                    return self._normalize_history_actions(loaded_history)
+                parsed_history = json.loads(history_json)
+                if isinstance(parsed_history, list):
+                    return parsed_history
             except json.JSONDecodeError:
                 pass
 
-        history_actions: List[Dict[str, Any]] = []
-        initial_operated_at = self._normalize_text(ban.get("executed_at")) or self._normalize_text(ban.get("blocked_at"))
-        initial_operator = self._normalize_text(ban.get("executor")) or self._normalize_text(ban.get("blocked_by"))
-        initial_reason = self._normalize_text(ban.get("remark")) or self._normalize_text(ban.get("block_reason"))
-        history_actions.append(
+        fallback_history: List[Dict[str, Any]] = []
+        executed_at = self._normalize_text(ban.get("executed_at")) or self._build_local_timestamp()
+        executor = self._normalize_text(ban.get("executor")) or "auto_engine"
+        remark = self._normalize_text(ban.get("remark")) or "系统初始封禁记录"
+
+        fallback_history.append(
             {
                 "sequence": 1,
-                "action_type": default_action_type or "BLOCK_IP",
-                "from_status": "UNKNOWN",
+                "action_type": self._normalize_text(ban.get("action_type")) or "BLOCK_IP",
+                "from_status": "NEW",
                 "to_status": self.BLOCKED_STATUS,
-                "operated_at": initial_operated_at or "-",
-                "operated_by": initial_operator or "-",
-                "reason": initial_reason or "初始封禁记录",
-                "origin": "INITIAL",
+                "operated_at": executed_at,
+                "operated_by": executor,
+                "reason": remark,
+                "origin": "AUTO",
             }
         )
 
         released_at = self._normalize_text(ban.get("released_at"))
-        latest_action_type = self._normalize_text(ban.get("latest_action_type")).upper()
-        if released_at or latest_action_type in {"UNBLOCK_IP", "MANUAL_UNBLOCK_IP"} or current_ban_status == self.RELEASED_STATUS:
-            history_actions.append(
+        if released_at:
+            fallback_history.append(
                 {
-                    "sequence": len(history_actions) + 1,
-                    "action_type": latest_action_type or "MANUAL_UNBLOCK_IP",
+                    "sequence": 2,
+                    "action_type": self._normalize_text(ban.get("latest_action_type")) or "UNBLOCK_IP",
                     "from_status": self.BLOCKED_STATUS,
                     "to_status": self.RELEASED_STATUS,
-                    "operated_at": released_at or self._normalize_text(ban.get("latest_action_at")) or "-",
-                    "operated_by": self._normalize_text(ban.get("released_by")) or self._normalize_text(ban.get("latest_action_by")) or "-",
-                    "reason": self._normalize_text(ban.get("release_reason")) or self._normalize_text(ban.get("latest_action_reason")) or "历史放行记录",
-                    "origin": "MIGRATED",
+                    "operated_at": released_at,
+                    "operated_by": self._normalize_text(ban.get("released_by")) or "security_console",
+                    "reason": self._normalize_text(ban.get("release_reason")) or "历史放行记录",
+                    "origin": "MANUAL",
                 }
             )
 
-        return self._normalize_history_actions(history_actions)
+        return fallback_history
 
     def _normalize_history_actions(self, history_actions: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        将历史动作统一标准化，便于前端直接展示。
+        清洗历史动作列表，统一字段并按序号排序。
         """
-        normalized_actions: List[Dict[str, Any]] = []
-        for index, item in enumerate(history_actions or [], start=1):
-            if not isinstance(item, dict):
+        normalized_items: List[Dict[str, Any]] = []
+        for index, raw_item in enumerate(history_actions, start=1):
+            if not isinstance(raw_item, dict):
                 continue
-            normalized_actions.append(
+
+            normalized_items.append(
                 {
-                    "sequence": self._safe_int(item.get("sequence")) or index,
-                    "action_type": self._normalize_text(item.get("action_type")) or "-",
-                    "from_status": self._normalize_text(item.get("from_status")) or "-",
-                    "to_status": self._normalize_text(item.get("to_status")) or "-",
-                    "operated_at": self._normalize_text(item.get("operated_at")) or "-",
-                    "operated_by": self._normalize_text(item.get("operated_by")) or "-",
-                    "reason": self._normalize_text(item.get("reason")) or "-",
-                    "origin": self._normalize_text(item.get("origin")) or "MANUAL",
+                    "sequence": self._safe_int(raw_item.get("sequence")) or index,
+                    "action_type": self._normalize_text(raw_item.get("action_type")) or "BLOCK_IP",
+                    "from_status": self._normalize_text(raw_item.get("from_status")) or "UNKNOWN",
+                    "to_status": self._normalize_text(raw_item.get("to_status")) or "UNKNOWN",
+                    "operated_at": self._normalize_text(raw_item.get("operated_at")) or self._build_local_timestamp(),
+                    "operated_by": self._normalize_text(raw_item.get("operated_by")) or "security_console",
+                    "reason": self._normalize_text(raw_item.get("reason")),
+                    "origin": self._normalize_text(raw_item.get("origin")) or "MANUAL",
                 }
             )
 
-        normalized_actions.sort(
-            key=lambda item: (
-                self._normalize_text(item.get("operated_at")),
-                self._safe_int(item.get("sequence")),
-            )
-        )
-        return normalized_actions
+        normalized_items.sort(key=lambda item: item["sequence"])
+        return normalized_items
 
     def _count_status_transitions(self, history_actions: Iterable[Dict[str, Any]], target_status: str) -> int:
         """
-        统计历史中切换到目标状态的次数。
+        统计切换到某个目标状态的次数。
         """
-        return len(
-            [
-                item
-                for item in history_actions or []
-                if self._normalize_text(item.get("to_status")).upper() == target_status
-            ]
+        target = self._normalize_text(target_status).upper()
+        return sum(
+            1
+            for item in history_actions
+            if self._normalize_text(item.get("to_status")).upper() == target
         )
 
     def _build_history_summary(self, history_actions: Iterable[Dict[str, Any]]) -> str:
         """
-        生成历史动作摘要，供列表页快速展示。
+        生成历史动作摘要，供表格快速展示。
         """
-        latest_items = list(history_actions or [])[-3:]
-        if not latest_items:
-            return "-"
+        readable_parts: List[str] = []
+        for item in history_actions:
+            action_type = self._normalize_text(item.get("action_type")).upper()
+            label = {
+                "BLOCK_IP": "自动封禁",
+                "MANUAL_BLOCK_IP": "人工重新封禁",
+                "UNBLOCK_IP": "自动放行",
+                "MANUAL_UNBLOCK_IP": "人工放行",
+            }.get(action_type, action_type or "动作")
+            readable_parts.append(label)
 
-        summary_items = []
-        for item in latest_items:
-            action_type = self._normalize_text(item.get("action_type")) or "-"
-            to_status = self._normalize_text(item.get("to_status")) or "-"
-            operated_at = self._normalize_text(item.get("operated_at")) or "-"
-            summary_items.append(f"{action_type} -> {to_status}（{operated_at}）")
+        return " -> ".join(readable_parts) if readable_parts else "-"
 
-        return " / ".join(summary_items)
-
-    def _build_success_message(self, target_status: str) -> str:
+    def _build_success_message(self, target_status: str, enforcement_result: Dict[str, Any]) -> str:
         """
-        构造切换成功提示。
+        生成状态切换后的友好提示。
         """
-        if target_status == self.RELEASED_STATUS:
-            return "放行 / 解封操作执行成功"
-        return "重新封禁操作执行成功"
+        status_label = "已放行" if target_status == self.RELEASED_STATUS else "已重新封禁"
+        verification_status = self._normalize_text(enforcement_result.get("verification_status")).upper()
+        if verification_status == "VERIFIED":
+            return f"{status_label}，且规则执行校验通过"
+        if verification_status in {"MISSING", "FAILED"}:
+            return f"{status_label}，但规则校验未通过，请关注执行状态"
+        return status_label
 
     def _build_idempotent_message(self, target_status: str) -> str:
         """
-        构造幂等提示。
+        生成重复操作时的幂等提示。
         """
         if target_status == self.RELEASED_STATUS:
-            return "该封禁记录已经处于已放行状态，无需重复执行"
-        return "该封禁记录已经处于已封禁状态，无需重复执行"
+            return "当前记录已经处于已放行状态，无需重复执行放行"
+        return "当前记录已经处于已封禁状态，无需重复执行重新封禁"
 
     def _normalize_text(self, value: Any) -> str:
         """
-        将任意值安全转为字符串。
+        统一规范化字符串。
         """
-        if value is None:
-            return ""
-        return str(value).strip()
+        return str(value or "").strip()
 
     def _safe_int(self, value: Any) -> int:
         """
-        安全地将任意值转为整数。
+        安全转换整数。
         """
         try:
-            return int(float(value))
+            return int(value)
         except (TypeError, ValueError):
             return 0
 
     def _build_local_timestamp(self) -> str:
         """
-        生成本地时区的 ISO 时间字符串。
+        构造本地时区时间字符串。
         """
         return datetime.now().astimezone().isoformat(timespec="seconds")
 

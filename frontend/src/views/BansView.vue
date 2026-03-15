@@ -2,22 +2,28 @@
   <!--
     文件路径：frontend/src/views/BansView.vue
     作用说明：
-    1. 将封禁管理页从“动作记录展示”升级为“当前状态管理 + 历史动作审计”模式。
-    2. 支持对当前已封禁目标执行放行，对当前已放行目标执行重新封禁。
-    3. 通过历史处置抽屉展示同一目标的多次状态切换记录，便于答辩演示完整闭环。
+    1. 在当前封禁管理页面中展示“当前状态管理 + 历史动作审计 + 真实执行结果 + 规则校验结果”。
+    2. 支持已封禁 -> 放行、已放行 -> 重新封禁，以及对当前状态执行规则校验。
+    3. 保持现有深蓝安全平台风格，便于答辩演示“业务状态”和“宿主机真实状态”两层语义。
   -->
   <div class="bans-page app-page">
     <section class="security-panel page-banner">
       <div>
         <h1 class="page-title">封禁管理</h1>
         <p class="page-subtitle">
-          当前页面用于展示系统对目标 IP 的当前处置状态、最近动作与历史处置记录，支持“已封禁 -> 放行 -> 重新封禁”的双向切换演示。
+          当前页面用于展示目标 IP 的当前处置状态、最近动作、历史审计记录，以及 Windows 防火墙规则的真实执行与校验结果。
         </p>
       </div>
 
-      <el-button type="primary" :loading="loading" @click="loadBans">
-        刷新封禁数据
-      </el-button>
+      <div class="page-banner__actions">
+        <el-tag :type="executionModeTagType" effect="dark" size="large">
+          当前执行模式：{{ formatEnforcementMode(enforcementProfile.mode) }}
+        </el-tag>
+
+        <el-button type="primary" :loading="loading" @click="loadBans">
+          刷新封禁数据
+        </el-button>
+      </div>
     </section>
 
     <el-row :gutter="18" class="summary-grid">
@@ -25,7 +31,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">总记录数</div>
           <div class="summary-card__value summary-card__value--primary">{{ pagination.total }}</div>
-          <div class="summary-card__hint">当前接口返回的封禁目标总数，用于分页展示和状态管理。</div>
+          <div class="summary-card__hint">当前接口返回的封禁目标总数</div>
         </div>
       </el-col>
 
@@ -33,7 +39,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前已封禁</div>
           <div class="summary-card__value summary-card__value--danger">{{ blockedCount }}</div>
-          <div class="summary-card__hint">当前状态为 BLOCKED 的目标数量，可继续执行放行。</div>
+          <div class="summary-card__hint">当前状态为 BLOCKED 的记录，可继续执行放行或封禁校验</div>
         </div>
       </el-col>
 
@@ -41,36 +47,72 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前已放行</div>
           <div class="summary-card__value summary-card__value--success">{{ releasedCount }}</div>
-          <div class="summary-card__hint">当前状态为 RELEASED 的目标数量，可继续执行重新封禁。</div>
+          <div class="summary-card__hint">当前状态为 RELEASED 的记录，可继续执行重新封禁或放行校验</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">可切换目标</div>
-          <div class="summary-card__value summary-card__value--warning">{{ switchableCount }}</div>
-          <div class="summary-card__hint">当前页中可执行放行或重新封禁的目标数量。</div>
+          <div class="summary-card__label">校验通过数</div>
+          <div class="summary-card__value summary-card__value--warning">{{ verifiedCount }}</div>
+          <div class="summary-card__hint">verification_status 为 VERIFIED 的当前页记录数量</div>
         </div>
       </el-col>
     </el-row>
+
+    <section class="security-panel profile-panel">
+      <div class="section-header">
+        <div>
+          <h3>执行模式说明</h3>
+          <p>这里明确区分模拟封禁和真实封禁，便于演示“规则是否真正下发、是否真正生效”。</p>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="profile-card">
+          <div class="profile-card__label">执行模式</div>
+          <div class="profile-card__value">{{ formatEnforcementMode(enforcementProfile.mode) }}</div>
+          <div class="profile-card__hint">{{ enforcementProfile.scope_description || "-" }}</div>
+        </div>
+
+        <div class="profile-card">
+          <div class="profile-card__label">执行后端</div>
+          <div class="profile-card__value">{{ formatEnforcementBackend(enforcementProfile.backend) }}</div>
+          <div class="profile-card__hint">
+            {{ enforcementProfile.supports_real_execution ? "宿主环境支持真实执行" : "当前宿主环境不支持真实执行" }}
+          </div>
+        </div>
+
+        <div class="profile-card">
+          <div class="profile-card__label">规则前缀</div>
+          <div class="profile-card__value profile-card__value--small">{{ enforcementProfile.rule_prefix || "-" }}</div>
+          <div class="profile-card__hint">仅操作本项目创建的规则，避免误删系统其他防火墙规则</div>
+        </div>
+
+        <div class="profile-card">
+          <div class="profile-card__label">限制端口</div>
+          <div class="profile-card__value profile-card__value--small">
+            {{ enforcementPortsText }}
+          </div>
+          <div class="profile-card__hint">建议在演示环境中配置为靶场端口，例如 80、8080 或 8000</div>
+        </div>
+      </div>
+    </section>
 
     <section class="security-panel filter-panel">
       <div class="section-header">
         <div>
           <h3>筛选条件</h3>
-          <p>支持按当前状态、执行状态和目标 IP 查询，便于快速定位需要复核的处置对象。</p>
+          <p>支持按当前状态和目标 IP 查询，便于快速定位需要演示或复核的处置对象。</p>
         </div>
       </div>
 
       <el-form :inline="true" :model="queryForm" class="filter-form">
         <el-form-item label="状态">
-          <el-input
-            v-model="queryForm.status"
-            placeholder="如 BLOCKED / RELEASED / SUCCESS"
-            clearable
-            style="width: 240px"
-            @keyup.enter="handleSearch"
-          />
+          <el-select v-model="queryForm.status" clearable placeholder="全部状态" style="width: 180px">
+            <el-option label="BLOCKED" value="BLOCKED" />
+            <el-option label="RELEASED" value="RELEASED" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="目标 IP">
@@ -94,7 +136,7 @@
       <div class="section-header">
         <div>
           <h3>当前状态列表</h3>
-          <p>同一行同时展示当前状态、最近动作与历史摘要，避免将“当前状态”和“动作记录”混为一谈。</p>
+          <p>每一行同时展示当前状态、最近动作、历史摘要、规则下发状态和校验结果，避免老师误把动作历史当成当前状态。</p>
         </div>
 
         <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
@@ -102,10 +144,9 @@
 
       <el-table :data="banItems" v-loading="loading" stripe>
         <el-table-column prop="action_id" label="记录编号" min-width="120" />
-        <el-table-column prop="ip_address" label="目标 IP" min-width="150" />
-        <el-table-column prop="target_type" label="目标类型" min-width="100" />
+        <el-table-column prop="ip_address" label="目标 IP" min-width="140" />
 
-        <el-table-column label="当前状态" min-width="120">
+        <el-table-column label="当前状态" min-width="110">
           <template #default="{ row }">
             <el-tag :type="currentStatusTagType(row.current_ban_status)" effect="dark">
               {{ formatCurrentStatus(row.current_ban_status) }}
@@ -113,7 +154,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="原始动作" min-width="120">
+        <el-table-column label="原始动作" min-width="110">
           <template #default="{ row }">
             <el-tag :type="actionTypeTagType(row.action_type)" effect="plain">
               {{ formatActionLabel(row.action_type) }}
@@ -121,7 +162,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="最近动作" min-width="140">
+        <el-table-column label="最近动作" min-width="120">
           <template #default="{ row }">
             <el-tag :type="actionTypeTagType(row.latest_action_type)" effect="dark">
               {{ formatActionLabel(row.latest_action_type) }}
@@ -130,10 +171,42 @@
         </el-table-column>
 
         <el-table-column prop="latest_action_at" label="最近操作时间" min-width="170" />
-        <el-table-column prop="latest_operator" label="最近操作人" min-width="120" />
-        <el-table-column prop="latest_reason" label="最近操作原因" min-width="220" show-overflow-tooltip />
 
-        <el-table-column label="历史动作摘要" min-width="260">
+        <el-table-column label="执行模式" min-width="120">
+          <template #default="{ row }">
+            <el-tag :type="row.enforcement_mode === 'REAL' ? 'danger' : 'info'" effect="plain">
+              {{ formatEnforcementMode(row.enforcement_mode) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="enforcement_backend" label="执行后端" min-width="150">
+          <template #default="{ row }">
+            <span>{{ formatEnforcementBackend(row.enforcement_backend) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="规则下发结果" min-width="140">
+          <template #default="{ row }">
+            <el-tag :type="enforcementStatusTagType(row.enforcement_status)" effect="dark">
+              {{ formatEnforcementStatus(row.enforcement_status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="校验状态" min-width="120">
+          <template #default="{ row }">
+            <el-tag :type="verificationStatusTagType(row.verification_status)" effect="plain">
+              {{ formatVerificationStatus(row.verification_status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="verified_at" label="校验时间" min-width="170" />
+        <el-table-column prop="enforcement_rule_name" label="规则名" min-width="240" show-overflow-tooltip />
+        <el-table-column prop="verification_message" label="校验说明" min-width="240" show-overflow-tooltip />
+
+        <el-table-column label="历史动作摘要" min-width="240">
           <template #default="{ row }">
             <div class="history-cell">
               <div class="history-chip-list">
@@ -161,23 +234,37 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="blocked_at" label="最近封禁时间" min-width="170" />
-        <el-table-column prop="released_at" label="最近放行时间" min-width="170" />
+        <el-table-column label="状态时间" min-width="170">
+          <template #default="{ row }">
+            <div class="time-stack">
+              <div>封禁：{{ row.blocked_at || "-" }}</div>
+              <div>放行：{{ row.released_at || "-" }}</div>
+            </div>
+          </template>
+        </el-table-column>
 
-        <el-table-column label="图数据库状态" min-width="120">
+        <el-table-column label="Neo4j 当前状态" min-width="130">
           <template #default="{ row }">
             <el-tag :type="row.is_blocked ? 'danger' : 'success'" effect="plain">
-              {{ row.is_blocked ? "Neo4j: 已封禁" : "Neo4j: 已放行" }}
+              {{ row.is_blocked ? "已封禁" : "已放行" }}
             </el-tag>
           </template>
         </el-table-column>
 
         <el-table-column prop="alert_name" label="关联告警" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="severity" label="告警等级" min-width="100" />
 
-        <el-table-column label="操作" width="210" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
+              <el-button
+                type="primary"
+                link
+                :loading="isRowActionLoading(row.action_id)"
+                @click="handleVerify(row)"
+              >
+                {{ row.current_ban_status === "BLOCKED" ? "校验封禁" : "校验放行" }}
+              </el-button>
+
               <el-button
                 v-if="row.can_unban"
                 type="danger"
@@ -197,8 +284,6 @@
               >
                 重新封禁
               </el-button>
-
-              <el-tag v-else type="info" effect="plain">不可切换</el-tag>
 
               <el-button type="primary" link @click="handleOpenHistory(row)">历史</el-button>
             </div>
@@ -223,7 +308,7 @@
     <el-drawer
       v-model="historyDrawerVisible"
       title="历史处置记录"
-      size="480px"
+      size="520px"
       destroy-on-close
     >
       <div v-loading="historyLoading" class="history-drawer">
@@ -231,7 +316,7 @@
           <div class="history-overview">
             <div class="history-overview__card">
               <div class="history-overview__label">目标 IP</div>
-              <div class="history-overview__value">{{ historyDetail.ip_address }}</div>
+              <div class="history-overview__value">{{ historyDetail.ip_address || "-" }}</div>
             </div>
             <div class="history-overview__card">
               <div class="history-overview__label">当前状态</div>
@@ -242,9 +327,19 @@
               <div class="history-overview__value">{{ formatActionLabel(historyDetail.latest_action_type) }}</div>
             </div>
             <div class="history-overview__card">
-              <div class="history-overview__label">关联告警</div>
-              <div class="history-overview__value">{{ historyDetail.alert_name || "-" }}</div>
+              <div class="history-overview__label">执行模式</div>
+              <div class="history-overview__value">{{ formatEnforcementMode(historyDetail.enforcement_mode) }}</div>
             </div>
+          </div>
+
+          <div class="history-execution-panel">
+            <div class="history-execution-panel__title">规则执行与校验</div>
+            <div class="history-execution-panel__item">执行后端：{{ formatEnforcementBackend(historyDetail.enforcement_backend) }}</div>
+            <div class="history-execution-panel__item">下发结果：{{ formatEnforcementStatus(historyDetail.enforcement_status) }}</div>
+            <div class="history-execution-panel__item">校验状态：{{ formatVerificationStatus(historyDetail.verification_status) }}</div>
+            <div class="history-execution-panel__item">规则名称：{{ historyDetail.enforcement_rule_name || "-" }}</div>
+            <div class="history-execution-panel__item">校验时间：{{ historyDetail.verified_at || "-" }}</div>
+            <div class="history-execution-panel__item">校验说明：{{ historyDetail.verification_message || "-" }}</div>
           </div>
 
           <el-timeline>
@@ -263,7 +358,7 @@
                   </el-tag>
                 </div>
                 <div class="timeline-card__meta">状态变化：{{ item.from_status }} -> {{ item.to_status }}</div>
-                <div class="timeline-card__meta">执行人：{{ item.operated_by || "-" }}</div>
+                <div class="timeline-card__meta">操作人：{{ item.operated_by || "-" }}</div>
                 <div class="timeline-card__meta">原因：{{ item.reason || "-" }}</div>
               </div>
             </el-timeline-item>
@@ -279,13 +374,13 @@
 <script setup>
 // 文件路径：frontend/src/views/BansView.vue
 // 作用说明：
-// 1. 通过封禁管理接口加载当前状态列表。
-// 2. 支持放行与重新封禁的双向切换，并在成功后即时刷新列表。
-// 3. 通过历史抽屉展示同一目标的多次处置时间线，体现“状态管理 + 审计记录”的双层语义。
+// 1. 通过封禁管理接口加载当前状态列表和执行结果。
+// 2. 支持放行、重新封禁和规则校验，并在成功后即时刷新列表与历史抽屉。
+// 3. 通过执行模式概览和规则校验字段，帮助用户验证封禁是否真正下发到 Windows 防火墙。
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 
-import { fetchBanDetail, fetchBans, reblockBan, unbanBan } from "@/api/bans";
+import { fetchBanDetail, fetchBans, reblockBan, unbanBan, verifyBan } from "@/api/bans";
 
 const loading = ref(false);
 const banItems = ref([]);
@@ -306,6 +401,16 @@ const pagination = reactive({
   total: 0
 });
 
+const enforcementProfile = reactive({
+  mode: "MOCK",
+  backend: "MOCK",
+  host_platform: "WINDOWS",
+  supports_real_execution: false,
+  rule_prefix: "ESG",
+  local_ports: [],
+  scope_description: ""
+});
+
 const blockedCount = computed(() => {
   return banItems.value.filter((item) => item.current_ban_status === "BLOCKED").length;
 });
@@ -314,8 +419,8 @@ const releasedCount = computed(() => {
   return banItems.value.filter((item) => item.current_ban_status === "RELEASED").length;
 });
 
-const switchableCount = computed(() => {
-  return banItems.value.filter((item) => item.can_unban || item.can_reblock).length;
+const verifiedCount = computed(() => {
+  return banItems.value.filter((item) => item.verification_status === "VERIFIED").length;
 });
 
 const activeFilterText = computed(() => {
@@ -337,6 +442,15 @@ const historyTimeline = computed(() => {
   return [...items].reverse();
 });
 
+const executionModeTagType = computed(() => {
+  return enforcementProfile.mode === "REAL" ? "danger" : "info";
+});
+
+const enforcementPortsText = computed(() => {
+  const ports = enforcementProfile.local_ports || [];
+  return ports.length > 0 ? ports.join(", ") : "未限制端口（按源 IP 阻断）";
+});
+
 function actionTypeTagType(actionType) {
   const normalizedActionType = String(actionType || "").toUpperCase();
 
@@ -354,9 +468,9 @@ function actionTypeTagType(actionType) {
 function formatActionLabel(actionType) {
   const normalizedActionType = String(actionType || "").toUpperCase();
   const labelMap = {
-    BLOCK_IP: "封禁",
-    MANUAL_BLOCK_IP: "重新封禁",
-    UNBLOCK_IP: "放行",
+    BLOCK_IP: "自动封禁",
+    MANUAL_BLOCK_IP: "人工重新封禁",
+    UNBLOCK_IP: "自动放行",
     MANUAL_UNBLOCK_IP: "人工放行"
   };
 
@@ -407,9 +521,96 @@ function formatCurrentStatus(status) {
   return normalizedStatus || "-";
 }
 
+function formatEnforcementMode(mode) {
+  const normalizedMode = String(mode || "").toUpperCase();
+  return normalizedMode === "REAL" ? "真实执行" : "模拟执行";
+}
+
+function formatEnforcementBackend(backend) {
+  const normalizedBackend = String(backend || "").toUpperCase();
+
+  if (normalizedBackend === "WINDOWS_FIREWALL") {
+    return "Windows 防火墙";
+  }
+
+  if (normalizedBackend === "MOCK") {
+    return "模拟后端";
+  }
+
+  return normalizedBackend || "-";
+}
+
+function enforcementStatusTagType(status) {
+  const normalizedStatus = String(status || "").toUpperCase();
+
+  if (["APPLIED"].includes(normalizedStatus)) {
+    return "danger";
+  }
+
+  if (["REMOVED"].includes(normalizedStatus)) {
+    return "success";
+  }
+
+  if (["FAILED"].includes(normalizedStatus)) {
+    return "danger";
+  }
+
+  if (["PENDING"].includes(normalizedStatus)) {
+    return "warning";
+  }
+
+  return "info";
+}
+
+function formatEnforcementStatus(status) {
+  const normalizedStatus = String(status || "").toUpperCase();
+  const labelMap = {
+    APPLIED: "已下发",
+    REMOVED: "已移除",
+    FAILED: "执行失败",
+    PENDING: "待执行",
+    SIMULATED: "模拟执行"
+  };
+
+  return labelMap[normalizedStatus] || normalizedStatus || "-";
+}
+
+function verificationStatusTagType(status) {
+  const normalizedStatus = String(status || "").toUpperCase();
+
+  if (normalizedStatus === "VERIFIED") {
+    return "success";
+  }
+
+  if (normalizedStatus === "NOT_VERIFIED") {
+    return "info";
+  }
+
+  if (normalizedStatus === "MISSING") {
+    return "warning";
+  }
+
+  if (normalizedStatus === "FAILED") {
+    return "danger";
+  }
+
+  return "info";
+}
+
+function formatVerificationStatus(status) {
+  const normalizedStatus = String(status || "").toUpperCase();
+  const labelMap = {
+    VERIFIED: "校验通过",
+    NOT_VERIFIED: "未校验",
+    MISSING: "规则缺失",
+    FAILED: "校验失败"
+  };
+
+  return labelMap[normalizedStatus] || normalizedStatus || "-";
+}
+
 function timelineType(item) {
-  const status = String(item?.to_status || "").toUpperCase();
-  return currentStatusTagType(status);
+  return currentStatusTagType(item?.to_status);
 }
 
 function isRowActionLoading(actionId) {
@@ -432,6 +633,15 @@ async function loadBans() {
     pagination.page = data.pagination?.page || 1;
     pagination.size = data.pagination?.size || 10;
     pagination.total = data.pagination?.total || 0;
+
+    const profile = data.enforcement_profile || {};
+    enforcementProfile.mode = profile.mode || "MOCK";
+    enforcementProfile.backend = profile.backend || "MOCK";
+    enforcementProfile.host_platform = profile.host_platform || "WINDOWS";
+    enforcementProfile.supports_real_execution = Boolean(profile.supports_real_execution);
+    enforcementProfile.rule_prefix = profile.rule_prefix || "ESG";
+    enforcementProfile.local_ports = profile.local_ports || [];
+    enforcementProfile.scope_description = profile.scope_description || "";
   } finally {
     loading.value = false;
   }
@@ -503,6 +713,18 @@ async function handleStateToggle(row, toggleType) {
   }
 }
 
+async function handleVerify(row) {
+  actionLoadingMap[row.action_id] = true;
+  try {
+    const response = await verifyBan(row.action_id);
+    ElMessage.success(response?.message || "规则校验完成");
+    await loadBans();
+    await refreshHistoryIfNeeded(row.action_id);
+  } finally {
+    actionLoadingMap[row.action_id] = false;
+  }
+}
+
 function handleUnban(row) {
   return handleStateToggle(row, "unban");
 }
@@ -548,6 +770,7 @@ onMounted(() => {
 }
 
 .page-banner,
+.profile-panel,
 .filter-panel,
 .table-panel,
 .summary-card {
@@ -559,6 +782,13 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+}
+
+.page-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .summary-grid :deep(.el-col) {
@@ -626,6 +856,43 @@ onMounted(() => {
   font-size: 13px;
 }
 
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(8, 20, 35, 0.76);
+  border: 1px solid rgba(84, 129, 194, 0.14);
+}
+
+.profile-card__label {
+  font-size: 13px;
+  color: #8aa3c8;
+}
+
+.profile-card__value {
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #eef5ff;
+}
+
+.profile-card__value--small {
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.profile-card__hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #7f98be;
+  line-height: 1.6;
+}
+
 .filter-form {
   display: flex;
   flex-wrap: wrap;
@@ -650,7 +917,8 @@ onMounted(() => {
   line-height: 1.6;
 }
 
-.count-stack {
+.count-stack,
+.time-stack {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -675,7 +943,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  min-height: 320px;
 }
 
 .history-overview {
@@ -684,11 +951,12 @@ onMounted(() => {
   gap: 12px;
 }
 
-.history-overview__card {
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: rgba(8, 20, 35, 0.74);
-  border: 1px solid rgba(84, 129, 194, 0.12);
+.history-overview__card,
+.history-execution-panel {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(8, 20, 35, 0.76);
+  border: 1px solid rgba(84, 129, 194, 0.14);
 }
 
 .history-overview__label {
@@ -697,27 +965,39 @@ onMounted(() => {
 }
 
 .history-overview__value {
-  margin-top: 8px;
-  font-size: 14px;
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 1.5;
   color: #eef5ff;
-  line-height: 1.6;
+  word-break: break-word;
+}
+
+.history-execution-panel__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #eef5ff;
+}
+
+.history-execution-panel__item {
+  margin-top: 10px;
+  color: #8fa7ca;
+  font-size: 13px;
+  line-height: 1.7;
   word-break: break-word;
 }
 
 .timeline-card {
   padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(8, 20, 35, 0.7);
-  border: 1px solid rgba(84, 129, 194, 0.12);
+  border-radius: 14px;
+  background: rgba(8, 20, 35, 0.78);
+  border: 1px solid rgba(84, 129, 194, 0.14);
 }
 
 .timeline-card__title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
   color: #eef5ff;
-  font-size: 14px;
   font-weight: 600;
 }
 
@@ -725,24 +1005,28 @@ onMounted(() => {
   margin-top: 8px;
   color: #8fa7ca;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.7;
+}
+
+@media (max-width: 1200px) {
+  .profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 992px) {
-  .page-banner,
-  .section-header {
+  .page-banner {
     flex-direction: column;
     align-items: flex-start;
   }
-}
-
-@media (max-width: 960px) {
-  .pagination-bar {
-    justify-content: center;
-    overflow-x: auto;
-  }
 
   .history-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-grid {
     grid-template-columns: 1fr;
   }
 }

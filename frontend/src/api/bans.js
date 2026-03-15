@@ -22,3 +22,7 @@ export function unbanBan(banId, payload) {
 export function reblockBan(banId, payload) {
   return http.post(`/api/bans/${banId}/reblock`, payload || {});
 }
+
+export function verifyBan(banId) {
+  return http.post(`/api/bans/${banId}/verify`);
+}

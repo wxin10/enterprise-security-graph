@@ -15,6 +15,7 @@ from app.services.detection_service import detection_service
 from app.services.monitor_service import monitor_service
 from app.services.attack_chain_service import attack_chain_service
 from app.services.ban_service import ban_service
+from app.services.firewall_service import firewall_service
 
 __all__ = [
     "graph_service",
@@ -22,4 +23,5 @@ __all__ = [
     "monitor_service",
     "attack_chain_service",
     "ban_service",
+    "firewall_service",
 ]

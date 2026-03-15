@@ -50,6 +50,21 @@ def parse_monitor_watch_directories(raw_value: str):
     return directories or ["safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
 
 
+def parse_port_list(raw_value: str):
+    """
+    解析 Windows 防火墙本地端口列表。
+
+    设计说明：
+    1. 为了适配答辩演示中的本地靶场，允许仅阻断指定端口，而不是粗暴阻断整台宿主机所有端口。
+    2. 环境变量为空时，表示按源 IP 全量阻断入站访问。
+    """
+    if not raw_value or not raw_value.strip():
+        return []
+
+    ports = [item.strip() for item in raw_value.split(",") if item.strip()]
+    return ports
+
+
 class BaseConfig:
     """
     基础配置类。
@@ -94,6 +109,12 @@ class BaseConfig:
             "safeline_waf,n9e_waf,windows_firewall,linux_firewall",
         )
     )
+
+    BAN_ENFORCEMENT_MODE = os.getenv("BAN_ENFORCEMENT_MODE", "MOCK").upper()
+    BAN_WINDOWS_FIREWALL_RULE_PREFIX = os.getenv("BAN_WINDOWS_FIREWALL_RULE_PREFIX", "ESG")
+    BAN_WINDOWS_FIREWALL_DIRECTION = os.getenv("BAN_WINDOWS_FIREWALL_DIRECTION", "Inbound")
+    BAN_WINDOWS_FIREWALL_PROTOCOL = os.getenv("BAN_WINDOWS_FIREWALL_PROTOCOL", "TCP").upper()
+    BAN_WINDOWS_FIREWALL_LOCAL_PORTS = parse_port_list(os.getenv("BAN_WINDOWS_FIREWALL_LOCAL_PORTS", ""))
 
 
 class DevelopmentConfig(BaseConfig):
