@@ -191,7 +191,7 @@ function statusTagType(status) {
     return "warning";
   }
 
-  if (["SUCCESS", "LOW", "ACTIVE", "READY"].includes(status)) {
+  if (["SUCCESS", "LOW", "ACTIVE", "READY", "RELEASED", "UNBLOCKED", "RESOLVED"].includes(status)) {
     return "success";
   }
 
@@ -207,7 +207,7 @@ function nodeStatusBorder(status) {
     return "#ffbf5a";
   }
 
-  if (["LOW", "SUCCESS", "ACTIVE", "READY"].includes(status)) {
+  if (["LOW", "SUCCESS", "ACTIVE", "READY", "RELEASED", "UNBLOCKED", "RESOLVED"].includes(status)) {
     return "#67a8ff";
   }
 

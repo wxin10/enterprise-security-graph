@@ -93,7 +93,7 @@
       <div class="section-header topology-panel__header">
         <div>
           <h3>自动监控流程图</h3>
-          <p>展示“日志接入 -> 适配解析 -> Neo4j 入库 -> 检测 -> 告警 -> 封禁预留”的系统闭环，可拖拽节点并点击查看相邻链路。</p>
+          <p>展示“日志接入 -> 适配解析 -> Neo4j 入库 -> 检测 -> 告警 -> 封禁 / 恢复预留”的系统闭环，可拖拽节点并点击查看相邻链路。</p>
         </div>
         <div class="topology-summary">
           <el-tag type="success" effect="dark">成功链路 {{ topologyData.summary.success_batch_count || 0 }}</el-tag>

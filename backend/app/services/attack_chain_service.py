@@ -300,20 +300,29 @@ RETURN properties(n) AS item
         for ban_index, ban in enumerate(bans):
             action_id = self._safe_text(ban.get("action_id")) or f"derived-ban-{ban_index}"
             ban_node_id = f"ban::{action_id}"
+            ban_status = self._safe_text(ban.get("current_ban_status")) or self._safe_text(ban.get("status")) or "READY"
+            ban_name = self._safe_text(ban.get("action_type")) or "封禁动作"
+            if self._safe_text(ban.get("released_at")) or ban_status == "RELEASED":
+                ban_name = f"{ban_name}（已放行）"
             add_node(
                 node_id=ban_node_id,
-                name=self._safe_text(ban.get("action_type")) or "封禁动作",
+                name=ban_name,
                 node_type="ban_action",
                 stage=7,
                 lane=ban_index,
                 symbol_size=66,
-                status=self._safe_text(ban.get("status")) or "READY",
+                status=ban_status,
                 detail_lines=[
                     f"动作编号：{action_id}",
                     f"动作类型：{self._safe_text(ban.get('action_type')) or '-'}",
+                    f"最近动作：{self._safe_text(ban.get('latest_action_type')) or self._safe_text(ban.get('action_type')) or '-'}",
+                    f"当前状态：{ban_status}",
                     f"执行状态：{self._safe_text(ban.get('status')) or '-'}",
                     f"执行时间：{self._safe_text(ban.get('executed_at')) or '-'}",
                     f"执行人：{self._safe_text(ban.get('executor')) or '-'}",
+                    f"放行时间：{self._safe_text(ban.get('released_at')) or '-'}",
+                    f"放行人：{self._safe_text(ban.get('released_by')) or '-'}",
+                    f"放行原因：{self._safe_text(ban.get('release_reason')) or '-'}",
                 ],
             )
             add_link(
@@ -570,7 +579,7 @@ RETURN properties(n) AS item
         构造攻击链摘要。
         """
         first_ban = bans[0] if bans else {}
-        ban_status = self._safe_text(first_ban.get("status"))
+        ban_status = self._safe_text(first_ban.get("current_ban_status")) or self._safe_text(first_ban.get("status"))
         if not ban_status:
             ban_status = "已阻断" if self._safe_text(alert.get("status")) == "BLOCKED" else "未联动封禁"
 
