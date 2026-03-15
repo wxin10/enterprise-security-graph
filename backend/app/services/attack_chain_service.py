@@ -301,9 +301,12 @@ RETURN properties(n) AS item
             action_id = self._safe_text(ban.get("action_id")) or f"derived-ban-{ban_index}"
             ban_node_id = f"ban::{action_id}"
             ban_status = self._safe_text(ban.get("current_ban_status")) or self._safe_text(ban.get("status")) or "READY"
+            latest_action_type = self._safe_text(ban.get("latest_action_type")) or self._safe_text(ban.get("action_type"))
             ban_name = self._safe_text(ban.get("action_type")) or "封禁动作"
-            if self._safe_text(ban.get("released_at")) or ban_status == "RELEASED":
+            if ban_status == "RELEASED":
                 ban_name = f"{ban_name}（已放行）"
+            elif latest_action_type == "MANUAL_BLOCK_IP" and self._safe_text(ban.get("block_count")) not in {"", "0", "1"}:
+                ban_name = f"{ban_name}（重新封禁）"
             add_node(
                 node_id=ban_node_id,
                 name=ban_name,
@@ -315,14 +318,20 @@ RETURN properties(n) AS item
                 detail_lines=[
                     f"动作编号：{action_id}",
                     f"动作类型：{self._safe_text(ban.get('action_type')) or '-'}",
-                    f"最近动作：{self._safe_text(ban.get('latest_action_type')) or self._safe_text(ban.get('action_type')) or '-'}",
+                    f"最近动作：{latest_action_type or '-'}",
                     f"当前状态：{ban_status}",
                     f"执行状态：{self._safe_text(ban.get('status')) or '-'}",
+                    f"最近操作时间：{self._safe_text(ban.get('latest_action_at')) or '-'}",
+                    f"最近操作人：{self._safe_text(ban.get('latest_action_by')) or '-'}",
+                    f"最近操作原因：{self._safe_text(ban.get('latest_action_reason')) or '-'}",
                     f"执行时间：{self._safe_text(ban.get('executed_at')) or '-'}",
                     f"执行人：{self._safe_text(ban.get('executor')) or '-'}",
                     f"放行时间：{self._safe_text(ban.get('released_at')) or '-'}",
                     f"放行人：{self._safe_text(ban.get('released_by')) or '-'}",
                     f"放行原因：{self._safe_text(ban.get('release_reason')) or '-'}",
+                    f"封禁次数：{self._safe_text(ban.get('block_count')) or '-'}",
+                    f"放行次数：{self._safe_text(ban.get('release_count')) or '-'}",
+                    f"历史摘要：{self._safe_text(ban.get('history_summary')) or '-'}",
                 ],
             )
             add_link(

@@ -29,6 +29,7 @@ AVAILABLE_API_ENDPOINTS = [
     "GET /api/bans",
     "GET /api/bans/<ban_id>",
     "POST /api/bans/<ban_id>/unban",
+    "POST /api/bans/<ban_id>/reblock",
     "GET /api/graph/user/<user_id>",
     "POST /api/monitor/start",
     "POST /api/monitor/stop",

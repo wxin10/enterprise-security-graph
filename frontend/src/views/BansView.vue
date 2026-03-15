@@ -2,16 +2,16 @@
   <!--
     文件路径：frontend/src/views/BansView.vue
     作用说明：
-    1. 展示封禁管理页面。
-    2. 对接封禁列表与放行接口，形成“封禁 -> 放行 / 解封”的响应闭环。
-    3. 明确区分历史动作、最近动作、当前封禁状态和放行审计信息。
+    1. 将封禁管理页从“动作记录展示”升级为“当前状态管理 + 历史动作审计”模式。
+    2. 支持对当前已封禁目标执行放行，对当前已放行目标执行重新封禁。
+    3. 通过历史处置抽屉展示同一目标的多次状态切换记录，便于答辩演示完整闭环。
   -->
   <div class="bans-page app-page">
     <section class="security-panel page-banner">
       <div>
         <h1 class="page-title">封禁管理</h1>
         <p class="page-subtitle">
-          当前页面用于展示系统联动产生的封禁与恢复动作，便于审计演示“发现告警 - 触发封禁 - 人工放行 / 解封”的安全响应闭环。
+          当前页面用于展示系统对目标 IP 的当前处置状态、最近动作与历史处置记录，支持“已封禁 -> 放行 -> 重新封禁”的双向切换演示。
         </p>
       </div>
 
@@ -23,33 +23,33 @@
     <el-row :gutter="18" class="summary-grid">
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">当前页记录数</div>
-          <div class="summary-card__value">{{ banItems.length }}</div>
-          <div class="summary-card__hint">当前分页中返回的封禁或放行记录数量</div>
+          <div class="summary-card__label">总记录数</div>
+          <div class="summary-card__value summary-card__value--primary">{{ pagination.total }}</div>
+          <div class="summary-card__hint">当前接口返回的封禁目标总数，用于分页展示和状态管理。</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">当前仍处封禁</div>
+          <div class="summary-card__label">当前已封禁</div>
           <div class="summary-card__value summary-card__value--danger">{{ blockedCount }}</div>
-          <div class="summary-card__hint">当前状态为 BLOCKED 的记录数量</div>
+          <div class="summary-card__hint">当前状态为 BLOCKED 的目标数量，可继续执行放行。</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">已放行 / 已解封</div>
+          <div class="summary-card__label">当前已放行</div>
           <div class="summary-card__value summary-card__value--success">{{ releasedCount }}</div>
-          <div class="summary-card__hint">当前状态为 RELEASED 的记录数量</div>
+          <div class="summary-card__hint">当前状态为 RELEASED 的目标数量，可继续执行重新封禁。</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">可执行放行</div>
-          <div class="summary-card__value summary-card__value--warning">{{ releasableCount }}</div>
-          <div class="summary-card__hint">支持回滚且当前仍处封禁状态的记录数量</div>
+          <div class="summary-card__label">可切换目标</div>
+          <div class="summary-card__value summary-card__value--warning">{{ switchableCount }}</div>
+          <div class="summary-card__hint">当前页中可执行放行或重新封禁的目标数量。</div>
         </div>
       </el-col>
     </el-row>
@@ -58,7 +58,7 @@
       <div class="section-header">
         <div>
           <h3>筛选条件</h3>
-          <p>支持按执行状态、当前封禁状态和目标 IP 进行联调查询。</p>
+          <p>支持按当前状态、执行状态和目标 IP 查询，便于快速定位需要复核的处置对象。</p>
         </div>
       </div>
 
@@ -68,7 +68,7 @@
             v-model="queryForm.status"
             placeholder="如 BLOCKED / RELEASED / SUCCESS"
             clearable
-            style="width: 220px"
+            style="width: 240px"
             @keyup.enter="handleSearch"
           />
         </el-form-item>
@@ -93,37 +93,19 @@
     <section class="security-panel table-panel">
       <div class="section-header">
         <div>
-          <h3>封禁动作列表</h3>
-          <p>列表会同时展示历史封禁动作、最近动作、当前封禁状态以及放行审计信息。</p>
+          <h3>当前状态列表</h3>
+          <p>同一行同时展示当前状态、最近动作与历史摘要，避免将“当前状态”和“动作记录”混为一谈。</p>
         </div>
 
-        <div class="table-header-tip">
-          当前筛选：{{ activeFilterText }}
-        </div>
+        <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
       </div>
 
       <el-table :data="banItems" v-loading="loading" stripe>
-        <el-table-column prop="action_id" label="记录编号" min-width="110" />
-
-        <el-table-column label="历史动作" min-width="120">
-          <template #default="{ row }">
-            <el-tag :type="actionTypeTagType(row.action_type)" effect="dark">
-              {{ row.action_type || "-" }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="最近动作" min-width="120">
-          <template #default="{ row }">
-            <el-tag :type="actionTypeTagType(row.latest_action_type)" effect="plain">
-              {{ row.latest_action_type || "-" }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
+        <el-table-column prop="action_id" label="记录编号" min-width="120" />
+        <el-table-column prop="ip_address" label="目标 IP" min-width="150" />
         <el-table-column prop="target_type" label="目标类型" min-width="100" />
 
-        <el-table-column label="当前封禁状态" min-width="130">
+        <el-table-column label="当前状态" min-width="120">
           <template #default="{ row }">
             <el-tag :type="currentStatusTagType(row.current_ban_status)" effect="dark">
               {{ formatCurrentStatus(row.current_ban_status) }}
@@ -131,15 +113,56 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="执行状态" min-width="120">
+        <el-table-column label="原始动作" min-width="120">
           <template #default="{ row }">
-            <el-tag :type="executionStatusTagType(row.status)" effect="plain">
-              {{ row.status || "-" }}
+            <el-tag :type="actionTypeTagType(row.action_type)" effect="plain">
+              {{ formatActionLabel(row.action_type) }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="ip_address" label="目标 IP" min-width="150" />
+        <el-table-column label="最近动作" min-width="140">
+          <template #default="{ row }">
+            <el-tag :type="actionTypeTagType(row.latest_action_type)" effect="dark">
+              {{ formatActionLabel(row.latest_action_type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="latest_action_at" label="最近操作时间" min-width="170" />
+        <el-table-column prop="latest_operator" label="最近操作人" min-width="120" />
+        <el-table-column prop="latest_reason" label="最近操作原因" min-width="220" show-overflow-tooltip />
+
+        <el-table-column label="历史动作摘要" min-width="260">
+          <template #default="{ row }">
+            <div class="history-cell">
+              <div class="history-chip-list">
+                <el-tag
+                  v-for="item in row.history_actions_brief"
+                  :key="`${row.action_id}-${item.sequence}`"
+                  :type="actionTypeTagType(item.action_type)"
+                  effect="plain"
+                  size="small"
+                >
+                  {{ formatActionLabel(item.action_type) }}
+                </el-tag>
+              </div>
+              <div class="history-summary-text">{{ row.history_summary || "-" }}</div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="次数统计" min-width="120">
+          <template #default="{ row }">
+            <div class="count-stack">
+              <div>封禁 {{ row.block_count || 0 }}</div>
+              <div>放行 {{ row.release_count || 0 }}</div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="blocked_at" label="最近封禁时间" min-width="170" />
+        <el-table-column prop="released_at" label="最近放行时间" min-width="170" />
 
         <el-table-column label="图数据库状态" min-width="120">
           <template #default="{ row }">
@@ -151,35 +174,34 @@
 
         <el-table-column prop="alert_name" label="关联告警" min-width="180" show-overflow-tooltip />
         <el-table-column prop="severity" label="告警等级" min-width="100" />
-        <el-table-column prop="executor" label="封禁执行人" min-width="110" />
-        <el-table-column prop="released_by" label="放行执行人" min-width="110" />
-        <el-table-column prop="executed_at" label="封禁时间" min-width="170" />
-        <el-table-column prop="released_at" label="放行时间" min-width="170" />
-        <el-table-column prop="release_reason" label="放行原因" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="ticket_no" label="工单编号" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
 
-        <el-table-column label="支持回滚" min-width="100">
+        <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
-            <el-tag :type="row.rollback_supported ? 'warning' : 'info'" effect="plain">
-              {{ row.rollback_supported ? "支持" : "不支持" }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <div class="action-buttons">
+              <el-button
+                v-if="row.can_unban"
+                type="danger"
+                link
+                :loading="isRowActionLoading(row.action_id)"
+                @click="handleUnban(row)"
+              >
+                放行
+              </el-button>
 
-        <el-table-column label="操作" width="130" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.can_unban"
-              type="danger"
-              link
-              :loading="isRowUnbanning(row.action_id)"
-              @click="handleUnban(row)"
-            >
-              放行
-            </el-button>
-            <el-tag v-else-if="row.is_released" type="success" effect="plain">已放行</el-tag>
-            <el-tag v-else type="info" effect="plain">不可放行</el-tag>
+              <el-button
+                v-else-if="row.can_reblock"
+                type="warning"
+                link
+                :loading="isRowActionLoading(row.action_id)"
+                @click="handleReblock(row)"
+              >
+                重新封禁
+              </el-button>
+
+              <el-tag v-else type="info" effect="plain">不可切换</el-tag>
+
+              <el-button type="primary" link @click="handleOpenHistory(row)">历史</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -197,23 +219,81 @@
         />
       </div>
     </section>
+
+    <el-drawer
+      v-model="historyDrawerVisible"
+      title="历史处置记录"
+      size="480px"
+      destroy-on-close
+    >
+      <div v-loading="historyLoading" class="history-drawer">
+        <template v-if="historyDetail">
+          <div class="history-overview">
+            <div class="history-overview__card">
+              <div class="history-overview__label">目标 IP</div>
+              <div class="history-overview__value">{{ historyDetail.ip_address }}</div>
+            </div>
+            <div class="history-overview__card">
+              <div class="history-overview__label">当前状态</div>
+              <div class="history-overview__value">{{ formatCurrentStatus(historyDetail.current_ban_status) }}</div>
+            </div>
+            <div class="history-overview__card">
+              <div class="history-overview__label">最近动作</div>
+              <div class="history-overview__value">{{ formatActionLabel(historyDetail.latest_action_type) }}</div>
+            </div>
+            <div class="history-overview__card">
+              <div class="history-overview__label">关联告警</div>
+              <div class="history-overview__value">{{ historyDetail.alert_name || "-" }}</div>
+            </div>
+          </div>
+
+          <el-timeline>
+            <el-timeline-item
+              v-for="item in historyTimeline"
+              :key="`${historyDetail.action_id}-${item.sequence}`"
+              :timestamp="item.operated_at"
+              :type="timelineType(item)"
+              placement="top"
+            >
+              <div class="timeline-card">
+                <div class="timeline-card__title">
+                  {{ formatActionLabel(item.action_type) }}
+                  <el-tag size="small" effect="plain" :type="currentStatusTagType(item.to_status)">
+                    {{ formatCurrentStatus(item.to_status) }}
+                  </el-tag>
+                </div>
+                <div class="timeline-card__meta">状态变化：{{ item.from_status }} -> {{ item.to_status }}</div>
+                <div class="timeline-card__meta">执行人：{{ item.operated_by || "-" }}</div>
+                <div class="timeline-card__meta">原因：{{ item.reason || "-" }}</div>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+        </template>
+
+        <el-empty v-else description="暂无历史记录" />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 // 文件路径：frontend/src/views/BansView.vue
 // 作用说明：
-// 1. 通过 fetchBans 读取封禁列表，并对接新增加的放行 / 解封接口。
-// 2. 前端用当前封禁状态、最近动作和放行审计字段增强展示语义。
-// 3. 点击“放行”时通过确认输入框填写原因，并在成功后立即刷新列表。
+// 1. 通过封禁管理接口加载当前状态列表。
+// 2. 支持放行与重新封禁的双向切换，并在成功后即时刷新列表。
+// 3. 通过历史抽屉展示同一目标的多次处置时间线，体现“状态管理 + 审计记录”的双层语义。
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 
-import { fetchBans, unbanBan } from "@/api/bans";
+import { fetchBanDetail, fetchBans, reblockBan, unbanBan } from "@/api/bans";
 
 const loading = ref(false);
 const banItems = ref([]);
-const unbanLoadingMap = reactive({});
+const actionLoadingMap = reactive({});
+
+const historyDrawerVisible = ref(false);
+const historyLoading = ref(false);
+const historyDetail = ref(null);
 
 const queryForm = reactive({
   status: "",
@@ -234,8 +314,8 @@ const releasedCount = computed(() => {
   return banItems.value.filter((item) => item.current_ban_status === "RELEASED").length;
 });
 
-const releasableCount = computed(() => {
-  return banItems.value.filter((item) => item.can_unban === true).length;
+const switchableCount = computed(() => {
+  return banItems.value.filter((item) => item.can_unban || item.can_reblock).length;
 });
 
 const activeFilterText = computed(() => {
@@ -252,40 +332,35 @@ const activeFilterText = computed(() => {
   return segments.length > 0 ? segments.join(" / ") : "未设置筛选条件";
 });
 
+const historyTimeline = computed(() => {
+  const items = historyDetail.value?.history_actions || [];
+  return [...items].reverse();
+});
+
 function actionTypeTagType(actionType) {
   const normalizedActionType = String(actionType || "").toUpperCase();
 
-  if (normalizedActionType === "UNBLOCK_IP") {
-    return "success";
+  if (["BLOCK_IP", "MANUAL_BLOCK_IP"].includes(normalizedActionType)) {
+    return "danger";
   }
 
-  if (normalizedActionType === "BLOCK_IP") {
-    return "danger";
+  if (["UNBLOCK_IP", "MANUAL_UNBLOCK_IP"].includes(normalizedActionType)) {
+    return "success";
   }
 
   return "info";
 }
 
-function executionStatusTagType(status) {
-  const normalizedStatus = String(status || "").toUpperCase();
+function formatActionLabel(actionType) {
+  const normalizedActionType = String(actionType || "").toUpperCase();
+  const labelMap = {
+    BLOCK_IP: "封禁",
+    MANUAL_BLOCK_IP: "重新封禁",
+    UNBLOCK_IP: "放行",
+    MANUAL_UNBLOCK_IP: "人工放行"
+  };
 
-  if (["SUCCESS", "DONE", "EXECUTED", "BLOCKED"].includes(normalizedStatus)) {
-    return "danger";
-  }
-
-  if (["RELEASED", "UNBLOCKED", "ROLLED_BACK", "RESOLVED"].includes(normalizedStatus)) {
-    return "success";
-  }
-
-  if (["PENDING", "WAITING", "QUEUED"].includes(normalizedStatus)) {
-    return "warning";
-  }
-
-  if (normalizedStatus === "FAILED") {
-    return "danger";
-  }
-
-  return "info";
+  return labelMap[normalizedActionType] || normalizedActionType || "-";
 }
 
 function currentStatusTagType(status) {
@@ -332,8 +407,13 @@ function formatCurrentStatus(status) {
   return normalizedStatus || "-";
 }
 
-function isRowUnbanning(actionId) {
-  return Boolean(unbanLoadingMap[actionId]);
+function timelineType(item) {
+  const status = String(item?.to_status || "").toUpperCase();
+  return currentStatusTagType(status);
+}
+
+function isRowActionLoading(actionId) {
+  return Boolean(actionLoadingMap[actionId]);
 }
 
 async function loadBans() {
@@ -357,39 +437,78 @@ async function loadBans() {
   }
 }
 
-async function handleUnban(row) {
-  if (!row?.can_unban) {
-    return;
+async function loadHistoryDetail(actionId) {
+  historyLoading.value = true;
+  try {
+    const response = await fetchBanDetail(actionId);
+    historyDetail.value = response?.data || null;
+  } finally {
+    historyLoading.value = false;
   }
+}
+
+async function handleOpenHistory(row) {
+  historyDrawerVisible.value = true;
+  await loadHistoryDetail(row.action_id);
+}
+
+async function refreshHistoryIfNeeded(actionId) {
+  if (historyDrawerVisible.value && historyDetail.value?.action_id === actionId) {
+    await loadHistoryDetail(actionId);
+  }
+}
+
+async function handleStateToggle(row, toggleType) {
+  const isUnban = toggleType === "unban";
+  const dialogTitle = isUnban ? "确认放行 / 解封" : "确认重新封禁";
+  const dialogMessage = isUnban
+    ? `请填写对记录 ${row.action_id} 的放行原因。`
+    : `请填写对记录 ${row.action_id} 的重新封禁原因。`;
+  const defaultReason = isUnban ? "人工复核后确认放行" : "人工复核后重新封禁";
+  const confirmButtonText = isUnban ? "确认放行" : "确认重新封禁";
 
   try {
-    const promptResult = await ElMessageBox.prompt(
-      `请填写对记录 ${row.action_id} 的放行原因。`,
-      "确认放行 / 解封",
-      {
-        confirmButtonText: "确认放行",
-        cancelButtonText: "取消",
-        inputType: "textarea",
-        inputValue: "人工复核后确认放行",
-        inputPlaceholder: "请输入放行原因"
-      }
-    );
-
-    unbanLoadingMap[row.action_id] = true;
-    const response = await unbanBan(row.action_id, {
-      release_reason: promptResult.value || "人工复核后确认放行",
-      released_by: "security_console"
+    const promptResult = await ElMessageBox.prompt(dialogMessage, dialogTitle, {
+      confirmButtonText,
+      cancelButtonText: "取消",
+      inputType: "textarea",
+      inputValue: defaultReason,
+      inputPlaceholder: "请输入原因"
     });
 
-    ElMessage.success(response?.message || "放行成功");
-    await loadBans()
+    actionLoadingMap[row.action_id] = true;
+    const payload = {
+      reason: promptResult.value || defaultReason,
+      operator: "security_console"
+    };
+
+    const response = isUnban
+      ? await unbanBan(row.action_id, payload)
+      : await reblockBan(row.action_id, payload);
+
+    ElMessage.success(response?.message || (isUnban ? "放行成功" : "重新封禁成功"));
+    await loadBans();
+    await refreshHistoryIfNeeded(row.action_id);
   } catch (error) {
-    if (error === "cancel" || error === "close" || error?.action === "cancel" || error?.action === "close") {
+    if (
+      error === "cancel" ||
+      error === "close" ||
+      error?.action === "cancel" ||
+      error?.action === "close"
+    ) {
       return;
     }
   } finally {
-    unbanLoadingMap[row.action_id] = false;
+    actionLoadingMap[row.action_id] = false;
   }
+}
+
+function handleUnban(row) {
+  return handleStateToggle(row, "unban");
+}
+
+function handleReblock(row) {
+  return handleStateToggle(row, "reblock");
 }
 
 function handleSearch() {
@@ -513,10 +632,100 @@ onMounted(() => {
   gap: 6px 0;
 }
 
+.history-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.history-summary-text {
+  color: #8fa7ca;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.count-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #dce7fb;
+  font-size: 13px;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .pagination-bar {
   display: flex;
   justify-content: flex-end;
   margin-top: 18px;
+}
+
+.history-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 320px;
+}
+
+.history-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.history-overview__card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(8, 20, 35, 0.74);
+  border: 1px solid rgba(84, 129, 194, 0.12);
+}
+
+.history-overview__label {
+  font-size: 12px;
+  color: #8aa3c8;
+}
+
+.history-overview__value {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #eef5ff;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.timeline-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(8, 20, 35, 0.7);
+  border: 1px solid rgba(84, 129, 194, 0.12);
+}
+
+.timeline-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #eef5ff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.timeline-card__meta {
+  margin-top: 8px;
+  color: #8fa7ca;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 @media (max-width: 992px) {
@@ -531,6 +740,10 @@ onMounted(() => {
   .pagination-bar {
     justify-content: center;
     overflow-x: auto;
+  }
+
+  .history-overview {
+    grid-template-columns: 1fr;
   }
 }
 </style>
