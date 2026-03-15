@@ -25,6 +25,7 @@ AVAILABLE_API_ENDPOINTS = [
     "GET /api/graph/overview",
     "GET /api/graph/stats",
     "GET /api/alerts",
+    "GET /api/alerts/<alert_id>/attack-chain",
     "GET /api/bans",
     "GET /api/graph/user/<user_id>",
     "POST /api/monitor/start",

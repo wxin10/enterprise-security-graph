@@ -10,3 +10,7 @@ export function fetchAlerts(params) {
     params
   });
 }
+
+export function fetchAlertAttackChain(alertId) {
+  return http.get(`/api/alerts/${alertId}/attack-chain`);
+}

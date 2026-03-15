@@ -3,15 +3,16 @@
     文件路径：frontend/src/views/AlertsView.vue
     作用说明：
     1. 展示告警管理页面。
-    2. 对接后端 GET /api/alerts 接口。
-    3. 提供基础筛选、分页和当前页摘要信息，便于联调和论文演示。
+    2. 对接后端 GET /api/alerts 接口，提供筛选、分页和摘要展示。
+    3. 新增“查看攻击链”入口，并通过抽屉展示面向安全语义的攻击链图谱。
   -->
   <div class="alerts-page app-page">
     <section class="security-panel page-banner">
       <div>
         <h1 class="page-title">告警管理</h1>
         <p class="page-subtitle">
-          当前页面用于展示图谱分析后的安全告警列表，可按状态、严重等级和关键字进行查询，并结合联动处置结果进行研判。
+          当前页面用于展示图谱分析后的安全告警列表，可按状态、严重等级和关键字进行查询，
+          并支持围绕单条告警查看真实攻击链图谱。
         </p>
       </div>
 
@@ -106,7 +107,7 @@
       <div class="section-header">
         <div>
           <h3>告警列表</h3>
-          <p>表格字段对齐后端接口返回的 items 结构，便于后续继续扩展告警详情页。</p>
+          <p>表格字段对齐后端接口返回结构，并在每条告警上提供“查看攻击链”入口。</p>
         </div>
 
         <div class="table-header-tip">
@@ -158,6 +159,14 @@
         <el-table-column prop="description" label="告警描述" min-width="220" show-overflow-tooltip />
         <el-table-column prop="suggestion" label="处置建议" min-width="220" show-overflow-tooltip />
         <el-table-column prop="last_seen" label="最近时间" min-width="170" />
+
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link @click="handleOpenAttackChain(row)">
+              查看攻击链
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-bar">
@@ -173,6 +182,45 @@
         />
       </div>
     </section>
+
+    <el-drawer
+      v-model="attackChainVisible"
+      size="72%"
+      :destroy-on-close="false"
+      :with-header="true"
+      class="attack-chain-drawer"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <div>
+            <div class="drawer-title">攻击链图谱</div>
+            <div class="drawer-subtitle">
+              {{ selectedAlert?.alert_name || "当前告警" }} ｜ {{ selectedAlert?.alert_id || "-" }}
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div class="attack-chain-panel">
+        <div class="attack-chain-summary-grid">
+          <div class="security-panel attack-chain-summary-card" v-for="item in attackChainSummaryCards" :key="item.key">
+            <div class="attack-chain-summary-card__label">{{ item.label }}</div>
+            <div class="attack-chain-summary-card__value" :class="item.className">{{ item.value }}</div>
+          </div>
+        </div>
+
+        <div class="security-panel attack-chain-hint">
+          <div class="attack-chain-hint__title">链路说明</div>
+          <div class="attack-chain-hint__text">{{ attackChainData.summary.message || defaultAttackChainMessage }}</div>
+        </div>
+
+        <AttackChainGraph
+          :graph-data="attackChainData"
+          :loading="attackChainLoading"
+          :empty-text="attackChainData.summary.message || defaultAttackChainMessage"
+        />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -180,15 +228,20 @@
 // 文件路径：frontend/src/views/AlertsView.vue
 // 作用说明：
 // 1. 通过 fetchAlerts 对接后端告警分页接口。
-// 2. 将接口中的 items 和 pagination 结构映射为表格与分页组件。
-// 3. 在不增加复杂交互的前提下，补充摘要卡片，提升页面信息密度。
-
+// 2. 保留原有筛选、分页和摘要卡片能力。
+// 3. 新增“查看攻击链”抽屉，调用攻击链接口并以 ECharts graph 展示真实攻击事件关系。
 import { computed, onMounted, reactive, ref } from "vue";
 
-import { fetchAlerts } from "@/api/alerts";
+import AttackChainGraph from "@/components/AttackChainGraph.vue";
+import { fetchAlertAttackChain, fetchAlerts } from "@/api/alerts";
 
 const loading = ref(false);
+const attackChainLoading = ref(false);
+const attackChainVisible = ref(false);
 const alertItems = ref([]);
+const selectedAlert = ref(null);
+
+const defaultAttackChainMessage = "当前告警缺少足够的攻击事件证据，无法完整展示攻击链。";
 
 const queryForm = reactive({
   status: "",
@@ -200,6 +253,20 @@ const pagination = reactive({
   page: 1,
   size: 10,
   total: 0
+});
+
+const attackChainData = reactive({
+  nodes: [],
+  links: [],
+  summary: {
+    source_ip: "-",
+    attack_type: "-",
+    target_asset: "-",
+    matched_rule: "-",
+    alert_level: "-",
+    ban_status: "-",
+    message: defaultAttackChainMessage
+  }
 });
 
 const criticalAlertCount = computed(() => {
@@ -227,6 +294,63 @@ const activeFilterText = computed(() => {
 
   return segments.length > 0 ? segments.join(" / ") : "未设置筛选条件";
 });
+
+const attackChainSummaryCards = computed(() => {
+  const summary = attackChainData.summary || {};
+
+  return [
+    {
+      key: "source_ip",
+      label: "攻击源 IP",
+      value: summary.source_ip || "-",
+      className: "attack-chain-summary-card__value--primary"
+    },
+    {
+      key: "attack_type",
+      label: "攻击类型",
+      value: summary.attack_type || "-",
+      className: "attack-chain-summary-card__value--warning"
+    },
+    {
+      key: "target_asset",
+      label: "目标资产",
+      value: summary.target_asset || "-",
+      className: ""
+    },
+    {
+      key: "matched_rule",
+      label: "命中规则",
+      value: summary.matched_rule || "-",
+      className: ""
+    },
+    {
+      key: "alert_level",
+      label: "告警等级",
+      value: summary.alert_level || "-",
+      className: "attack-chain-summary-card__value--danger"
+    },
+    {
+      key: "ban_status",
+      label: "封禁状态",
+      value: summary.ban_status || "-",
+      className: "attack-chain-summary-card__value--success"
+    }
+  ];
+});
+
+function resetAttackChainData() {
+  attackChainData.nodes = [];
+  attackChainData.links = [];
+  attackChainData.summary = {
+    source_ip: "-",
+    attack_type: "-",
+    target_asset: "-",
+    matched_rule: "-",
+    alert_level: selectedAlert.value?.severity || "-",
+    ban_status: "-",
+    message: defaultAttackChainMessage
+  };
+}
 
 function joinArray(value) {
   if (!Array.isArray(value) || value.length === 0) {
@@ -287,6 +411,33 @@ async function loadAlerts() {
     pagination.total = data.pagination?.total || 0;
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleOpenAttackChain(row) {
+  selectedAlert.value = row;
+  attackChainVisible.value = true;
+  attackChainLoading.value = true;
+  resetAttackChainData();
+
+  try {
+    const response = await fetchAlertAttackChain(row.alert_id);
+    const data = response?.data || {};
+
+    attackChainData.nodes = data.nodes || [];
+    attackChainData.links = data.links || [];
+    attackChainData.summary = {
+      ...attackChainData.summary,
+      ...(data.summary || {})
+    };
+  } catch (error) {
+    attackChainData.summary = {
+      ...attackChainData.summary,
+      alert_level: row?.severity || "-",
+      message: "当前告警暂时无法构建完整攻击链，已保留基础告警摘要，请稍后重试或检查后端证据数据。"
+    };
+  } finally {
+    attackChainLoading.value = false;
   }
 }
 
@@ -414,11 +565,101 @@ onMounted(() => {
   margin-top: 18px;
 }
 
+.drawer-header {
+  display: flex;
+  align-items: center;
+}
+
+.drawer-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #eef5ff;
+}
+
+.drawer-subtitle {
+  margin-top: 6px;
+  color: #8fa7ca;
+  font-size: 13px;
+}
+
+.attack-chain-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.attack-chain-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.attack-chain-summary-card {
+  padding: 16px;
+}
+
+.attack-chain-summary-card__label {
+  font-size: 13px;
+  color: #8aa3c8;
+}
+
+.attack-chain-summary-card__value {
+  margin-top: 10px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: #edf4ff;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.attack-chain-summary-card__value--primary {
+  color: #67a8ff;
+}
+
+.attack-chain-summary-card__value--warning {
+  color: #ffbf5a;
+}
+
+.attack-chain-summary-card__value--danger {
+  color: #ff7285;
+}
+
+.attack-chain-summary-card__value--success {
+  color: #5dd598;
+}
+
+.attack-chain-hint {
+  padding: 16px 18px;
+}
+
+.attack-chain-hint__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #edf4ff;
+}
+
+.attack-chain-hint__text {
+  margin-top: 8px;
+  color: #8aa3c8;
+  line-height: 1.8;
+  font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+  .attack-chain-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 992px) {
   .page-banner,
   .section-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .attack-chain-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 

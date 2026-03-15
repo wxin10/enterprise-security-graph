@@ -12,5 +12,6 @@
 from app.services.graph_service import graph_service
 from app.services.detection_service import detection_service
 from app.services.monitor_service import monitor_service
+from app.services.attack_chain_service import attack_chain_service
 
-__all__ = ["graph_service", "detection_service", "monitor_service"]
+__all__ = ["graph_service", "detection_service", "monitor_service", "attack_chain_service"]

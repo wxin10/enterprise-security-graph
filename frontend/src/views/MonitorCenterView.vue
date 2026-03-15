@@ -184,9 +184,9 @@
     <section class="security-panel topology-panel">
       <div class="section-header topology-panel__header">
         <div>
-          <h3>监控关系图谱</h3>
+          <h3>自动监控流程图</h3>
           <p>
-            基于最近处理批次构建业务链路图，展示“日志接入 -> 适配解析 -> Neo4j 入库 -> 检测 -> 告警 -> 封禁预留”的处理拓扑。
+            基于最近处理批次构建系统自动化流程图，展示“日志接入 -> 适配解析 -> Neo4j 入库 -> 检测 -> 告警 -> 封禁预留”的处理链路。
           </p>
         </div>
 
