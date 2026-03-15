@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Dict, Type
 
 
@@ -32,6 +33,21 @@ def parse_cors_origins(raw_value: str):
 
     origins = [item.strip() for item in raw_value.split(",") if item.strip()]
     return origins if origins else "*"
+
+
+def parse_monitor_watch_directories(raw_value: str):
+    """
+    解析监控目录子项配置。
+
+    说明：
+    1. 环境变量中使用逗号分隔的目录名称列表。
+    2. 若未配置，则回退到当前项目既有的四类 incoming 子目录。
+    """
+    if not raw_value or not raw_value.strip():
+        return ["safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
+
+    directories = [item.strip() for item in raw_value.split(",") if item.strip()]
+    return directories or ["safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
 
 
 class BaseConfig:
@@ -62,6 +78,22 @@ class BaseConfig:
     NEO4J_CONNECTION_TIMEOUT = int(os.getenv("NEO4J_CONNECTION_TIMEOUT", "15"))
     NEO4J_MAX_CONNECTION_LIFETIME = int(os.getenv("NEO4J_MAX_CONNECTION_LIFETIME", "3600"))
     NEO4J_MAX_CONNECTION_POOL_SIZE = int(os.getenv("NEO4J_MAX_CONNECTION_POOL_SIZE", "50"))
+
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    DATA_ROOT = PROJECT_ROOT / "data"
+    MONITOR_INCOMING_ROOT = str(DATA_ROOT / "incoming")
+    MONITOR_RUNTIME_ROOT = str(DATA_ROOT / "runtime")
+    MONITOR_BATCH_ROOT = str(DATA_ROOT / "runtime" / "batches")
+    MONITOR_STATE_FILE = str(DATA_ROOT / "runtime" / "monitor_state.json")
+    MONITOR_WATCHER_LOG_FILE = str(DATA_ROOT / "runtime" / "monitor_watcher.log")
+    MONITOR_DEFAULT_INTERVAL_SECONDS = int(os.getenv("MONITOR_DEFAULT_INTERVAL_SECONDS", "5"))
+    MONITOR_RECENT_RECORD_LIMIT = int(os.getenv("MONITOR_RECENT_RECORD_LIMIT", "10"))
+    MONITOR_WATCH_DIRECTORIES = parse_monitor_watch_directories(
+        os.getenv(
+            "MONITOR_WATCH_DIRECTORIES",
+            "safeline_waf,n9e_waf,windows_firewall,linux_firewall",
+        )
+    )
 
 
 class DevelopmentConfig(BaseConfig):

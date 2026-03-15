@@ -2,9 +2,9 @@
   <!--
     文件路径：frontend/src/layouts/AppLayout.vue
     作用说明：
-    1. 提供系统基础布局页，采用左侧菜单 + 顶部栏 + 内容区结构。
-    2. 承载仪表盘、告警管理、封禁管理等业务页面。
-    3. 当前阶段用于毕业设计演示，因此保留静态退出逻辑，不接真实鉴权。
+    1. 提供系统主布局，采用左侧菜单 + 顶部栏 + 内容区结构。
+    2. 承载仪表盘、告警管理、封禁管理与日志监控中心等业务页面。
+    3. 当前阶段保持静态登录跳转，不接入真实权限系统。
   -->
   <div class="layout-page">
     <el-container class="layout-shell">
@@ -41,6 +41,11 @@
             <el-icon><Lock /></el-icon>
             <span>封禁管理</span>
           </el-menu-item>
+
+          <el-menu-item index="/console/monitor">
+            <el-icon><Monitor /></el-icon>
+            <span>日志监控</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -50,7 +55,7 @@
             <div class="header-title">{{ currentPageTitle }}</div>
             <div class="header-status">
               <span class="status-dot status-dot--success"></span>
-              前后端接口联调正常，可直接连接 Neo4j 图数据展示结果
+              当前前后端接口联调正常，可直接展示 Neo4j 图数据与自动化监控流程
             </div>
           </div>
 
@@ -74,10 +79,9 @@
 <script setup>
 // 文件路径：frontend/src/layouts/AppLayout.vue
 // 作用说明：
-// 1. 管理系统主布局和菜单跳转。
-// 2. 根据当前路由显示顶部标题。
-// 3. 通过定时器更新时间，增强安全控制台的在线监控氛围。
-
+// 1. 管理系统主布局、菜单跳转和顶部标题。
+// 2. 根据当前路由同步菜单高亮和页面标题。
+// 3. 通过定时器更新时间，增强企业安全控制台的在线监控氛围。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 
@@ -87,18 +91,20 @@ const route = useRoute();
 const currentTimeText = ref("");
 let timerId = null;
 
-// 当前激活的菜单项直接取路由完整路径。
-// 这样切换页面时，左侧菜单高亮可以自动同步。
 const activeMenu = computed(() => route.path);
 
-// 顶部标题直接复用路由 meta 中的 title。
 const currentPageTitle = computed(() => {
   return route.meta?.title || "控制台";
 });
 
 function updateCurrentTime() {
   const now = new Date();
-  currentTimeText.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+  currentTimeText.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(
+    2,
+    "0"
+  )}:${String(now.getSeconds()).padStart(2, "0")}`;
 }
 
 function handleMenuSelect(index) {
@@ -107,7 +113,7 @@ function handleMenuSelect(index) {
 
 function handleLogout() {
   // 当前阶段不实现真实登录鉴权。
-  // 这里仅清理静态登录标记并返回登录页，保证演示流程完整。
+  // 这里仅清理静态登录标记并回到登录页，保持演示流程完整。
   sessionStorage.removeItem("mock_login_user");
   router.push("/login");
 }

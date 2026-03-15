@@ -16,6 +16,7 @@ from flask import Flask
 from app.api.alert_api import alert_api_bp
 from app.api.ban_api import ban_api_bp
 from app.api.graph_api import graph_api_bp
+from app.api.monitor_api import monitor_api_bp
 
 
 # 当前阶段已开放接口列表。
@@ -26,6 +27,10 @@ AVAILABLE_API_ENDPOINTS = [
     "GET /api/alerts",
     "GET /api/bans",
     "GET /api/graph/user/<user_id>",
+    "POST /api/monitor/start",
+    "POST /api/monitor/stop",
+    "GET /api/monitor/status",
+    "GET /api/monitor/config",
 ]
 
 
@@ -35,6 +40,7 @@ API_BLUEPRINTS = [
     graph_api_bp,
     alert_api_bp,
     ban_api_bp,
+    monitor_api_bp,
 ]
 
 

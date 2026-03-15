@@ -1,9 +1,8 @@
 // 文件路径：frontend/src/router/index.js
 // 作用说明：
 // 1. 统一管理前端页面路由。
-// 2. 将登录页与系统业务布局页分开，便于后续接入鉴权逻辑。
-// 3. 当前阶段提供登录页、仪表盘页、告警管理页和封禁管理页。
-
+// 2. 保持登录页与业务控制台布局分离，便于后续继续扩展权限系统。
+// 3. 当前阶段提供登录页、仪表盘、告警管理、封禁管理和日志监控中心页面。
 import { createRouter, createWebHistory } from "vue-router";
 
 import AppLayout from "@/layouts/AppLayout.vue";
@@ -11,6 +10,7 @@ import AlertsView from "@/views/AlertsView.vue";
 import BansView from "@/views/BansView.vue";
 import DashboardView from "@/views/DashboardView.vue";
 import LoginView from "@/views/LoginView.vue";
+import MonitorCenterView from "@/views/MonitorCenterView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -58,6 +58,14 @@ const router = createRouter({
           meta: {
             title: "封禁管理"
           }
+        },
+        {
+          path: "monitor",
+          name: "monitor",
+          component: MonitorCenterView,
+          meta: {
+            title: "日志监控中心"
+          }
         }
       ]
     },
@@ -68,8 +76,8 @@ const router = createRouter({
   ]
 });
 
-// 当前阶段先不做真实登录鉴权。
-// 这里只负责根据路由元信息更新浏览器标题，方便演示与调试。
+// 当前阶段先不接真实登录鉴权。
+// 这里仅根据路由元信息更新浏览器标题，便于调试和答辩演示。
 router.afterEach((to) => {
   const pageTitle = to.meta?.title ? `${to.meta.title} - 企业安全图谱平台` : "企业安全图谱平台";
   document.title = pageTitle;
