@@ -31,6 +31,7 @@ AVAILABLE_API_ENDPOINTS = [
     "POST /api/monitor/stop",
     "GET /api/monitor/status",
     "GET /api/monitor/config",
+    "GET /api/monitor/topology",
 ]
 
 

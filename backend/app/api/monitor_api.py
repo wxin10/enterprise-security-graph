@@ -6,7 +6,7 @@
 文件作用：
 1. 提供“日志监控中心”相关接口蓝图。
 2. 通过 monitor_service 统一控制 log_watcher.py 的启动、停止与状态查询。
-3. 保持当前项目“蓝图 + 服务层”的风格，不把监控逻辑直接堆在路由函数中。
+3. 提供监控配置和监控关系图谱接口，供前端监控控制台展示。
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ def parse_positive_interval(value: object, default_value: int) -> int:
     """
     解析监听间隔参数。
 
-    设计说明：
-    1. 监控启动接口允许前端传入 interval_seconds。
-    2. 如果未传值，则回退为后端默认监听间隔。
-    3. 若传值非法，则通过 ValidationError 统一返回 JSON 错误。
+    说明：
+    1. 启动监控接口允许前端传入 interval_seconds。
+    2. 如果未传值，则使用后端默认监听间隔。
+    3. 若参数非法，则通过 ValidationError 返回统一 JSON 错误。
     """
     if value in (None, ""):
         return default_value
@@ -52,7 +52,7 @@ def start_monitor():
     作用：
     1. 启动后台日志监听任务。
     2. 默认启动 scripts/log_watcher.py --interval 5。
-    3. 可选支持前端传入自定义监听间隔，便于演示和调试。
+    3. 支持前端传入自定义监听间隔，便于演示。
     """
     request_payload = request.get_json(silent=True) or {}
     interval_seconds = parse_positive_interval(
@@ -83,7 +83,7 @@ def get_monitor_status():
 
     作用：
     1. 返回当前监控进程状态。
-    2. 返回最近处理文件数、最近处理时间、最近检测状态和最近处理记录列表。
+    2. 返回最近处理文件数、最近处理时间、最近检测状态和最近处理记录。
     """
     monitor_status = monitor_service.get_monitor_status()
     return success_response(data=monitor_status, message="日志监控状态获取成功")
@@ -95,9 +95,21 @@ def get_monitor_config():
     接口：GET /api/monitor/config
 
     作用：
-    1. 返回当前监听根目录、监听目录列表和运行时文件路径。
-    2. 供前端“日志监控中心”展示配置信息。
+    1. 返回监听根目录、监听目录列表和运行时文件路径。
+    2. 供前端“日志监控中心”展示监控配置。
     """
     monitor_config = monitor_service.get_monitor_config()
     return success_response(data=monitor_config, message="日志监控配置获取成功")
 
+
+@monitor_api_bp.get("/monitor/topology")
+def get_monitor_topology():
+    """
+    接口：GET /api/monitor/topology
+
+    作用：
+    1. 返回“日志接入 -> 适配解析 -> Neo4j -> 检测 -> 告警 -> 封禁预留”的业务拓扑图数据。
+    2. 数据来源优先复用 monitor_state.json 与 data/runtime/batches/*/status.json。
+    """
+    topology_data = monitor_service.get_monitor_topology()
+    return success_response(data=topology_data, message="监控关系图谱获取成功")
