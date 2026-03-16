@@ -561,6 +561,7 @@ RETURN b.action_id AS action_id
         item = {
             "action_id": action_id,
             "action_type": self._normalize_text(ban.get("action_type")) or "BLOCK_IP",
+            "block_source": self._normalize_text(ban.get("block_source")) or "manual",
             "latest_action_type": self._normalize_text(ban.get("latest_action_type")) or self._normalize_text(ban.get("action_type")) or "BLOCK_IP",
             "target_type": self._normalize_text(ban.get("target_type")) or "IP",
             "status": self._normalize_text(ban.get("status")),

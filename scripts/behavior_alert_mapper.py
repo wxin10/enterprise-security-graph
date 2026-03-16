@@ -19,11 +19,12 @@ import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 BACKEND_ENV_FILE = BASE_DIR / "backend" / ".env"
+BACKEND_DIR = BASE_DIR / "backend"
 
 
 def load_graph_database():
@@ -195,6 +196,11 @@ class BehaviorAlertMapper:
         "BRUTE_FORCE",
         "FIREWALL_DROP_ABUSE",
     }
+    AUTO_BLOCK_PRIORITY_TYPES = {
+        "SQL_INJECTION",
+        "COMMAND_INJECTION",
+        "BRUTE_FORCE",
+    }
 
     def __init__(self):
         load_env_file(BACKEND_ENV_FILE)
@@ -211,13 +217,16 @@ class BehaviorAlertMapper:
         self.driver = graph_database.driver(uri, auth=(username, password))
         self.database = database
         self.enforcement_mode = self._resolve_enforcement_mode(os.getenv("BAN_ENFORCEMENT_MODE", "MOCK"))
-        self.enforcement_backend = "MOCK" if self.enforcement_mode == "MOCK" else "WINDOWS_FIREWALL"
-        self.rule_prefix = normalize_text(os.getenv("BAN_WINDOWS_FIREWALL_RULE_PREFIX")) or "ESG"
+        self.enforcement_backend = self._resolve_enforcement_backend(self.enforcement_mode)
+        self.rule_prefix = self._resolve_rule_prefix(self.enforcement_mode)
         self.local_ports = [
             item.strip()
             for item in normalize_text(os.getenv("BAN_WINDOWS_FIREWALL_LOCAL_PORTS")).split(",")
             if item.strip()
         ]
+        self.auto_block_enabled = self.enforcement_mode in {"WEB_BLOCKLIST", "REAL", "WINDOWS_FIREWALL"}
+        self._flask_app = None
+        self._ban_service = None
 
     def close(self) -> None:
         """
@@ -259,6 +268,19 @@ class BehaviorAlertMapper:
             if item.get("block_candidate")
         ]
         type_counter = Counter([item for item in blockable_types if item])
+        auto_blocked_ips = sorted(
+            {
+                normalize_text(item.get("attacker_ip"))
+                for item in results
+                if item.get("auto_block_success")
+            }
+        )
+        auto_block_behavior_types = [
+            normalize_upper_text(item.get("behavior_type"))
+            for item in results
+            if item.get("auto_block_attempted")
+        ]
+        auto_block_type_counter = Counter([item for item in auto_block_behavior_types if item])
 
         return {
             "behavior_driven_enabled": True,
@@ -267,6 +289,17 @@ class BehaviorAlertMapper:
             "block_candidate_count_from_behaviors": sum(1 for item in results if item.get("block_candidate")),
             "blocked_behavior_count": sum(1 for item in results if item.get("block_created")),
             "top_blockable_behavior_type": type_counter.most_common(1)[0][0] if type_counter else "",
+            "auto_block_enabled": self.auto_block_enabled,
+            "auto_block_attempted": sum(1 for item in results if item.get("auto_block_attempted")),
+            "auto_block_success_count": sum(1 for item in results if item.get("auto_block_success")),
+            "auto_block_failed_count": sum(1 for item in results if item.get("auto_block_attempted") and not item.get("auto_block_success")),
+            "auto_blocked_ips": auto_blocked_ips,
+            "auto_block_behavior_types": sorted(set(auto_block_behavior_types)),
+            "enforcement_mode": self.enforcement_mode,
+            "enforcement_success_count": sum(1 for item in results if item.get("enforcement_success")),
+            "verification_success_count": sum(1 for item in results if item.get("verification_result") == "VERIFIED"),
+            "truly_blocked_count": sum(1 for item in results if item.get("block_effective")),
+            "top_auto_block_behavior_type": auto_block_type_counter.most_common(1)[0][0] if auto_block_type_counter else "",
             "results": results,
         }
 
@@ -324,6 +357,14 @@ class BehaviorAlertMapper:
 
         block_candidate, resolved_block_reason = self._evaluate_block_candidate(behavior)
         block_created = False
+        auto_block_result: Dict[str, Any] = {
+            "auto_block_attempted": False,
+            "auto_block_success": False,
+            "enforcement_success": False,
+            "verification_result": "",
+            "block_effective": False,
+            "message": "",
+        }
         if block_candidate and ip_node:
             self._upsert_block_action(
                 action_id=action_id,
@@ -339,15 +380,24 @@ class BehaviorAlertMapper:
                 source_type=source_type,
             )
             block_created = True
+            auto_block_result = self._try_auto_execute_block(
+                action_id=action_id,
+                behavior=behavior,
+                attacker_ip=attacker_ip,
+                block_reason=resolved_block_reason,
+            )
 
         return {
             "behavior_id": behavior_id,
             "behavior_type": behavior_type,
+            "attacker_ip": attacker_ip,
             "alert_id": alert_id,
             "action_id": action_id if block_candidate else "",
             "alert_created": True,
             "block_candidate": block_candidate,
             "block_created": block_created,
+            "block_source": "automatic" if block_candidate else "",
+            **auto_block_result,
         }
 
     def _ensure_ip_node(self, attacker_ip: str, risk_score: int, severity: str) -> Dict[str, Any]:
@@ -689,6 +739,7 @@ MATCH (ip:IP {ip_id: $ip_id})
 MERGE (b:BlockAction {action_id: $action_id})
 SET b.action_type = 'BLOCK_IP',
     b.latest_action_type = 'BLOCK_IP',
+    b.block_source = 'automatic',
     b.target_type = 'IP',
     b.status = 'BLOCKED',
     b.current_ban_status = 'BLOCKED',
@@ -863,12 +914,132 @@ RETURN b.action_id AS action_id
 
         return can_block and risk_score >= 90, reason or "行为风险达到自动封禁阈值。"
 
+    def _should_auto_block(self, behavior: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        判断当前行为对象是否满足“自动真封禁”条件。
+
+        本轮策略：
+        1. 仅接入 SQL 注入、命令注入、暴力破解三类高危行为。
+        2. 必须同时满足 attacker_ip 有效、can_block=true、risk_score 达阈值。
+        """
+        behavior_type = normalize_upper_text(behavior.get("behavior_type"))
+        attacker_ip = normalize_text(behavior.get("attacker_ip"))
+        risk_score = safe_int(behavior.get("risk_score"), 0)
+        can_block = to_bool(behavior.get("can_block"))
+
+        if self.enforcement_mode == "MOCK":
+            return False, "当前为 MOCK 模式，仅生成逻辑封禁记录，不执行真实自动阻断"
+        if not attacker_ip:
+            return False, "行为对象缺少 attacker_ip，无法执行自动真封禁"
+        if behavior_type not in self.AUTO_BLOCK_PRIORITY_TYPES:
+            return False, f"行为类型 {behavior_type or 'UNKNOWN'} 当前未纳入自动真封禁首批范围"
+        if not can_block:
+            return False, "行为对象 can_block=false，不进入自动真封禁"
+        if risk_score < 80:
+            return False, f"行为风险分 {risk_score} 未达到自动真封禁阈值 80"
+
+        return True, f"行为类型 {behavior_type} 且风险分 {risk_score} 满足自动真封禁条件"
+
+    def _try_auto_execute_block(
+        self,
+        *,
+        action_id: str,
+        behavior: Dict[str, Any],
+        attacker_ip: str,
+        block_reason: str,
+    ) -> Dict[str, Any]:
+        """
+        对已生成的 BlockAction 自动调用现有 ban_service 执行真实阻断。
+        """
+        should_auto_block, decision_reason = self._should_auto_block(behavior)
+        if not should_auto_block:
+            return {
+                "auto_block_attempted": False,
+                "auto_block_success": False,
+                "enforcement_success": False,
+                "verification_result": "SKIPPED",
+                "block_effective": False,
+                "message": decision_reason,
+            }
+
+        try:
+            ban_service = self._load_ban_service()
+            with self._flask_app.app_context():
+                latest_item = ban_service.get_ban_detail(action_id)
+                enforcement_result = ban_service._enforce_current_state(latest_item)
+                ban_service._persist_enforcement_state(
+                    ban_id=action_id,
+                    current_status=latest_item.get("current_ban_status") or "BLOCKED",
+                    enforcement_result=enforcement_result,
+                )
+                refreshed_item = ban_service.get_ban_detail(action_id)
+        except Exception as exc:
+            return {
+                "auto_block_attempted": True,
+                "auto_block_success": False,
+                "enforcement_success": False,
+                "verification_result": "FAILED",
+                "block_effective": False,
+                "message": f"自动真封禁执行失败：{exc}",
+            }
+
+        enforcement_success = bool(enforcement_result.get("success", False))
+        verification_result = normalize_upper_text(enforcement_result.get("verification_status")) or "UNKNOWN"
+        block_effective = bool(refreshed_item.get("block_effective", False))
+
+        return {
+            "auto_block_attempted": True,
+            "auto_block_success": enforcement_success,
+            "enforcement_success": enforcement_success,
+            "verification_result": verification_result,
+            "block_effective": block_effective,
+            "message": normalize_text(enforcement_result.get("message")) or decision_reason,
+        }
+
     def _resolve_enforcement_mode(self, mode_value: str) -> str:
         """
         解析当前封禁执行模式。
         """
         normalized_mode = normalize_upper_text(mode_value)
-        return normalized_mode if normalized_mode in {"REAL", "MOCK"} else "MOCK"
+        return normalized_mode if normalized_mode in {"REAL", "MOCK", "WINDOWS_FIREWALL", "WEB_BLOCKLIST"} else "MOCK"
+
+    def _resolve_enforcement_backend(self, mode_value: str) -> str:
+        """
+        根据执行模式推导执行后端名称。
+        """
+        if mode_value == "WEB_BLOCKLIST":
+            return "WEB_BLOCKLIST"
+        if mode_value in {"REAL", "WINDOWS_FIREWALL"}:
+            return "WINDOWS_FIREWALL"
+        return "MOCK"
+
+    def _resolve_rule_prefix(self, mode_value: str) -> str:
+        """
+        根据执行模式选择规则前缀。
+        """
+        if mode_value == "WEB_BLOCKLIST":
+            return normalize_text(os.getenv("BAN_WEB_BLOCKLIST_RULE_PREFIX")) or "ESGWEB"
+        return normalize_text(os.getenv("BAN_WINDOWS_FIREWALL_RULE_PREFIX")) or "ESG"
+
+    def _load_ban_service(self):
+        """
+        延迟加载 Flask 应用工厂与 ban_service。
+
+        脚本侧通过该入口复用现有 ban_service 的 WEB_BLOCKLIST 执行逻辑，
+        避免再重复实现一套 blocklist 真阻断代码。
+        """
+        if self._flask_app is not None and self._ban_service is not None:
+            return self._ban_service
+
+        if str(BACKEND_DIR) not in sys.path:
+            sys.path.insert(0, str(BACKEND_DIR))
+
+        from app import create_app  # type: ignore
+        from app.services import ban_service as loaded_ban_service  # type: ignore
+
+        self._flask_app = create_app()
+        self._ban_service = loaded_ban_service
+        return self._ban_service
 
     def _build_firewall_rule_name(self, ban_id: str, target_ip: str) -> str:
         """
