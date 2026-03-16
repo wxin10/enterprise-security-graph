@@ -133,6 +133,14 @@
 
         <el-table-column prop="latest_action_at" label="最近操作时间" min-width="170" />
 
+        <el-table-column label="封禁来源" min-width="100">
+          <template #default="{ row }">
+            <el-tag :type="blockSourceTagType(row.block_source)" effect="plain">
+              {{ formatBlockSource(row.block_source) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="行为类型" min-width="140">
           <template #default="{ row }">
             <el-tag v-if="row.behavior_type" type="warning" effect="plain">
@@ -168,10 +176,28 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="执行成功" min-width="100">
+          <template #default="{ row }">
+            <span v-if="row.enforcement_success === null || row.enforcement_success === undefined">-</span>
+            <el-tag v-else :type="row.enforcement_success ? 'success' : 'info'" effect="plain">
+              {{ row.enforcement_success ? "成功" : "未成功" }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="校验状态" min-width="120">
           <template #default="{ row }">
             <el-tag :type="verificationStatusTagType(row.verification_status)" effect="plain">
               {{ formatVerificationStatus(row.verification_status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="真实阻断" min-width="100">
+          <template #default="{ row }">
+            <span v-if="row.truly_blocked === null || row.truly_blocked === undefined">-</span>
+            <el-tag v-else :type="row.truly_blocked ? 'danger' : 'info'" effect="dark">
+              {{ row.truly_blocked ? "已阻断" : "未阻断" }}
             </el-tag>
           </template>
         </el-table-column>
@@ -478,11 +504,24 @@ function formatCurrentStatus(status) {
 
 function formatEnforcementMode(mode) {
   const normalizedMode = String(mode || "").toUpperCase();
-  return normalizedMode === "REAL" ? "真实执行" : "模拟执行";
+
+  if (normalizedMode === "WEB_BLOCKLIST") {
+    return "Web 阻断";
+  }
+
+  if (normalizedMode === "REAL") {
+    return "真实执行";
+  }
+
+  return "模拟执行";
 }
 
 function formatEnforcementBackend(backend) {
   const normalizedBackend = String(backend || "").toUpperCase();
+
+  if (normalizedBackend === "WEB_BLOCKLIST") {
+    return "Web Blocklist";
+  }
 
   if (normalizedBackend === "WINDOWS_FIREWALL") {
     return "Windows 防火墙";
@@ -493,6 +532,25 @@ function formatEnforcementBackend(backend) {
   }
 
   return normalizedBackend || "-";
+}
+
+function formatBlockSource(blockSource) {
+  const normalizedBlockSource = String(blockSource || "").toUpperCase();
+
+  if (normalizedBlockSource === "AUTOMATIC") {
+    return "自动";
+  }
+
+  if (normalizedBlockSource === "MANUAL") {
+    return "手动";
+  }
+
+  return normalizedBlockSource || "-";
+}
+
+function blockSourceTagType(blockSource) {
+  const normalizedBlockSource = String(blockSource || "").toUpperCase();
+  return normalizedBlockSource === "AUTOMATIC" ? "danger" : "info";
 }
 
 function enforcementStatusTagType(status) {
