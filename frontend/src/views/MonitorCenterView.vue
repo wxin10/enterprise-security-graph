@@ -91,6 +91,16 @@
         <el-table-column prop="unified_event_count" label="统一事件数" min-width="110" />
         <el-table-column prop="behavior_count" label="行为数" min-width="90" />
         <el-table-column prop="blockable_behavior_count" label="可封禁行为" min-width="110" />
+        <el-table-column label="行为驱动" min-width="120">
+          <template #default="{ row }">
+            <el-tag :type="row.behavior_driven_used ? 'success' : 'info'" effect="plain">
+              {{ row.behavior_driven_used ? "已接入" : "未使用" }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="alert_count_from_behaviors" label="行为告警" min-width="100" />
+        <el-table-column prop="block_candidate_count_from_behaviors" label="封禁候选" min-width="100" />
+        <el-table-column prop="blocked_behavior_count" label="已落封禁" min-width="100" />
         <el-table-column label="行为类型" min-width="180">
           <template #default="{ row }">
             <span v-if="!row.behavior_types || row.behavior_types.length === 0">-</span>

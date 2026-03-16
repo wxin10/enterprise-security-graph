@@ -133,6 +133,19 @@
 
         <el-table-column prop="latest_action_at" label="最近操作时间" min-width="170" />
 
+        <el-table-column label="行为类型" min-width="140">
+          <template #default="{ row }">
+            <el-tag v-if="row.behavior_type" type="warning" effect="plain">
+              {{ row.behavior_type }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="risk_score" label="行为风险分" min-width="100" />
+
+        <el-table-column prop="block_reason" label="封禁原因" min-width="220" show-overflow-tooltip />
+
         <el-table-column label="执行模式" min-width="120">
           <template #default="{ row }">
             <el-tag :type="row.enforcement_mode === 'REAL' ? 'danger' : 'info'" effect="plain">

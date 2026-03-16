@@ -138,6 +138,25 @@
 
         <el-table-column prop="score" label="风险得分" min-width="90" />
 
+        <el-table-column label="行为类型" min-width="140">
+          <template #default="{ row }">
+            <el-tag v-if="row.behavior_type" type="warning" effect="plain">
+              {{ row.behavior_type }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="event_count" label="证据事件数" min-width="100" />
+
+        <el-table-column label="可封禁" min-width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.can_block ? 'danger' : 'info'" effect="plain">
+              {{ row.can_block ? "是" : "否" }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="事件类型" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ joinArray(row.event_types) }}</span>

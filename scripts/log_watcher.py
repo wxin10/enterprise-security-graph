@@ -80,6 +80,7 @@ from event_normalizer import (  # noqa: E402
     normalize_records_to_events,
     summarize_events,
 )
+from behavior_alert_mapper import map_behavior_file  # noqa: E402
 from behavior_aggregator import (  # noqa: E402
     ATTACK_BEHAVIOR_FIELDS,
     recognize_attack_behaviors,
@@ -561,6 +562,12 @@ def build_status_payload(
     blockable_behavior_count: int = 0,
     high_risk_behavior_count: int = 0,
     top_behavior_type: str = "",
+    behavior_driven_enabled: bool = True,
+    behavior_driven_used: bool = False,
+    alert_count_from_behaviors: int = 0,
+    block_candidate_count_from_behaviors: int = 0,
+    blocked_behavior_count: int = 0,
+    top_blockable_behavior_type: str = "",
 ) -> Dict[str, Any]:
     """
     统一构造批次 status.json 结构。
@@ -593,6 +600,12 @@ def build_status_payload(
         "blockable_behavior_count": blockable_behavior_count,
         "high_risk_behavior_count": high_risk_behavior_count,
         "top_behavior_type": top_behavior_type,
+        "behavior_driven_enabled": behavior_driven_enabled,
+        "behavior_driven_used": behavior_driven_used,
+        "alert_count_from_behaviors": alert_count_from_behaviors,
+        "block_candidate_count_from_behaviors": block_candidate_count_from_behaviors,
+        "blocked_behavior_count": blocked_behavior_count,
+        "top_blockable_behavior_type": top_blockable_behavior_type,
         "failed_step": failed_step,
         "outputs": outputs or {},
     }
@@ -771,6 +784,14 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
     unified_event_summary = summarize_events(unified_events)
     attack_behaviors = recognize_attack_behaviors(unified_events)
     behavior_summary = summarize_behaviors(attack_behaviors)
+    behavior_driven_summary = {
+        "behavior_driven_enabled": True,
+        "behavior_driven_used": False,
+        "alert_count_from_behaviors": 0,
+        "block_candidate_count_from_behaviors": 0,
+        "blocked_behavior_count": 0,
+        "top_blockable_behavior_type": "",
+    }
 
     print(f"[log_watcher] 将生成统一中间文件：{normalized_file_path}")
     print(f"[log_watcher] 将生成统一安全事件文件：{unified_events_json_path}")
@@ -851,13 +872,6 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
                 "--skip-schema",
             ],
         },
-        {
-            "name": "run_detection",
-            "command": [
-                sys.executable,
-                str(BASE_DIR / "scripts" / "run_detection.py"),
-            ],
-        },
     ]
 
     execution_outputs: Dict[str, str] = {}
@@ -903,11 +917,134 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
                     blockable_behavior_count=behavior_summary["blockable_behavior_count"],
                     high_risk_behavior_count=behavior_summary["high_risk_behavior_count"],
                     top_behavior_type=behavior_summary["top_behavior_type"],
+                    behavior_driven_enabled=behavior_driven_summary["behavior_driven_enabled"],
+                    behavior_driven_used=behavior_driven_summary["behavior_driven_used"],
+                    alert_count_from_behaviors=behavior_driven_summary["alert_count_from_behaviors"],
+                    block_candidate_count_from_behaviors=behavior_driven_summary["block_candidate_count_from_behaviors"],
+                    blocked_behavior_count=behavior_driven_summary["blocked_behavior_count"],
+                    top_blockable_behavior_type=behavior_driven_summary["top_blockable_behavior_type"],
                 ),
             )
             print(f"[log_watcher] 处理失败，已移动到失败目录：{failed_file_path}")
             print(f"[log_watcher] 失败原因文件：{reason_file_path}")
             return
+
+    try:
+        print("[log_watcher] 开始执行：behavior_alert_mapper")
+        behavior_driven_summary = map_behavior_file(attack_behaviors_json_path)
+        execution_outputs["behavior_alert_mapper"] = json.dumps(behavior_driven_summary, ensure_ascii=False)
+        print(
+            "[log_watcher] 行为驱动接入统计："
+            f"used={behavior_driven_summary['behavior_driven_used']}，"
+            f"alerts={behavior_driven_summary['alert_count_from_behaviors']}，"
+            f"block_candidates={behavior_driven_summary['block_candidate_count_from_behaviors']}，"
+            f"blocked={behavior_driven_summary['blocked_behavior_count']}"
+        )
+    except Exception as exc:
+        reason_text = f"处理链路在步骤 behavior_alert_mapper 失败。\n{exc}"
+        failed_file_path = move_file_to_directory(file_path, FAILED_ROOT, source_key)
+        reason_file_path = write_failure_reason(failed_file_path, reason_text)
+        write_status_json(
+            status_file_path,
+            build_status_payload(
+                status="FAILED",
+                source_file=file_path,
+                source_directory_name=source_key,
+                source_type=source_type,
+                classifier_result=classifier_result,
+                selected_adapter_key=selected_adapter_key,
+                selected_adapter_name=selected_adapter_name,
+                parse_error_count=len(parse_errors),
+                failed_step="behavior_alert_mapper",
+                outputs=execution_outputs,
+                failed_file=failed_file_path,
+                reason_file=reason_file_path,
+                normalized_file=normalized_file_path,
+                unified_event_json_file=unified_events_json_path,
+                unified_event_csv_file=unified_events_csv_path,
+                attack_behavior_json_file=attack_behaviors_json_path,
+                attack_behavior_csv_file=attack_behaviors_csv_path,
+                raw_files=[login_raw_file, host_raw_file, alert_raw_file],
+                processed_dir=runtime_processed_dir,
+                parse_warning_file=warnings_file_path if parse_errors else None,
+                unified_event_count=unified_event_summary["unified_event_count"],
+                detected_attack_types=unified_event_summary["detected_attack_types"],
+                blockable_event_count=unified_event_summary["blockable_event_count"],
+                behavior_count=behavior_summary["behavior_count"],
+                behavior_types=behavior_summary["behavior_types"],
+                blockable_behavior_count=behavior_summary["blockable_behavior_count"],
+                high_risk_behavior_count=behavior_summary["high_risk_behavior_count"],
+                top_behavior_type=behavior_summary["top_behavior_type"],
+                behavior_driven_enabled=behavior_driven_summary["behavior_driven_enabled"],
+                behavior_driven_used=behavior_driven_summary["behavior_driven_used"],
+                alert_count_from_behaviors=behavior_driven_summary["alert_count_from_behaviors"],
+                block_candidate_count_from_behaviors=behavior_driven_summary["block_candidate_count_from_behaviors"],
+                blocked_behavior_count=behavior_driven_summary["blocked_behavior_count"],
+                top_blockable_behavior_type=behavior_driven_summary["top_blockable_behavior_type"],
+            ),
+        )
+        print(f"[log_watcher] 处理失败，已移动到失败目录：{failed_file_path}")
+        print(f"[log_watcher] 失败原因文件：{reason_file_path}")
+        return
+
+    print("[log_watcher] 开始执行：run_detection")
+    is_success, output_text = run_subprocess(
+        [
+            sys.executable,
+            str(BASE_DIR / "scripts" / "run_detection.py"),
+        ],
+        env_mapping,
+    )
+    execution_outputs["run_detection"] = output_text
+    if output_text:
+        print(output_text)
+
+    if not is_success:
+        reason_text = f"处理链路在步骤 run_detection 失败。\n{output_text}"
+        failed_file_path = move_file_to_directory(file_path, FAILED_ROOT, source_key)
+        reason_file_path = write_failure_reason(failed_file_path, reason_text)
+        write_status_json(
+            status_file_path,
+            build_status_payload(
+                status="FAILED",
+                source_file=file_path,
+                source_directory_name=source_key,
+                source_type=source_type,
+                classifier_result=classifier_result,
+                selected_adapter_key=selected_adapter_key,
+                selected_adapter_name=selected_adapter_name,
+                parse_error_count=len(parse_errors),
+                failed_step="run_detection",
+                outputs=execution_outputs,
+                failed_file=failed_file_path,
+                reason_file=reason_file_path,
+                normalized_file=normalized_file_path,
+                unified_event_json_file=unified_events_json_path,
+                unified_event_csv_file=unified_events_csv_path,
+                attack_behavior_json_file=attack_behaviors_json_path,
+                attack_behavior_csv_file=attack_behaviors_csv_path,
+                raw_files=[login_raw_file, host_raw_file, alert_raw_file],
+                processed_dir=runtime_processed_dir,
+                parse_warning_file=warnings_file_path if parse_errors else None,
+                unified_event_count=unified_event_summary["unified_event_count"],
+                detected_attack_types=unified_event_summary["detected_attack_types"],
+                blockable_event_count=unified_event_summary["blockable_event_count"],
+                behavior_count=behavior_summary["behavior_count"],
+                behavior_types=behavior_summary["behavior_types"],
+                blockable_behavior_count=behavior_summary["blockable_behavior_count"],
+                high_risk_behavior_count=behavior_summary["high_risk_behavior_count"],
+                top_behavior_type=behavior_summary["top_behavior_type"],
+                behavior_driven_enabled=behavior_driven_summary["behavior_driven_enabled"],
+                behavior_driven_used=behavior_driven_summary["behavior_driven_used"],
+                alert_count_from_behaviors=behavior_driven_summary["alert_count_from_behaviors"],
+                block_candidate_count_from_behaviors=behavior_driven_summary["block_candidate_count_from_behaviors"],
+                blocked_behavior_count=behavior_driven_summary["blocked_behavior_count"],
+                top_blockable_behavior_type=behavior_driven_summary["top_blockable_behavior_type"],
+            ),
+        )
+        print(f"[log_watcher] 处理失败，已移动到失败目录：{failed_file_path}")
+        print(f"[log_watcher] 失败原因文件：{reason_file_path}")
+        return
 
     archived_file_path = move_file_to_directory(file_path, ARCHIVE_ROOT, source_key)
     write_status_json(
@@ -938,6 +1075,12 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
             blockable_behavior_count=behavior_summary["blockable_behavior_count"],
             high_risk_behavior_count=behavior_summary["high_risk_behavior_count"],
             top_behavior_type=behavior_summary["top_behavior_type"],
+            behavior_driven_enabled=behavior_driven_summary["behavior_driven_enabled"],
+            behavior_driven_used=behavior_driven_summary["behavior_driven_used"],
+            alert_count_from_behaviors=behavior_driven_summary["alert_count_from_behaviors"],
+            block_candidate_count_from_behaviors=behavior_driven_summary["block_candidate_count_from_behaviors"],
+            blocked_behavior_count=behavior_driven_summary["blocked_behavior_count"],
+            top_blockable_behavior_type=behavior_driven_summary["top_blockable_behavior_type"],
             outputs=execution_outputs,
         ),
     )

@@ -524,6 +524,12 @@ RETURN b.action_id AS action_id
             "blocked_at": self._normalize_text(ban.get("blocked_at")) or self._normalize_text(ban.get("executed_at")),
             "blocked_by": self._normalize_text(ban.get("blocked_by")) or self._normalize_text(ban.get("executor")),
             "block_reason": self._normalize_text(ban.get("block_reason")) or self._normalize_text(ban.get("remark")),
+            "behavior_id": self._normalize_text(ban.get("behavior_id")) or self._normalize_text(alert.get("behavior_id")),
+            "behavior_type": self._normalize_text(ban.get("behavior_type")) or self._normalize_text(alert.get("behavior_type")),
+            "risk_score": self._safe_int(ban.get("risk_score"), self._safe_int(alert.get("score"))),
+            "confidence": self._safe_float(ban.get("confidence")),
+            "event_count": self._safe_int(ban.get("event_count"), self._safe_int(alert.get("event_count"))),
+            "source_type": self._normalize_text(ban.get("source_type")) or self._normalize_text(alert.get("source_type")),
             "released_at": self._normalize_text(ban.get("released_at")),
             "released_by": self._normalize_text(ban.get("released_by")),
             "release_reason": self._normalize_text(ban.get("release_reason")),
@@ -719,14 +725,23 @@ RETURN b.action_id AS action_id
         """
         return str(value or "").strip()
 
-    def _safe_int(self, value: Any) -> int:
+    def _safe_int(self, value: Any, default_value: int = 0) -> int:
         """
         安全转换整数。
         """
         try:
             return int(value)
         except (TypeError, ValueError):
-            return 0
+            return default_value
+
+    def _safe_float(self, value: Any) -> float:
+        """
+        安全转换浮点数。
+        """
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
 
     def _build_local_timestamp(self) -> str:
         """
