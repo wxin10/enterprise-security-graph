@@ -542,7 +542,10 @@ class MonitorService:
             parse_error_count=int(payload.get("parse_error_count", 0) or 0),
             failed_step=str(payload.get("failed_step", "") or "").strip(),
         )
-        adapter_metadata = self._resolve_adapter_metadata(source_directory_name)
+        source_type = str(payload.get("source_type", "") or "")
+        classifier_result = payload.get("classifier_result", {}) or {}
+        selected_adapter_key = str(payload.get("selected_adapter_key", "") or "")
+        adapter_metadata = self._resolve_adapter_metadata(selected_adapter_key or source_directory_name)
 
         return {
             "batch_id": status_file_path.parent.name,
@@ -556,6 +559,8 @@ class MonitorService:
             "source_file": source_file,
             "source_file_name": source_file_name,
             "source_directory_name": source_directory_name,
+            "source_type": source_type or "unknown",
+            "classifier_result": classifier_result,
             "archived_file": str(payload.get("archived_file", "") or ""),
             "normalized_file": str(payload.get("normalized_file", "") or ""),
             "raw_files": payload.get("raw_files", []) or [],
@@ -564,6 +569,8 @@ class MonitorService:
             "parse_warning_file": str(payload.get("parse_warning_file", "") or ""),
             "failed_step": str(payload.get("failed_step", "") or "").strip(),
             "outputs": payload.get("outputs", {}) or {},
+            "selected_adapter_key": selected_adapter_key or adapter_metadata["adapter_key"],
+            "selected_adapter_name": str(payload.get("selected_adapter_name", "") or adapter_metadata["adapter_name"]),
             "adapter_id": adapter_metadata["adapter_id"],
             "adapter_name": adapter_metadata["adapter_name"],
             "adapter_script": adapter_metadata["adapter_script"],
@@ -586,6 +593,9 @@ class MonitorService:
             {
                 "batch_id": payload["batch_id"],
                 "source_file": payload["source_file"],
+                "source_directory_name": payload["source_directory_name"],
+                "source_type": payload["source_type"],
+                "selected_adapter_name": payload["selected_adapter_name"],
                 "status": payload["batch_status"],
                 "processed_at": payload["processed_at"],
                 "failed_step": payload["failed_step"],
@@ -662,22 +672,32 @@ class MonitorService:
         根据 source 目录名称映射适配器信息。
         """
         adapter_mapping = {
+            "unified": {
+                "adapter_key": "unified",
+                "adapter_id": "adapter_unified_classifier",
+                "adapter_name": "统一入口自动识别器",
+                "adapter_script": "log_classifier.py",
+            },
             "safeline_waf": {
+                "adapter_key": "safeline_waf",
                 "adapter_id": "adapter_safeline_waf",
                 "adapter_name": "雷池 WAF 适配器",
                 "adapter_script": "safe_line_waf_adapter.py",
             },
             "n9e_waf": {
+                "adapter_key": "n9e_waf",
                 "adapter_id": "adapter_generic_waf",
                 "adapter_name": "通用 WAF 适配器",
                 "adapter_script": "generic_waf_adapter.py",
             },
             "windows_firewall": {
+                "adapter_key": "windows_firewall",
                 "adapter_id": "adapter_windows_firewall",
                 "adapter_name": "Windows 防火墙适配器",
                 "adapter_script": "windows_firewall_adapter.py",
             },
             "linux_firewall": {
+                "adapter_key": "linux_firewall",
                 "adapter_id": "adapter_linux_firewall",
                 "adapter_name": "Linux 防火墙适配器",
                 "adapter_script": "linux_firewall_adapter.py",
@@ -687,6 +707,7 @@ class MonitorService:
         return adapter_mapping.get(
             source_directory_name,
             {
+                "adapter_key": source_directory_name or "unknown_source",
                 "adapter_id": "adapter_unknown_source",
                 "adapter_name": "通用日志适配器",
                 "adapter_script": "generic_waf_adapter.py",
@@ -964,6 +985,7 @@ class MonitorService:
                 detail_lines=[
                     f"批次编号：{batch_id}",
                     f"原始文件：{batch_item['source_file'] or '-'}",
+                    f"识别类型：{batch_item['source_type'] or '-'}",
                     f"处理时间：{batch_item['processed_at']}",
                     f"处理状态：{batch_item['batch_status']}",
                     f"检测状态：{batch_item['detection_status']}",
@@ -982,6 +1004,7 @@ class MonitorService:
                 detail_lines=[
                     f"适配器脚本：scripts/adapters/{batch_item['adapter_script']}",
                     f"适配目录：{source_directory_name}",
+                    f"自动识别类型：{batch_item['source_type'] or '-'}",
                 ],
             )
 

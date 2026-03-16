@@ -41,13 +41,13 @@ def parse_monitor_watch_directories(raw_value: str):
 
     说明：
     1. 环境变量中使用逗号分隔的目录名称列表。
-    2. 若未配置，则回退到当前项目既有的四类 incoming 子目录。
+    2. 若未配置，则回退到当前项目既有目录，并补充 unified 统一入口。
     """
     if not raw_value or not raw_value.strip():
-        return ["safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
+        return ["unified", "safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
 
     directories = [item.strip() for item in raw_value.split(",") if item.strip()]
-    return directories or ["safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
+    return directories or ["unified", "safeline_waf", "n9e_waf", "windows_firewall", "linux_firewall"]
 
 
 def parse_port_list(raw_value: str):
@@ -106,7 +106,7 @@ class BaseConfig:
     MONITOR_WATCH_DIRECTORIES = parse_monitor_watch_directories(
         os.getenv(
             "MONITOR_WATCH_DIRECTORIES",
-            "safeline_waf,n9e_waf,windows_firewall,linux_firewall",
+            "unified,safeline_waf,n9e_waf,windows_firewall,linux_firewall",
         )
     )
 

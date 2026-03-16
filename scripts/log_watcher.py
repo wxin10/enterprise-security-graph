@@ -4,20 +4,20 @@
 文件路径：scripts/log_watcher.py
 
 脚本职责：
-1. 轮询 data/incoming/ 下的多源日志目录，自动发现新日志文件。
-2. 根据来源目录选择对应适配器，将原始日志解析为统一中间格式。
-3. 将统一中间格式桥接为当前项目现有脚本可直接消费的批次文件。
-4. 自动触发以下处理链路：
+1. 轮询 `data/incoming/` 下的多源日志目录，自动发现新日志文件。
+2. 对统一入口 `data/incoming/unified/` 中的文件先做轻量日志类型识别，再路由到现有适配器。
+3. 将解析结果桥接为当前项目已有脚本可直接消费的原始样例格式。
+4. 自动触发以下既有处理链路：
    - clean_logs.py
    - extract_entities.py
    - import_to_neo4j.py
    - run_detection.py
-5. 处理成功后归档原始日志；处理失败后移动到 failed 目录并记录失败原因。
+5. 处理成功后归档原始文件，处理失败后移动到 failed 目录，并写入失败原因与状态文件。
 
 设计说明：
-1. 本脚本优先复用项目现有脚本，不另起一套平行导入流程。
-2. 采用“扫描目录 + 批次桥接 + 子脚本调用”的最小可运行方案，便于答辩演示。
-3. 当前阶段优先支持文件级自动接入，暂不接入第三方在线 API 或流式消息队列。
+1. 本轮只做“第一阶段最小改造”，不重写检测主逻辑，也不重构导入链路。
+2. 统一入口的自动识别只负责选择解析器，不参与告警或封禁决策。
+3. 旧目录 `safeline_waf / n9e_waf / windows_firewall / linux_firewall` 保持兼容可用。
 """
 
 from __future__ import annotations
@@ -48,6 +48,7 @@ RUNTIME_ROOT = BASE_DIR / "data" / "runtime"
 BATCH_ROOT = RUNTIME_ROOT / "batches"
 
 SOURCE_DIRECTORIES = [
+    "unified",
     "safeline_waf",
     "n9e_waf",
     "windows_firewall",
@@ -56,7 +57,7 @@ SOURCE_DIRECTORIES = [
 SUPPORTED_EXTENSIONS = {".json", ".jsonl", ".csv", ".log", ".txt"}
 
 
-# 将 scripts 目录加入搜索路径，便于直接导入 adapters 包。
+# 将 scripts 目录加入搜索路径，方便脚本直接导入本地适配器与分类器。
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -73,6 +74,7 @@ from adapters.common import (  # noqa: E402
     safe_int,
     severity_to_risk_score,
 )
+from log_classifier import classify_log_file  # noqa: E402
 
 
 LOGIN_RAW_FIELDS = [
@@ -158,10 +160,10 @@ ALERT_RAW_FIELDS = [
 
 def load_env_file(env_file: Path) -> None:
     """
-    读取 backend/.env 并注入环境变量。
+    读取 `backend/.env` 并注入环境变量。
 
-    这样 log_watcher 触发 import_to_neo4j.py 和 run_detection.py 时，
-    可以自动继承 Neo4j 连接配置，不需要每次手工传参。
+    这样 log_watcher 触发 import_to_neo4j.py 与 run_detection.py 时，
+    可以自动继承 Neo4j 连接配置，而不需要每次手工传参。
     """
     if not env_file.exists():
         return
@@ -197,7 +199,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="只打印将要处理的文件和计划生成的中间文件，不真正导入。",
+        help="只打印将要处理的文件与识别结果，不真正导入。",
     )
     return parser
 
@@ -272,7 +274,6 @@ def discover_files() -> List[Path]:
 def resolve_host_profile(hostname: str) -> Dict[str, Any]:
     """
     根据主机名获取资产属性。
-
     若未命中已有参考，则生成一个最小可运行默认值。
     """
     normalized_hostname = normalize_upper_text(hostname)
@@ -282,7 +283,7 @@ def resolve_host_profile(hostname: str) -> Dict[str, Any]:
     return {
         "asset_type": "UNKNOWN",
         "os_name": "Unknown",
-        "owner_department": "未知业务域",
+        "owner_department": "自动接入资产",
         "critical_level": 2,
     }
 
@@ -290,9 +291,7 @@ def resolve_host_profile(hostname: str) -> Dict[str, Any]:
 def resolve_hostname(record: Dict[str, Any]) -> str:
     """
     获取统一记录中的主机名。
-
-    如果源日志没有主机名，则基于目标 IP 生成一个可用占位名称，
-    确保现有实体抽取脚本仍能建立 Session -> Host 关系。
+    如果源日志没有主机名，则基于目标 IP 生成占位主机名。
     """
     hostname = normalize_upper_text(record.get("hostname"))
     if hostname:
@@ -308,6 +307,7 @@ def resolve_hostname(record: Dict[str, Any]) -> str:
 def resolve_username(record: Dict[str, Any], source_key: str) -> str:
     """
     获取统一记录中的用户名。
+    若为空，则按来源和源 IP 生成稳定伪用户名。
     """
     username = normalize_text(record.get("username")).lower()
     if username:
@@ -317,11 +317,11 @@ def resolve_username(record: Dict[str, Any], source_key: str) -> str:
 
 def build_login_raw_rows(records: List[Dict[str, Any]], source_key: str) -> List[Dict[str, Any]]:
     """
-    将统一中间记录转换为现有 login_logs_sample.csv 兼容格式。
+    将统一中间记录转换为 `login_logs_sample.csv` 兼容格式。
 
-    设计说明：
-    1. 这里的“login”并不严格等于真实登录行为，而是作为当前系统会话建模的桥接输入。
-    2. 对于防火墙/WAF 日志，仍然会生成一条“访问会话”型记录，以复用现有 Session 抽取链路。
+    说明：
+    1. 这里的“login”并不严格等于真实登录行为，而是用于复用当前 Session 抽取链路。
+    2. 即使是 WAF / firewall 日志，也会生成一条“访问会话型”桥接记录。
     """
     rows: List[Dict[str, Any]] = []
 
@@ -365,12 +365,7 @@ def build_login_raw_rows(records: List[Dict[str, Any]], source_key: str) -> List
 
 def build_host_raw_rows(records: List[Dict[str, Any]], source_key: str) -> List[Dict[str, Any]]:
     """
-    将统一中间记录转换为现有 host_logs_sample.csv 兼容格式。
-
-    这一步是自动接入链路的关键桥接层：
-    1. 新日志源先统一落成 normalized CSV。
-    2. 再桥接成现有脚本已经支持的 host_logs_sample.csv 结构。
-    3. 这样 extract_entities.py 无需被整套推翻。
+    将统一中间记录转换为 `host_logs_sample.csv` 兼容格式。
     """
     rows: List[Dict[str, Any]] = []
 
@@ -418,40 +413,41 @@ def build_alert_raw_rows() -> List[Dict[str, Any]]:
     """
     自动接入阶段暂不直接生成原始联动告警日志。
 
-    兼容策略：
-    1. 这里先输出空表头文件，保证 clean_logs.py 和 extract_entities.py 链路正常运行。
-    2. 真正的告警由后续 run_detection.py 基于图数据自动生成并写回 Neo4j。
+    当前兼容策略：
+    1. 先输出空表头文件，保持 clean_logs.py 与 extract_entities.py 链路不报错。
+    2. 真正的告警仍由后续 run_detection.py 基于图数据自动生成。
     """
     return []
 
 
 def write_status_json(file_path: Path, payload: Dict[str, Any]) -> None:
     """
-    写出批次状态文件，便于排查和答辩展示。
+    写出批次状态文件，便于前端监控页与答辩演示。
     """
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def create_batch_directory(source_key: str, file_path: Path) -> Path:
+def create_batch_directory(source_key: str, file_path: Path, create_on_disk: bool = True) -> Path:
     """
-    为单个原始日志文件创建一个独立处理批次目录。
+    为单个原始日志文件创建独立处理批次目录。
     """
     timestamp_text = datetime.now().strftime("%Y%m%d_%H%M%S")
     batch_name = f"{timestamp_text}_{source_key}_{sanitize_filename(file_path.stem)}"
     batch_dir = BATCH_ROOT / batch_name
-    batch_dir.mkdir(parents=True, exist_ok=True)
+    if create_on_disk:
+        batch_dir.mkdir(parents=True, exist_ok=True)
     return batch_dir
 
 
 def run_subprocess(command: List[str], env_mapping: Dict[str, str]) -> Tuple[bool, str]:
     """
-    执行子脚本，并返回执行是否成功及控制台输出。
+    执行子脚本，并返回是否成功及控制台输出。
+
+    兼容说明：
+    1. Windows 下优先使用系统首选编码，避免中文输出导致 UnicodeDecodeError。
+    2. 极端情况下用 replace 兜底，避免单次输出异常中断整条链路。
     """
-    # 在 Windows 终端环境下，子进程标准输出往往会使用本机首选编码而不是固定 UTF-8。
-    # 如果这里强制按 UTF-8 解码，遇到中文输出时可能抛出 UnicodeDecodeError，
-    # 从而影响自动接入链路的可观测性。为保证演示与实际运行稳定，这里优先使用系统首选编码，
-    # 同时在极端情况下以 replace 模式兜底，避免单次输出解码异常中断整个流程。
     preferred_encoding = locale.getpreferredencoding(False) or "utf-8"
 
     completed = subprocess.run(
@@ -496,20 +492,166 @@ def write_failure_reason(failed_file_path: Path, reason_text: str) -> Path:
     return reason_file_path
 
 
+def derive_source_type_from_adapter(adapter_key: str) -> str:
+    """
+    根据适配器键名推导统一 source_type。
+    """
+    source_type_mapping = {
+        "safeline_waf": "waf",
+        "n9e_waf": "waf",
+        "windows_firewall": "firewall",
+        "linux_firewall": "firewall",
+    }
+    return source_type_mapping.get(adapter_key, "unknown")
+
+
+def build_status_payload(
+    *,
+    status: str,
+    source_file: Path,
+    source_directory_name: str,
+    source_type: str,
+    classifier_result: Dict[str, Any],
+    selected_adapter_key: str,
+    selected_adapter_name: str,
+    parse_error_count: int = 0,
+    failed_step: str = "",
+    outputs: Dict[str, str] | None = None,
+    archived_file: Path | None = None,
+    failed_file: Path | None = None,
+    reason_file: Path | None = None,
+    normalized_file: Path | None = None,
+    raw_files: List[Path] | None = None,
+    processed_dir: Path | None = None,
+    parse_warning_file: Path | None = None,
+) -> Dict[str, Any]:
+    """
+    统一构造批次 status.json 结构。
+    """
+    return {
+        "status": status,
+        "source_file": str(source_file),
+        "source_directory_name": source_directory_name,
+        "source_type": source_type,
+        "classifier_result": classifier_result,
+        "selected_adapter_key": selected_adapter_key,
+        "selected_adapter_name": selected_adapter_name,
+        "archived_file": str(archived_file) if archived_file else "",
+        "failed_file": str(failed_file) if failed_file else "",
+        "reason_file": str(reason_file) if reason_file else "",
+        "normalized_file": str(normalized_file) if normalized_file else "",
+        "raw_files": [str(item) for item in (raw_files or [])],
+        "processed_dir": str(processed_dir) if processed_dir else "",
+        "parse_error_count": parse_error_count,
+        "parse_warning_file": str(parse_warning_file) if parse_warning_file else "",
+        "failed_step": failed_step,
+        "outputs": outputs or {},
+    }
+
+
+def resolve_file_routing(file_path: Path) -> Dict[str, Any]:
+    """
+    对文件执行目录兼容 + unified 自动识别的最小路由决策。
+
+    路由规则：
+    1. 旧目录继续优先按目录映射，保持兼容。
+    2. unified 目录先做内容识别，再选择最接近的现有适配器。
+    3. 当前第一阶段尚未支持的类型只做识别，不强行导入。
+    """
+    source_directory_name = file_path.parent.name
+    classifier_result = classify_log_file(file_path, directory_hint=source_directory_name)
+    route_mode = "directory_mapping"
+    selected_adapter_key = source_directory_name if source_directory_name in ADAPTER_REGISTRY else ""
+
+    if source_directory_name == "unified":
+        route_mode = "classifier_mapping"
+        selected_adapter_key = str(classifier_result.get("adapter_key", "") or "")
+    elif not selected_adapter_key:
+        route_mode = "classifier_fallback"
+        selected_adapter_key = str(classifier_result.get("adapter_key", "") or "")
+
+    source_type = str(classifier_result.get("source_type", "") or derive_source_type_from_adapter(selected_adapter_key))
+    adapter_info = ADAPTER_REGISTRY.get(selected_adapter_key) if selected_adapter_key else None
+    selected_adapter_name = adapter_info["adapter_name"] if adapter_info else "unknown_adapter"
+    classifier_payload = {
+        **classifier_result,
+        "route_mode": route_mode,
+        "selected_adapter_key": selected_adapter_key,
+        "selected_adapter_name": selected_adapter_name,
+    }
+
+    if source_directory_name == "unified" and adapter_info is None:
+        unsupported_message = (
+            f"统一入口已识别为 {source_type or 'unknown'}，"
+            "但当前第一阶段尚未接入对应解析器，请先使用已支持的 WAF / firewall 日志样例进行演示。"
+        )
+    else:
+        unsupported_message = ""
+
+    return {
+        "source_directory_name": source_directory_name,
+        "source_type": source_type or "unknown",
+        "classifier_result": classifier_payload,
+        "selected_adapter_key": selected_adapter_key,
+        "selected_adapter_name": selected_adapter_name,
+        "adapter_info": adapter_info,
+        "unsupported_message": unsupported_message,
+    }
+
+
 def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) -> None:
     """
     处理单个原始日志文件。
     """
-    source_key = file_path.parent.name
-    adapter_info = ADAPTER_REGISTRY.get(source_key)
+    route_info = resolve_file_routing(file_path)
+    source_key = route_info["source_directory_name"]
+    source_type = route_info["source_type"]
+    classifier_result = route_info["classifier_result"]
+    selected_adapter_key = route_info["selected_adapter_key"]
+    selected_adapter_name = route_info["selected_adapter_name"]
+    adapter_info = route_info["adapter_info"]
+
+    batch_dir = create_batch_directory(source_key, file_path, create_on_disk=not dry_run)
+    normalized_file_path = batch_dir / "normalized_logs.csv"
+    runtime_raw_dir = batch_dir / "raw"
+    runtime_processed_dir = batch_dir / "processed"
+    warnings_file_path = batch_dir / "parse_warnings.txt"
+    status_file_path = batch_dir / "status.json"
+
+    print(f"[log_watcher] 发现文件：{file_path}")
+    print(f"[log_watcher] 目录来源：{source_key}")
+    print(f"[log_watcher] 自动识别结果：source_type={source_type}，adapter={selected_adapter_key or 'unknown'}")
+    print(f"[log_watcher] 识别说明：{classifier_result.get('reason', '-')}")
+
     if adapter_info is None:
-        print(f"[log_watcher] 未找到目录 {source_key} 对应的适配器，跳过文件：{file_path}")
+        reason_text = route_info["unsupported_message"] or "当前文件无法匹配到可用解析器。"
+        print(f"[log_watcher] {reason_text}")
+        if dry_run:
+            return
+
+        failed_file_path = move_file_to_directory(file_path, FAILED_ROOT, source_key)
+        reason_file_path = write_failure_reason(failed_file_path, reason_text)
+        write_status_json(
+            status_file_path,
+            build_status_payload(
+                status="FAILED",
+                source_file=file_path,
+                source_directory_name=source_key,
+                source_type=source_type,
+                classifier_result=classifier_result,
+                selected_adapter_key=selected_adapter_key,
+                selected_adapter_name=selected_adapter_name,
+                failed_step="classify_or_route",
+                failed_file=failed_file_path,
+                reason_file=reason_file_path,
+            ),
+        )
+        print(f"[log_watcher] 已移动到失败目录：{failed_file_path}")
+        print(f"[log_watcher] 失败原因文件：{reason_file_path}")
         return
 
-    adapter_name = adapter_info["adapter_name"]
     parse_file_func = adapter_info["parse_file"]
-    print(f"[log_watcher] 发现文件：{file_path}")
-    print(f"[log_watcher] 使用适配器：{adapter_name}")
+    print(f"[log_watcher] 使用适配器：{selected_adapter_name}")
 
     try:
         records, parse_errors = parse_file_func(file_path)
@@ -518,8 +660,24 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
         print(f"[log_watcher] {reason_text}")
         if dry_run:
             return
+
         failed_file_path = move_file_to_directory(file_path, FAILED_ROOT, source_key)
         reason_file_path = write_failure_reason(failed_file_path, reason_text)
+        write_status_json(
+            status_file_path,
+            build_status_payload(
+                status="FAILED",
+                source_file=file_path,
+                source_directory_name=source_key,
+                source_type=source_type,
+                classifier_result=classifier_result,
+                selected_adapter_key=selected_adapter_key,
+                selected_adapter_name=selected_adapter_name,
+                failed_step="parse_file",
+                failed_file=failed_file_path,
+                reason_file=reason_file_path,
+            ),
+        )
         print(f"[log_watcher] 已移动到失败目录：{failed_file_path}")
         print(f"[log_watcher] 失败原因文件：{reason_file_path}")
         return
@@ -529,18 +687,28 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
         print(f"[log_watcher] {reason_text}")
         if dry_run:
             return
+
         failed_file_path = move_file_to_directory(file_path, FAILED_ROOT, source_key)
         reason_file_path = write_failure_reason(failed_file_path, reason_text)
+        write_status_json(
+            status_file_path,
+            build_status_payload(
+                status="FAILED",
+                source_file=file_path,
+                source_directory_name=source_key,
+                source_type=source_type,
+                classifier_result=classifier_result,
+                selected_adapter_key=selected_adapter_key,
+                selected_adapter_name=selected_adapter_name,
+                parse_error_count=len(parse_errors),
+                failed_step="parse_file",
+                failed_file=failed_file_path,
+                reason_file=reason_file_path,
+            ),
+        )
         print(f"[log_watcher] 已移动到失败目录：{failed_file_path}")
         print(f"[log_watcher] 失败原因文件：{reason_file_path}")
         return
-
-    batch_dir = create_batch_directory(source_key, file_path)
-    normalized_file_path = batch_dir / "normalized_logs.csv"
-    runtime_raw_dir = batch_dir / "raw"
-    runtime_processed_dir = batch_dir / "processed"
-    warnings_file_path = batch_dir / "parse_warnings.txt"
-    status_file_path = batch_dir / "status.json"
 
     print(f"[log_watcher] 解析成功记录数：{len(records)}")
     if parse_errors:
@@ -627,15 +795,24 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
             reason_file_path = write_failure_reason(failed_file_path, reason_text)
             write_status_json(
                 status_file_path,
-                {
-                    "status": "FAILED",
-                    "source_file": str(file_path),
-                    "failed_file": str(failed_file_path),
-                    "reason_file": str(reason_file_path),
-                    "failed_step": item["name"],
-                    "parse_error_count": len(parse_errors),
-                    "outputs": execution_outputs,
-                },
+                build_status_payload(
+                    status="FAILED",
+                    source_file=file_path,
+                    source_directory_name=source_key,
+                    source_type=source_type,
+                    classifier_result=classifier_result,
+                    selected_adapter_key=selected_adapter_key,
+                    selected_adapter_name=selected_adapter_name,
+                    parse_error_count=len(parse_errors),
+                    failed_step=item["name"],
+                    outputs=execution_outputs,
+                    failed_file=failed_file_path,
+                    reason_file=reason_file_path,
+                    normalized_file=normalized_file_path,
+                    raw_files=[login_raw_file, host_raw_file, alert_raw_file],
+                    processed_dir=runtime_processed_dir,
+                    parse_warning_file=warnings_file_path if parse_errors else None,
+                ),
             )
             print(f"[log_watcher] 处理失败，已移动到失败目录：{failed_file_path}")
             print(f"[log_watcher] 失败原因文件：{reason_file_path}")
@@ -644,17 +821,22 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
     archived_file_path = move_file_to_directory(file_path, ARCHIVE_ROOT, source_key)
     write_status_json(
         status_file_path,
-        {
-            "status": "SUCCESS",
-            "source_file": str(file_path),
-            "archived_file": str(archived_file_path),
-            "normalized_file": str(normalized_file_path),
-            "raw_files": [str(login_raw_file), str(host_raw_file), str(alert_raw_file)],
-            "processed_dir": str(runtime_processed_dir),
-            "parse_error_count": len(parse_errors),
-            "parse_warning_file": str(warnings_file_path) if parse_errors else "",
-            "outputs": execution_outputs,
-        },
+        build_status_payload(
+            status="SUCCESS",
+            source_file=file_path,
+            source_directory_name=source_key,
+            source_type=source_type,
+            classifier_result=classifier_result,
+            selected_adapter_key=selected_adapter_key,
+            selected_adapter_name=selected_adapter_name,
+            archived_file=archived_file_path,
+            normalized_file=normalized_file_path,
+            raw_files=[login_raw_file, host_raw_file, alert_raw_file],
+            processed_dir=runtime_processed_dir,
+            parse_error_count=len(parse_errors),
+            parse_warning_file=warnings_file_path if parse_errors else None,
+            outputs=execution_outputs,
+        ),
     )
 
     print(f"[log_watcher] 已成功导入并完成检测：{file_path.name}")
