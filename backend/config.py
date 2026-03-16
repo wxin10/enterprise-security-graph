@@ -115,6 +115,8 @@ class BaseConfig:
     BAN_WINDOWS_FIREWALL_DIRECTION = os.getenv("BAN_WINDOWS_FIREWALL_DIRECTION", "Inbound")
     BAN_WINDOWS_FIREWALL_PROTOCOL = os.getenv("BAN_WINDOWS_FIREWALL_PROTOCOL", "TCP").upper()
     BAN_WINDOWS_FIREWALL_LOCAL_PORTS = parse_port_list(os.getenv("BAN_WINDOWS_FIREWALL_LOCAL_PORTS", ""))
+    BAN_WEB_BLOCKLIST_FILE = str(PROJECT_ROOT / "backend" / "app" / "data" / "blocklist.json")
+    BAN_WEB_BLOCKLIST_RULE_PREFIX = os.getenv("BAN_WEB_BLOCKLIST_RULE_PREFIX", "ESGWEB")
 
 
 class DevelopmentConfig(BaseConfig):

@@ -16,12 +16,16 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
+from flask import current_app
+
 from app.core.errors import NotFoundError, ValidationError
 from app.db import neo4j_client
+from app.middleware import add_ip_to_blocklist, query_blocked_ip, remove_ip_from_blocklist
 from app.services.firewall_service import firewall_service
 
 
@@ -39,6 +43,8 @@ class BanService:
 
     BLOCKED_STATUS = "BLOCKED"
     RELEASED_STATUS = "RELEASED"
+    MODE_WEB_BLOCKLIST = "WEB_BLOCKLIST"
+    BACKEND_WEB_BLOCKLIST = "WEB_BLOCKLIST"
 
     ACTIVE_BLOCK_STATUS_SET = {"SUCCESS", "DONE", "EXECUTED", "BLOCKED", "ACTIVE"}
     RELEASED_STATUS_SET = {"RELEASED", "UNBLOCKED", "ROLLED_BACK", "RESOLVED"}
@@ -135,7 +141,7 @@ LIMIT $limit
                 "status": normalized_status,
                 "target_ip": normalized_target_ip,
             },
-            "enforcement_profile": firewall_service.get_enforcement_profile(),
+            "enforcement_profile": self._get_enforcement_profile(),
         }
 
     def get_ban_detail(self, ban_id: str) -> Dict[str, Any]:
@@ -291,8 +297,11 @@ LIMIT $limit
         if self._normalize_text(current_item.get("target_type")).upper() != "IP":
             raise ValidationError("当前最小可运行版本仅支持 IP 类型封禁记录的状态切换与真实执行")
 
-        if not self._normalize_text(current_item.get("ip_address")):
+        target_ip = self._normalize_text(current_item.get("ip_address"))
+        if not target_ip:
             raise ValidationError("当前封禁记录缺少目标 IP，无法执行真实封禁或校验")
+
+        self._validate_target_ip(target_ip)
 
     def _enforce_current_state(self, current_item: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -301,6 +310,14 @@ LIMIT $limit
         current_status = self._normalize_text(current_item.get("current_ban_status")).upper()
         action_id = self._normalize_text(current_item.get("action_id"))
         target_ip = self._normalize_text(current_item.get("ip_address"))
+
+        if self._is_web_blocklist_mode():
+            return self._enforce_web_blocklist(
+                action_id=action_id,
+                target_ip=target_ip,
+                current_status=current_status,
+                current_item=current_item,
+            )
 
         if current_status == self.BLOCKED_STATUS:
             return firewall_service.apply_block(action_id, target_ip)
@@ -316,6 +333,14 @@ LIMIT $limit
         current_status = self._normalize_text(current_item.get("current_ban_status")).upper()
         action_id = self._normalize_text(current_item.get("action_id"))
         target_ip = self._normalize_text(current_item.get("ip_address"))
+
+        if self._is_web_blocklist_mode():
+            return self._verify_web_blocklist(
+                action_id=action_id,
+                target_ip=target_ip,
+                current_status=current_status,
+            )
+
         return firewall_service.verify_rule(action_id, target_ip, current_status)
 
     def _persist_enforcement_state(
@@ -332,7 +357,7 @@ LIMIT $limit
         2. IP：作为当前处置目标状态展示对象。
         3. Alert：作为前端攻击链摘要的联动字段。
         """
-        profile = firewall_service.get_enforcement_profile()
+        profile = self._get_enforcement_profile()
         local_ports = ",".join(profile.get("local_ports", []))
         verified_at = self._normalize_text(enforcement_result.get("verified_at")) or self._build_local_timestamp()
 
@@ -346,9 +371,14 @@ LIMIT $limit
                 "enforcement_status": self._normalize_text(enforcement_result.get("enforcement_status")) or "PENDING",
                 "enforcement_rule_name": self._normalize_text(enforcement_result.get("enforcement_rule_name")),
                 "enforcement_message": self._normalize_text(enforcement_result.get("message")),
+                "enforcement_executed": bool(enforcement_result.get("executed", False)),
+                "enforcement_success": bool(enforcement_result.get("success", False)),
                 "verification_status": self._normalize_text(enforcement_result.get("verification_status")) or "NOT_VERIFIED",
                 "verified_at": verified_at,
                 "verification_message": self._normalize_text(enforcement_result.get("verification_message")),
+                "verification_supported": bool(enforcement_result.get("verification_supported", False)),
+                "verification_attempted": bool(enforcement_result.get("verification_attempted", False)),
+                "block_effective": bool(enforcement_result.get("block_effective", False)),
                 "enforcement_scope_ports": local_ports,
                 "updated_at": self._build_local_timestamp(),
             },
@@ -428,9 +458,14 @@ SET b.enforcement_mode = $enforcement_mode,
     b.enforcement_status = $enforcement_status,
     b.enforcement_rule_name = $enforcement_rule_name,
     b.enforcement_message = $enforcement_message,
+    b.enforcement_executed = $enforcement_executed,
+    b.enforcement_success = $enforcement_success,
     b.verification_status = $verification_status,
     b.verified_at = $verified_at,
     b.verification_message = $verification_message,
+    b.verification_supported = $verification_supported,
+    b.verification_attempted = $verification_attempted,
+    b.block_effective = $block_effective,
     b.enforcement_scope_ports = $enforcement_scope_ports,
     b.updated_at = $updated_at
 SET ip.enforcement_mode = $enforcement_mode,
@@ -438,18 +473,28 @@ SET ip.enforcement_mode = $enforcement_mode,
     ip.enforcement_status = $enforcement_status,
     ip.enforcement_rule_name = $enforcement_rule_name,
     ip.enforcement_message = $enforcement_message,
+    ip.enforcement_executed = $enforcement_executed,
+    ip.enforcement_success = $enforcement_success,
     ip.verification_status = $verification_status,
     ip.verified_at = $verified_at,
     ip.verification_message = $verification_message,
+    ip.verification_supported = $verification_supported,
+    ip.verification_attempted = $verification_attempted,
+    ip.block_effective = $block_effective,
     ip.current_block_status = $current_status,
     ip.ip_block_status = $current_status
 SET a.enforcement_mode = $enforcement_mode,
     a.enforcement_backend = $enforcement_backend,
     a.enforcement_status = $enforcement_status,
     a.enforcement_rule_name = $enforcement_rule_name,
+    a.enforcement_executed = $enforcement_executed,
+    a.enforcement_success = $enforcement_success,
     a.verification_status = $verification_status,
     a.verified_at = $verified_at,
-    a.verification_message = $verification_message
+    a.verification_message = $verification_message,
+    a.verification_supported = $verification_supported,
+    a.verification_attempted = $verification_attempted,
+    a.block_effective = $block_effective
 RETURN b.action_id AS action_id
 """
 
@@ -461,18 +506,18 @@ RETURN b.action_id AS action_id
         alert = record.get("alert") or {}
         ip = record.get("ip") or {}
 
-        profile = firewall_service.get_enforcement_profile()
+        profile = self._get_enforcement_profile()
         action_id = self._normalize_text(ban.get("action_id"))
         ip_address = self._normalize_text(ip.get("ip_address"))
         current_status = self._resolve_current_status(ban=ban, ip=ip)
         history_actions = self._normalize_history_actions(self._build_history_actions(ban=ban))
 
         stored_mode = self._normalize_text(ban.get("enforcement_mode")).upper()
-        enforcement_mode = stored_mode if stored_mode in {"REAL", "MOCK"} else profile["mode"]
+        enforcement_mode = stored_mode if stored_mode in {"REAL", "MOCK", self.MODE_WEB_BLOCKLIST} else profile["mode"]
         enforcement_backend = self._normalize_text(ban.get("enforcement_backend")).upper() or profile["backend"]
         enforcement_rule_name = (
             self._normalize_text(ban.get("enforcement_rule_name"))
-            or (firewall_service.build_rule_name(action_id, ip_address) if action_id and ip_address else "")
+            or (self._build_enforcement_rule_name(action_id, ip_address, enforcement_mode) if action_id and ip_address else "")
         )
         enforcement_status = self._normalize_text(ban.get("enforcement_status")).upper()
         verification_status = self._normalize_text(ban.get("verification_status")).upper()
@@ -490,8 +535,20 @@ RETURN b.action_id AS action_id
         if not verification_message:
             if enforcement_mode == "MOCK":
                 verification_message = "当前为模拟执行模式，未真正校验宿主机规则"
+            elif enforcement_mode == self.MODE_WEB_BLOCKLIST:
+                verification_message = "尚未执行 WEB_BLOCKLIST 阻断校验"
             else:
                 verification_message = "尚未执行规则校验"
+
+        enforcement_executed = bool(ban.get("enforcement_executed", False))
+        enforcement_success = bool(ban.get("enforcement_success", False))
+        verification_supported = bool(ban.get("verification_supported", enforcement_mode == self.MODE_WEB_BLOCKLIST))
+        verification_attempted = bool(ban.get("verification_attempted", False))
+        block_effective = bool(ban.get("block_effective", False))
+        if current_status == self.BLOCKED_STATUS and verification_status == "VERIFIED":
+            block_effective = True
+        if current_status == self.RELEASED_STATUS:
+            block_effective = False
 
         history_summary = self._build_history_summary(history_actions)
         block_count = self._safe_int(ban.get("block_count"))
@@ -553,9 +610,15 @@ RETURN b.action_id AS action_id
             "enforcement_status": enforcement_status,
             "enforcement_rule_name": enforcement_rule_name,
             "enforcement_message": self._normalize_text(ban.get("enforcement_message")),
+            "enforcement_executed": enforcement_executed,
+            "enforcement_success": enforcement_success,
             "verification_status": verification_status,
             "verified_at": self._normalize_text(ban.get("verified_at")),
             "verification_message": verification_message,
+            "verification_supported": verification_supported,
+            "verification_attempted": verification_attempted,
+            "block_effective": block_effective,
+            "truly_blocked": block_effective,
             "enforcement_scope_ports": self._normalize_text(ban.get("enforcement_scope_ports")) or ",".join(profile.get("local_ports", [])),
             "enforcement_scope_description": profile.get("scope_description"),
         }
@@ -718,6 +781,233 @@ RETURN b.action_id AS action_id
         if target_status == self.RELEASED_STATUS:
             return "当前记录已经处于已放行状态，无需重复执行放行"
         return "当前记录已经处于已封禁状态，无需重复执行重新封禁"
+
+    def _get_enforcement_mode(self) -> str:
+        """
+        获取当前后端实际使用的封禁执行模式。
+
+        说明：
+        1. 这次最小版重点补齐 WEB_BLOCKLIST。
+        2. 其余模式仍继续交给原有 firewall_service 处理。
+        """
+        return self._normalize_text(current_app.config.get("BAN_ENFORCEMENT_MODE")).upper() or "MOCK"
+
+    def _is_web_blocklist_mode(self) -> bool:
+        """
+        判断当前是否处于 WEB_BLOCKLIST 真实阻断模式。
+        """
+        return self._get_enforcement_mode() == self.MODE_WEB_BLOCKLIST
+
+    def _get_enforcement_profile(self) -> Dict[str, Any]:
+        """
+        返回当前封禁执行配置。
+
+        设计思路：
+        1. WEB_BLOCKLIST 模式由 ban_service 直接处理。
+        2. MOCK / REAL 等原有模式继续沿用 firewall_service 的配置输出。
+        """
+        if not self._is_web_blocklist_mode():
+            return firewall_service.get_enforcement_profile()
+
+        return {
+            "mode": self.MODE_WEB_BLOCKLIST,
+            "backend": self.BACKEND_WEB_BLOCKLIST,
+            "host_platform": "APPLICATION",
+            "supports_real_execution": True,
+            "rule_prefix": current_app.config.get("BAN_WEB_BLOCKLIST_RULE_PREFIX", "ESGWEB"),
+            "local_ports": [],
+            "scope_description": "在 Flask 请求入口按源 IP 执行应用层真实阻断",
+        }
+
+    def _build_enforcement_rule_name(self, ban_id: str, target_ip: str, enforcement_mode: str) -> str:
+        """
+        为不同执行模式生成可追踪的规则名。
+        """
+        if enforcement_mode == self.MODE_WEB_BLOCKLIST:
+            prefix = current_app.config.get("BAN_WEB_BLOCKLIST_RULE_PREFIX", "ESGWEB")
+            sanitized_ban_id = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(ban_id or "UNKNOWN"))
+            sanitized_ip = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(target_ip or "UNKNOWN"))
+            return f"{prefix}-BAN-{sanitized_ban_id}-{sanitized_ip}"
+
+        return firewall_service.build_rule_name(ban_id, target_ip)
+
+    def _get_blocklist_file_path(self) -> str:
+        """
+        获取 WEB_BLOCKLIST 存储文件路径。
+        """
+        return str(current_app.config.get("BAN_WEB_BLOCKLIST_FILE") or "")
+
+    def _validate_target_ip(self, target_ip: str) -> str:
+        """
+        校验目标 IP 合法性，避免把非法文本写入 blocklist。
+        """
+        normalized_ip = self._normalize_text(target_ip)
+        try:
+            return str(ipaddress.ip_address(normalized_ip))
+        except ValueError as exc:
+            raise ValidationError(f"目标 IP 非法，无法执行封禁：{normalized_ip or 'EMPTY'}") from exc
+
+    def _enforce_web_blocklist(
+        self,
+        action_id: str,
+        target_ip: str,
+        current_status: str,
+        current_item: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        在 WEB_BLOCKLIST 模式下执行最小真实阻断。
+
+        BLOCKED：
+        1. 将目标 IP 写入 blocklist.json。
+        2. 之后该 IP 再访问 Flask 服务时会在 before_request 中被 403 拒绝。
+
+        RELEASED：
+        1. 将目标 IP 从 blocklist.json 中删除。
+        2. 之后该 IP 访问 Flask 服务时恢复正常。
+        """
+        normalized_ip = self._validate_target_ip(target_ip)
+        blocklist_file = self._get_blocklist_file_path()
+        rule_name = self._build_enforcement_rule_name(action_id, normalized_ip, self.MODE_WEB_BLOCKLIST)
+        operator = self._normalize_text(current_item.get("latest_action_by")) or "security_console"
+        reason = self._normalize_text(current_item.get("latest_action_reason")) or "封禁处置"
+        executed_at = self._build_local_timestamp()
+
+        try:
+            if current_status == self.BLOCKED_STATUS:
+                write_result = add_ip_to_blocklist(
+                    blocklist_file,
+                    normalized_ip,
+                    metadata={
+                        "ban_id": action_id,
+                        "blocked_at": executed_at,
+                        "reason": reason,
+                        "operator": operator,
+                    },
+                )
+                blocked, _ = query_blocked_ip(blocklist_file, normalized_ip)
+                return {
+                    "executed": True,
+                    "success": blocked,
+                    "mode": self.MODE_WEB_BLOCKLIST,
+                    "backend": self.BACKEND_WEB_BLOCKLIST,
+                    "target_ip": normalized_ip,
+                    "enforcement_rule_name": rule_name,
+                    "enforcement_status": "APPLIED" if blocked else "FAILED",
+                    "message": "目标 IP 已写入 WEB_BLOCKLIST 并开始阻断" if blocked else "目标 IP 写入 WEB_BLOCKLIST 失败",
+                    "executed_at": executed_at,
+                    "verification_supported": True,
+                    "verification_attempted": True,
+                    "verification_status": "VERIFIED" if blocked else "FAILED",
+                    "verified_at": executed_at,
+                    "verification_message": "blocklist 中已存在该 IP，后续请求会被 Flask 直接拒绝" if blocked else "blocklist 校验未通过，未检测到目标 IP",
+                    "rollback_supported": True,
+                    "rollback_result": "",
+                    "block_effective": blocked,
+                    "already_existed": bool(write_result.get("existed", False)),
+                    "verification_result": "VERIFIED" if blocked else "FAILED",
+                }
+
+            remove_result = remove_ip_from_blocklist(blocklist_file, normalized_ip)
+            blocked, _ = query_blocked_ip(blocklist_file, normalized_ip)
+            released_success = not blocked
+            return {
+                "executed": True,
+                "success": released_success,
+                "mode": self.MODE_WEB_BLOCKLIST,
+                "backend": self.BACKEND_WEB_BLOCKLIST,
+                "target_ip": normalized_ip,
+                "enforcement_rule_name": rule_name,
+                "enforcement_status": "REMOVED" if released_success else "FAILED",
+                "message": "目标 IP 已从 WEB_BLOCKLIST 移除，访问将恢复正常" if released_success else "目标 IP 移除失败，仍在 WEB_BLOCKLIST 中",
+                "executed_at": executed_at,
+                "verification_supported": True,
+                "verification_attempted": True,
+                "verification_status": "VERIFIED" if released_success else "FAILED",
+                "verified_at": executed_at,
+                "verification_message": "未在 blocklist 中检测到该 IP，说明放行已生效" if released_success else "blocklist 中仍存在该 IP，放行未生效",
+                "rollback_supported": True,
+                "rollback_result": "",
+                "block_effective": False,
+                "already_missing": not bool(remove_result.get("existed", False)),
+                "verification_result": "VERIFIED" if released_success else "FAILED",
+            }
+        except Exception as exc:
+            return {
+                "executed": False,
+                "success": False,
+                "mode": self.MODE_WEB_BLOCKLIST,
+                "backend": self.BACKEND_WEB_BLOCKLIST,
+                "target_ip": normalized_ip,
+                "enforcement_rule_name": rule_name,
+                "enforcement_status": "FAILED",
+                "message": f"WEB_BLOCKLIST 执行失败：{exc}",
+                "executed_at": executed_at,
+                "verification_supported": True,
+                "verification_attempted": False,
+                "verification_status": "FAILED",
+                "verified_at": executed_at,
+                "verification_message": f"执行失败，未完成 blocklist 校验：{exc}",
+                "rollback_supported": True,
+                "rollback_result": "",
+                "block_effective": False,
+                "verification_result": "FAILED",
+            }
+
+    def _verify_web_blocklist(self, action_id: str, target_ip: str, current_status: str) -> Dict[str, Any]:
+        """
+        对 WEB_BLOCKLIST 当前状态做最小校验。
+        """
+        normalized_ip = self._validate_target_ip(target_ip)
+        blocklist_file = self._get_blocklist_file_path()
+        rule_name = self._build_enforcement_rule_name(action_id, normalized_ip, self.MODE_WEB_BLOCKLIST)
+        verified_at = self._build_local_timestamp()
+        blocked, entry = query_blocked_ip(blocklist_file, normalized_ip)
+
+        if current_status == self.BLOCKED_STATUS:
+            return {
+                "executed": False,
+                "success": blocked,
+                "mode": self.MODE_WEB_BLOCKLIST,
+                "backend": self.BACKEND_WEB_BLOCKLIST,
+                "target_ip": normalized_ip,
+                "enforcement_rule_name": rule_name,
+                "enforcement_status": "APPLIED" if blocked else "FAILED",
+                "message": "WEB_BLOCKLIST 校验通过，目标 IP 当前处于阻断状态" if blocked else "WEB_BLOCKLIST 校验失败，目标 IP 当前未处于阻断状态",
+                "executed_at": "",
+                "verification_supported": True,
+                "verification_attempted": True,
+                "verification_status": "VERIFIED" if blocked else "MISSING",
+                "verified_at": verified_at,
+                "verification_message": "blocklist 中已命中该 IP，后续请求会被 403 拒绝" if blocked else "blocklist 中未找到该 IP，说明当前并未真实阻断",
+                "rollback_supported": True,
+                "rollback_result": "",
+                "block_effective": blocked,
+                "verification_result": "VERIFIED" if blocked else "MISSING",
+                "rule_detail": entry,
+            }
+
+        released_success = not blocked
+        return {
+            "executed": False,
+            "success": released_success,
+            "mode": self.MODE_WEB_BLOCKLIST,
+            "backend": self.BACKEND_WEB_BLOCKLIST,
+            "target_ip": normalized_ip,
+            "enforcement_rule_name": rule_name,
+            "enforcement_status": "REMOVED" if released_success else "FAILED",
+            "message": "WEB_BLOCKLIST 校验通过，目标 IP 当前已放行" if released_success else "WEB_BLOCKLIST 校验失败，目标 IP 仍在阻断列表中",
+            "executed_at": "",
+            "verification_supported": True,
+            "verification_attempted": True,
+            "verification_status": "VERIFIED" if released_success else "FAILED",
+            "verified_at": verified_at,
+            "verification_message": "blocklist 中未命中该 IP，说明放行已生效" if released_success else "blocklist 中仍存在该 IP，说明放行未真正生效",
+            "rollback_supported": True,
+            "rollback_result": "",
+            "block_effective": False,
+            "verification_result": "VERIFIED" if released_success else "FAILED",
+            "rule_detail": entry,
+        }
 
     def _normalize_text(self, value: Any) -> str:
         """

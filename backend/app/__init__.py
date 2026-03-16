@@ -19,6 +19,7 @@ from app.api import AVAILABLE_API_ENDPOINTS, register_api_blueprints
 from app.core.errors import register_error_handlers
 from app.core.response import success_response
 from app.db import neo4j_client
+from app.middleware import register_ip_blocklist_middleware
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -39,6 +40,9 @@ def create_app(config_name: str | None = None) -> Flask:
         supports_credentials=False,
     )
 
+    # 在最小真实阻断版本中，只有 WEB_BLOCKLIST 模式才会真正拦截请求。
+    # 这里统一注册中间件，由中间件内部自行判断当前模式是否需要启用拦截。
+    register_ip_blocklist_middleware(app)
     neo4j_client.init_app(app)
     register_api_blueprints(app)
     register_error_handlers(app)
