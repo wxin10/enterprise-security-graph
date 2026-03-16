@@ -89,6 +89,16 @@
           <template #default="{ row }"><el-tag :type="detectionTagType(row.detection_status)" effect="plain">{{ row.detection_status || "-" }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="unified_event_count" label="统一事件数" min-width="110" />
+        <el-table-column prop="behavior_count" label="行为数" min-width="90" />
+        <el-table-column prop="blockable_behavior_count" label="可封禁行为" min-width="110" />
+        <el-table-column label="行为类型" min-width="180">
+          <template #default="{ row }">
+            <span v-if="!row.behavior_types || row.behavior_types.length === 0">-</span>
+            <el-space v-else wrap>
+              <el-tag v-for="item in row.behavior_types.slice(0, 2)" :key="item" size="small" effect="plain">{{ item }}</el-tag>
+            </el-space>
+          </template>
+        </el-table-column>
         <el-table-column prop="processed_at" label="处理时间" min-width="170" />
         <el-table-column prop="failed_step" label="失败步骤" min-width="120" />
         <el-table-column prop="parse_error_count" label="解析异常数" min-width="110" />

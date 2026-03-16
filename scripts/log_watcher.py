@@ -80,6 +80,11 @@ from event_normalizer import (  # noqa: E402
     normalize_records_to_events,
     summarize_events,
 )
+from behavior_aggregator import (  # noqa: E402
+    ATTACK_BEHAVIOR_FIELDS,
+    recognize_attack_behaviors,
+    summarize_behaviors,
+)
 
 
 LOGIN_RAW_FIELDS = [
@@ -543,12 +548,19 @@ def build_status_payload(
     normalized_file: Path | None = None,
     unified_event_json_file: Path | None = None,
     unified_event_csv_file: Path | None = None,
+    attack_behavior_json_file: Path | None = None,
+    attack_behavior_csv_file: Path | None = None,
     raw_files: List[Path] | None = None,
     processed_dir: Path | None = None,
     parse_warning_file: Path | None = None,
     unified_event_count: int = 0,
     detected_attack_types: List[str] | None = None,
     blockable_event_count: int = 0,
+    behavior_count: int = 0,
+    behavior_types: List[str] | None = None,
+    blockable_behavior_count: int = 0,
+    high_risk_behavior_count: int = 0,
+    top_behavior_type: str = "",
 ) -> Dict[str, Any]:
     """
     统一构造批次 status.json 结构。
@@ -567,6 +579,8 @@ def build_status_payload(
         "normalized_file": str(normalized_file) if normalized_file else "",
         "unified_event_json_file": str(unified_event_json_file) if unified_event_json_file else "",
         "unified_event_csv_file": str(unified_event_csv_file) if unified_event_csv_file else "",
+        "attack_behavior_json_file": str(attack_behavior_json_file) if attack_behavior_json_file else "",
+        "attack_behavior_csv_file": str(attack_behavior_csv_file) if attack_behavior_csv_file else "",
         "raw_files": [str(item) for item in (raw_files or [])],
         "processed_dir": str(processed_dir) if processed_dir else "",
         "parse_error_count": parse_error_count,
@@ -574,6 +588,11 @@ def build_status_payload(
         "unified_event_count": unified_event_count,
         "detected_attack_types": detected_attack_types or [],
         "blockable_event_count": blockable_event_count,
+        "behavior_count": behavior_count,
+        "behavior_types": behavior_types or [],
+        "blockable_behavior_count": blockable_behavior_count,
+        "high_risk_behavior_count": high_risk_behavior_count,
+        "top_behavior_type": top_behavior_type,
         "failed_step": failed_step,
         "outputs": outputs or {},
     }
@@ -649,6 +668,8 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
     status_file_path = batch_dir / "status.json"
     unified_events_json_path = batch_dir / "unified_events.json"
     unified_events_csv_path = batch_dir / "unified_events.csv"
+    attack_behaviors_json_path = batch_dir / "attack_behaviors.json"
+    attack_behaviors_csv_path = batch_dir / "attack_behaviors.csv"
 
     print(f"[log_watcher] 发现文件：{file_path}")
     print(f"[log_watcher] 目录来源：{source_key}")
@@ -748,10 +769,14 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
 
     unified_events = normalize_records_to_events(records, classifier_result, file_path)
     unified_event_summary = summarize_events(unified_events)
+    attack_behaviors = recognize_attack_behaviors(unified_events)
+    behavior_summary = summarize_behaviors(attack_behaviors)
 
     print(f"[log_watcher] 将生成统一中间文件：{normalized_file_path}")
     print(f"[log_watcher] 将生成统一安全事件文件：{unified_events_json_path}")
     print(f"[log_watcher] 将生成统一安全事件文件：{unified_events_csv_path}")
+    print(f"[log_watcher] 将生成攻击行为文件：{attack_behaviors_json_path}")
+    print(f"[log_watcher] 将生成攻击行为文件：{attack_behaviors_csv_path}")
     print(f"[log_watcher] 将生成批次原始目录：{runtime_raw_dir}")
     print(f"[log_watcher] 将生成批次处理目录：{runtime_processed_dir}")
     print(
@@ -760,6 +785,13 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
         f"attack_types={','.join(unified_event_summary['detected_attack_types']) or '-'}，"
         f"blockable={unified_event_summary['blockable_event_count']}"
     )
+    print(
+        "[log_watcher] 攻击行为统计："
+        f"count={behavior_summary['behavior_count']}，"
+        f"types={','.join(behavior_summary['behavior_types']) or '-'}，"
+        f"blockable={behavior_summary['blockable_behavior_count']}，"
+        f"high_risk={behavior_summary['high_risk_behavior_count']}"
+    )
 
     if dry_run:
         return
@@ -767,6 +799,8 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
     write_csv_rows(normalized_file_path, UNIFIED_LOG_FIELDS, records)
     write_json_rows(unified_events_json_path, unified_events)
     write_csv_rows(unified_events_csv_path, UNIFIED_EVENT_FIELDS, unified_events)
+    write_json_rows(attack_behaviors_json_path, attack_behaviors)
+    write_csv_rows(attack_behaviors_csv_path, ATTACK_BEHAVIOR_FIELDS, attack_behaviors)
     if parse_errors:
         warnings_file_path.write_text("\n".join(parse_errors), encoding="utf-8")
 
@@ -856,12 +890,19 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
                     normalized_file=normalized_file_path,
                     unified_event_json_file=unified_events_json_path,
                     unified_event_csv_file=unified_events_csv_path,
+                    attack_behavior_json_file=attack_behaviors_json_path,
+                    attack_behavior_csv_file=attack_behaviors_csv_path,
                     raw_files=[login_raw_file, host_raw_file, alert_raw_file],
                     processed_dir=runtime_processed_dir,
                     parse_warning_file=warnings_file_path if parse_errors else None,
                     unified_event_count=unified_event_summary["unified_event_count"],
                     detected_attack_types=unified_event_summary["detected_attack_types"],
                     blockable_event_count=unified_event_summary["blockable_event_count"],
+                    behavior_count=behavior_summary["behavior_count"],
+                    behavior_types=behavior_summary["behavior_types"],
+                    blockable_behavior_count=behavior_summary["blockable_behavior_count"],
+                    high_risk_behavior_count=behavior_summary["high_risk_behavior_count"],
+                    top_behavior_type=behavior_summary["top_behavior_type"],
                 ),
             )
             print(f"[log_watcher] 处理失败，已移动到失败目录：{failed_file_path}")
@@ -883,6 +924,8 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
             normalized_file=normalized_file_path,
             unified_event_json_file=unified_events_json_path,
             unified_event_csv_file=unified_events_csv_path,
+            attack_behavior_json_file=attack_behaviors_json_path,
+            attack_behavior_csv_file=attack_behaviors_csv_path,
             raw_files=[login_raw_file, host_raw_file, alert_raw_file],
             processed_dir=runtime_processed_dir,
             parse_error_count=len(parse_errors),
@@ -890,6 +933,11 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
             unified_event_count=unified_event_summary["unified_event_count"],
             detected_attack_types=unified_event_summary["detected_attack_types"],
             blockable_event_count=unified_event_summary["blockable_event_count"],
+            behavior_count=behavior_summary["behavior_count"],
+            behavior_types=behavior_summary["behavior_types"],
+            blockable_behavior_count=behavior_summary["blockable_behavior_count"],
+            high_risk_behavior_count=behavior_summary["high_risk_behavior_count"],
+            top_behavior_type=behavior_summary["top_behavior_type"],
             outputs=execution_outputs,
         ),
     )
