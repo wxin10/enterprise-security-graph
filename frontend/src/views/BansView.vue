@@ -11,7 +11,7 @@
       <div>
         <h1 class="page-title">封禁管理</h1>
         <p class="page-subtitle">
-          当前页面用于展示目标 IP 的当前处置状态、最近动作、历史审计记录，以及 Windows 防火墙规则的真实执行与校验结果。
+          展示目标 IP 的当前处置状态、最近动作与必要执行结果，支持放行与重新封禁双向切换。
         </p>
       </div>
 
@@ -60,50 +60,11 @@
       </el-col>
     </el-row>
 
-    <section class="security-panel profile-panel">
-      <div class="section-header">
-        <div>
-          <h3>执行模式说明</h3>
-          <p>这里明确区分模拟封禁和真实封禁，便于演示“规则是否真正下发、是否真正生效”。</p>
-        </div>
-      </div>
-
-      <div class="profile-grid">
-        <div class="profile-card">
-          <div class="profile-card__label">执行模式</div>
-          <div class="profile-card__value">{{ formatEnforcementMode(enforcementProfile.mode) }}</div>
-          <div class="profile-card__hint">{{ enforcementProfile.scope_description || "-" }}</div>
-        </div>
-
-        <div class="profile-card">
-          <div class="profile-card__label">执行后端</div>
-          <div class="profile-card__value">{{ formatEnforcementBackend(enforcementProfile.backend) }}</div>
-          <div class="profile-card__hint">
-            {{ enforcementProfile.supports_real_execution ? "宿主环境支持真实执行" : "当前宿主环境不支持真实执行" }}
-          </div>
-        </div>
-
-        <div class="profile-card">
-          <div class="profile-card__label">规则前缀</div>
-          <div class="profile-card__value profile-card__value--small">{{ enforcementProfile.rule_prefix || "-" }}</div>
-          <div class="profile-card__hint">仅操作本项目创建的规则，避免误删系统其他防火墙规则</div>
-        </div>
-
-        <div class="profile-card">
-          <div class="profile-card__label">限制端口</div>
-          <div class="profile-card__value profile-card__value--small">
-            {{ enforcementPortsText }}
-          </div>
-          <div class="profile-card__hint">建议在演示环境中配置为靶场端口，例如 80、8080 或 8000</div>
-        </div>
-      </div>
-    </section>
-
     <section class="security-panel filter-panel">
       <div class="section-header">
         <div>
           <h3>筛选条件</h3>
-          <p>支持按当前状态和目标 IP 查询，便于快速定位需要演示或复核的处置对象。</p>
+          <p>支持按当前状态和目标 IP 快速定位待复核的处置对象。</p>
         </div>
       </div>
 
@@ -136,7 +97,7 @@
       <div class="section-header">
         <div>
           <h3>当前状态列表</h3>
-          <p>每一行同时展示当前状态、最近动作、历史摘要、规则下发状态和校验结果，避免老师误把动作历史当成当前状态。</p>
+          <p>列表重点展示当前状态、最近动作、目标 IP 和必要的执行结果标签。</p>
         </div>
 
         <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
@@ -326,20 +287,6 @@
               <div class="history-overview__label">最近动作</div>
               <div class="history-overview__value">{{ formatActionLabel(historyDetail.latest_action_type) }}</div>
             </div>
-            <div class="history-overview__card">
-              <div class="history-overview__label">执行模式</div>
-              <div class="history-overview__value">{{ formatEnforcementMode(historyDetail.enforcement_mode) }}</div>
-            </div>
-          </div>
-
-          <div class="history-execution-panel">
-            <div class="history-execution-panel__title">规则执行与校验</div>
-            <div class="history-execution-panel__item">执行后端：{{ formatEnforcementBackend(historyDetail.enforcement_backend) }}</div>
-            <div class="history-execution-panel__item">下发结果：{{ formatEnforcementStatus(historyDetail.enforcement_status) }}</div>
-            <div class="history-execution-panel__item">校验状态：{{ formatVerificationStatus(historyDetail.verification_status) }}</div>
-            <div class="history-execution-panel__item">规则名称：{{ historyDetail.enforcement_rule_name || "-" }}</div>
-            <div class="history-execution-panel__item">校验时间：{{ historyDetail.verified_at || "-" }}</div>
-            <div class="history-execution-panel__item">校验说明：{{ historyDetail.verification_message || "-" }}</div>
           </div>
 
           <el-timeline>
@@ -444,11 +391,6 @@ const historyTimeline = computed(() => {
 
 const executionModeTagType = computed(() => {
   return enforcementProfile.mode === "REAL" ? "danger" : "info";
-});
-
-const enforcementPortsText = computed(() => {
-  const ports = enforcementProfile.local_ports || [];
-  return ports.length > 0 ? ports.join(", ") : "未限制端口（按源 IP 阻断）";
 });
 
 function actionTypeTagType(actionType) {
@@ -770,7 +712,6 @@ onMounted(() => {
 }
 
 .page-banner,
-.profile-panel,
 .filter-panel,
 .table-panel,
 .summary-card {
@@ -856,43 +797,6 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.profile-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.profile-card {
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(8, 20, 35, 0.76);
-  border: 1px solid rgba(84, 129, 194, 0.14);
-}
-
-.profile-card__label {
-  font-size: 13px;
-  color: #8aa3c8;
-}
-
-.profile-card__value {
-  margin-top: 10px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #eef5ff;
-}
-
-.profile-card__value--small {
-  font-size: 14px;
-  word-break: break-all;
-}
-
-.profile-card__hint {
-  margin-top: 10px;
-  font-size: 12px;
-  color: #7f98be;
-  line-height: 1.6;
-}
-
 .filter-form {
   display: flex;
   flex-wrap: wrap;
@@ -951,8 +855,7 @@ onMounted(() => {
   gap: 12px;
 }
 
-.history-overview__card,
-.history-execution-panel {
+.history-overview__card {
   padding: 16px;
   border-radius: 16px;
   background: rgba(8, 20, 35, 0.76);
@@ -969,20 +872,6 @@ onMounted(() => {
   font-size: 16px;
   line-height: 1.5;
   color: #eef5ff;
-  word-break: break-word;
-}
-
-.history-execution-panel__title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #eef5ff;
-}
-
-.history-execution-panel__item {
-  margin-top: 10px;
-  color: #8fa7ca;
-  font-size: 13px;
-  line-height: 1.7;
   word-break: break-word;
 }
 
@@ -1008,12 +897,6 @@ onMounted(() => {
   line-height: 1.7;
 }
 
-@media (max-width: 1200px) {
-  .profile-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 992px) {
   .page-banner {
     flex-direction: column;
@@ -1025,9 +908,4 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 768px) {
-  .profile-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>
