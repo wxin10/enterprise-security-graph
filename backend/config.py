@@ -117,6 +117,8 @@ class BaseConfig:
     BAN_WINDOWS_FIREWALL_LOCAL_PORTS = parse_port_list(os.getenv("BAN_WINDOWS_FIREWALL_LOCAL_PORTS", ""))
     BAN_WEB_BLOCKLIST_FILE = str(PROJECT_ROOT / "backend" / "app" / "data" / "blocklist.json")
     BAN_WEB_BLOCKLIST_RULE_PREFIX = os.getenv("BAN_WEB_BLOCKLIST_RULE_PREFIX", "ESGWEB")
+    DIRECT_HOST_BLOCK_MODE = os.getenv("DIRECT_HOST_BLOCK_MODE", "false").lower() in {"1", "true", "yes", "on"}
+    DIRECT_HOST_BLOCK_MIN_RISK_SCORE = int(os.getenv("DIRECT_HOST_BLOCK_MIN_RISK_SCORE", "85"))
 
 
 class DevelopmentConfig(BaseConfig):

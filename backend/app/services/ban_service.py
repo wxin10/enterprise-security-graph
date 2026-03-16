@@ -201,6 +201,243 @@ LIMIT $limit
             "message": enforcement_result.get("message") or "规则校验完成",
         }
 
+    def block_ip(
+        self,
+        target_ip: str,
+        reason: str,
+        *,
+        source: str = "automatic",
+        attack_type: str = "",
+        risk_score: int = 0,
+        operator: str = "security_console",
+        source_type: str = "",
+        event_count: int = 1,
+        confidence: float = 0.95,
+        can_block: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        直接按目标 IP 创建或更新主机级封禁记录，并立即执行真实封禁。
+
+        设计说明：
+        1. 这是“日志原地读取 -> 最小分析 -> 直接主机级封禁”的核心入口。
+        2. 与原有 ban_id 驱动的放行 / 重新封禁能力兼容：这里会为同一个 IP 生成稳定 action_id。
+        3. 当目标当前已处于 BLOCKED 时，直接返回幂等结果，不重复创建记录。
+        """
+        normalized_ip = self._validate_target_ip(target_ip)
+        action_id = self._build_direct_action_id(normalized_ip)
+
+        existing_record = self._fetch_ban_context(action_id)
+        if existing_record:
+            current_item = self._build_ban_item(existing_record)
+            current_status = self._normalize_text(current_item.get("current_ban_status")).upper()
+            if current_status == self.BLOCKED_STATUS:
+                return {
+                    "already_in_target_status": True,
+                    "item": current_item,
+                    "message": "目标 IP 当前已处于主机级封禁状态，无需重复执行",
+                }
+            history_actions = list(current_item.get("history_actions") or [])
+        else:
+            history_actions = []
+
+        action_at = self._build_local_timestamp()
+        normalized_reason = self._normalize_text(reason) or "检测到高危攻击行为，自动执行主机级封禁"
+        normalized_source = self._normalize_text(source).lower() or "automatic"
+        normalized_operator = self._normalize_text(operator) or (
+            "behavior_engine" if normalized_source == "automatic" else "security_console"
+        )
+        normalized_attack_type = self._normalize_text(attack_type).upper()
+        normalized_source_type = self._normalize_text(source_type).lower()
+        normalized_event_count = max(1, self._safe_int(event_count, 1))
+        normalized_risk_score = max(0, self._safe_int(risk_score, 0))
+        normalized_confidence = max(0.0, min(1.0, self._safe_float(confidence)))
+        latest_action_type = "AUTO_BLOCK_IP" if normalized_source == "automatic" else "MANUAL_BLOCK_IP"
+
+        history_actions.append(
+            {
+                "sequence": len(history_actions) + 1,
+                "action_type": latest_action_type,
+                "from_status": self.RELEASED_STATUS if existing_record else "NONE",
+                "to_status": self.BLOCKED_STATUS,
+                "operated_at": action_at,
+                "operated_by": normalized_operator,
+                "reason": normalized_reason,
+                "origin": normalized_source.upper(),
+            }
+        )
+
+        history_actions = self._normalize_history_actions(history_actions)
+        history_actions_json = json.dumps(history_actions, ensure_ascii=False)
+        history_summary = self._build_history_summary(history_actions)
+        block_count = self._count_status_transitions(history_actions, self.BLOCKED_STATUS)
+        release_count = self._count_status_transitions(history_actions, self.RELEASED_STATUS)
+        enforcement_profile = self._get_enforcement_profile()
+        try:
+            self.client.execute_write(
+                self._build_direct_block_upsert_query(),
+                {
+                    "action_id": action_id,
+                    "target_ip": normalized_ip,
+                    "ip_id": self._build_generated_ip_id(normalized_ip),
+                    "target_status": self.BLOCKED_STATUS,
+                    "action_type": "BLOCK_IP",
+                    "latest_action_type": latest_action_type,
+                    "action_at": action_at,
+                    "action_by": normalized_operator,
+                    "action_reason": normalized_reason,
+                    "block_source": normalized_source,
+                    "behavior_type": normalized_attack_type,
+                    "source_type": normalized_source_type,
+                    "risk_score": normalized_risk_score,
+                    "confidence": normalized_confidence,
+                    "event_count": normalized_event_count,
+                    "can_block": bool(can_block),
+                    "history_actions_json": history_actions_json,
+                    "history_summary": history_summary,
+                    "history_action_count": len(history_actions),
+                    "block_count": block_count,
+                    "release_count": release_count,
+                    "enforcement_mode": enforcement_profile["mode"],
+                    "enforcement_backend": enforcement_profile["backend"],
+                },
+            )
+
+            latest_item = self.get_ban_detail(action_id)
+            enforcement_result = self._enforce_current_state(latest_item)
+            self._persist_enforcement_state(
+                ban_id=action_id,
+                current_status=self.BLOCKED_STATUS,
+                enforcement_result=enforcement_result,
+            )
+
+            latest_item = self.get_ban_detail(action_id)
+            return {
+                "already_in_target_status": False,
+                "item": latest_item,
+                "enforcement": enforcement_result,
+                "message": enforcement_result.get("message") or "主机级封禁执行完成",
+            }
+        except Exception as exc:
+            enforcement_result = self._enforce_direct_without_persistence(
+                action_id=action_id,
+                target_ip=normalized_ip,
+                current_status=self.BLOCKED_STATUS,
+                action_operator=normalized_operator,
+                action_reason=normalized_reason,
+            )
+            fallback_item = self._build_direct_fallback_item(
+                action_id=action_id,
+                target_ip=normalized_ip,
+                current_status=self.BLOCKED_STATUS,
+                block_source=normalized_source,
+                behavior_type=normalized_attack_type,
+                risk_score=normalized_risk_score,
+                action_operator=normalized_operator,
+                action_reason=normalized_reason,
+                action_at=action_at,
+                enforcement_result=enforcement_result,
+                persistence_warning=f"Neo4j 不可用，已退化为仅执行主机级封禁动作：{exc}",
+            )
+            return {
+                "already_in_target_status": False,
+                "item": fallback_item,
+                "enforcement": enforcement_result,
+                "message": enforcement_result.get("message") or "主机级封禁执行完成（未写入图数据库）",
+            }
+
+    def unblock_ip(
+        self,
+        target_ip: str,
+        reason: str,
+        *,
+        source: str = "manual",
+        operator: str = "security_console",
+    ) -> Dict[str, Any]:
+        """
+        直接按目标 IP 放行。
+
+        说明：
+        1. 该方法是现有 ban_id 放行接口的补充封装，便于后续做“按 IP 直接放行”。
+        2. 当前仍复用统一的状态切换与真实执行逻辑，不另起一套流程。
+        """
+        normalized_ip = self._validate_target_ip(target_ip)
+        action_id = self._build_direct_action_id(normalized_ip)
+        latest_action_type = "AUTO_UNBLOCK_IP" if self._normalize_text(source).lower() == "automatic" else "MANUAL_UNBLOCK_IP"
+        try:
+            return self._switch_ban_status(
+                ban_id=action_id,
+                target_status=self.RELEASED_STATUS,
+                latest_action_type=latest_action_type,
+                action_reason=reason,
+                action_operator=operator,
+                default_reason="人工确认后执行主机级放行",
+            )
+        except Exception as exc:
+            action_at = self._build_local_timestamp()
+            normalized_reason = self._normalize_text(reason) or "人工确认后执行主机级放行"
+            normalized_operator = self._normalize_text(operator) or "security_console"
+            enforcement_result = self._enforce_direct_without_persistence(
+                action_id=action_id,
+                target_ip=normalized_ip,
+                current_status=self.RELEASED_STATUS,
+                action_operator=normalized_operator,
+                action_reason=normalized_reason,
+            )
+            fallback_item = self._build_direct_fallback_item(
+                action_id=action_id,
+                target_ip=normalized_ip,
+                current_status=self.RELEASED_STATUS,
+                block_source=self._normalize_text(source).lower() or "manual",
+                behavior_type="",
+                risk_score=0,
+                action_operator=normalized_operator,
+                action_reason=normalized_reason,
+                action_at=action_at,
+                enforcement_result=enforcement_result,
+                persistence_warning=f"Neo4j 不可用，已退化为仅执行主机级放行动作：{exc}",
+            )
+            return {
+                "already_in_target_status": False,
+                "item": fallback_item,
+                "enforcement": enforcement_result,
+                "message": enforcement_result.get("message") or "主机级放行执行完成（未写入图数据库）",
+            }
+
+    def verify_block(self, target_ip: str) -> Dict[str, Any]:
+        """
+        直接按目标 IP 校验当前封禁规则是否生效。
+        """
+        normalized_ip = self._validate_target_ip(target_ip)
+        action_id = self._build_direct_action_id(normalized_ip)
+        try:
+            return self.verify(action_id)
+        except Exception:
+            return {
+                "item": self._build_direct_fallback_item(
+                    action_id=action_id,
+                    target_ip=normalized_ip,
+                    current_status=self.BLOCKED_STATUS,
+                    block_source="automatic",
+                    behavior_type="",
+                    risk_score=0,
+                    action_operator="security_console",
+                    action_reason="直接校验主机级阻断状态",
+                    action_at=self._build_local_timestamp(),
+                    enforcement_result=self._verify_direct_without_persistence(
+                        action_id=action_id,
+                        target_ip=normalized_ip,
+                        current_status=self.BLOCKED_STATUS,
+                    ),
+                    persistence_warning="Neo4j 不可用，当前校验结果来自直接执行器",
+                ),
+                "enforcement": self._verify_direct_without_persistence(
+                    action_id=action_id,
+                    target_ip=normalized_ip,
+                    current_status=self.BLOCKED_STATUS,
+                ),
+                "message": "直接校验完成（未依赖图数据库）",
+            }
+
     def _switch_ban_status(
         self,
         ban_id: str,
@@ -1009,6 +1246,84 @@ RETURN b.action_id AS action_id
             "verification_result": "VERIFIED" if released_success else "FAILED",
             "rule_detail": entry,
         }
+
+    def _build_direct_action_id(self, target_ip: str) -> str:
+        """
+        为“按 IP 直接主机级封禁”生成稳定的 action_id。
+
+        设计说明：
+        1. 同一个 IP 反复被自动封禁时，沿用同一条 BlockAction 主记录。
+        2. 这样列表页看到的是“当前状态 + 历史动作”，而不是无限新增重复行。
+        """
+        sanitized_ip = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(target_ip or "UNKNOWN"))
+        return f"AUTO_HOST_BLOCK_{sanitized_ip}"
+
+    def _build_generated_ip_id(self, target_ip: str) -> str:
+        """
+        为自动创建的 IP 节点生成稳定 ip_id。
+        """
+        sanitized_ip = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(target_ip or "UNKNOWN"))
+        return f"AUTO_IP_{sanitized_ip}"
+
+    def _build_direct_block_upsert_query(self) -> str:
+        """
+        构造“按 IP 直接主机级封禁”的最小写入 Cypher。
+
+        说明：
+        1. 这里不大改图模型，只最小维护 BlockAction 和 IP 的当前状态。
+        2. 若该 IP 已在图中存在，则复用现有节点；若不存在，则自动创建最小节点。
+        """
+        return """
+MERGE (ip:IP {ip_address: $target_ip})
+ON CREATE SET ip.ip_id = $ip_id,
+              ip.created_at = $action_at,
+              ip.first_seen = $action_at
+MERGE (b:BlockAction {action_id: $action_id})
+ON CREATE SET b.created_at = $action_at,
+              b.action_type = $action_type,
+              b.target_type = 'IP'
+MERGE (b)-[:TARGETS_IP]->(ip)
+SET b.target_type = 'IP',
+    b.target_ip = $target_ip,
+    b.current_ban_status = $target_status,
+    b.current_block_status = $target_status,
+    b.status = $target_status,
+    b.block_source = $block_source,
+    b.behavior_type = $behavior_type,
+    b.source_type = $source_type,
+    b.risk_score = $risk_score,
+    b.confidence = $confidence,
+    b.event_count = $event_count,
+    b.can_block = $can_block,
+    b.block_reason = $action_reason,
+    b.latest_action_type = $latest_action_type,
+    b.latest_action_at = $action_at,
+    b.latest_action_by = $action_by,
+    b.latest_action_reason = $action_reason,
+    b.latest_operator = $action_by,
+    b.latest_reason = $action_reason,
+    b.updated_at = $action_at,
+    b.executed_at = $action_at,
+    b.executor = $action_by,
+    b.blocked_at = $action_at,
+    b.blocked_by = $action_by,
+    b.history_actions_json = $history_actions_json,
+    b.history_summary = $history_summary,
+    b.history_action_count = $history_action_count,
+    b.block_count = $block_count,
+    b.release_count = $release_count,
+    b.enforcement_mode = $enforcement_mode,
+    b.enforcement_backend = $enforcement_backend
+SET ip.is_blocked = true,
+    ip.ip_block_status = $target_status,
+    ip.current_block_status = $target_status,
+    ip.latest_action_type = $latest_action_type,
+    ip.latest_action_at = $action_at,
+    ip.latest_action_by = $action_by,
+    ip.latest_action_reason = $action_reason,
+    ip.blocked_at = $action_at
+RETURN b.action_id AS action_id
+"""
 
     def _normalize_text(self, value: Any) -> str:
         """

@@ -11,13 +11,13 @@
       <div>
         <h1 class="page-title">封禁管理</h1>
         <p class="page-subtitle">
-          展示目标 IP 的当前处置状态、最近动作与必要执行结果，支持放行与重新封禁双向切换。
+          展示攻击源 IP 的主机级封禁结果、最近动作与真实执行状态，支持放行与重新封禁双向切换。
         </p>
       </div>
 
       <div class="page-banner__actions">
         <el-tag :type="executionModeTagType" effect="dark" size="large">
-          当前执行模式：{{ formatEnforcementMode(enforcementProfile.mode) }}
+          当前执行模式：{{ formatEnforcementModeDisplay(enforcementProfile.mode) }}
         </el-tag>
 
         <el-button type="primary" :loading="loading" @click="loadBans">
@@ -141,7 +141,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="行为类型" min-width="140">
+        <el-table-column label="攻击类型" min-width="140">
           <template #default="{ row }">
             <el-tag v-if="row.behavior_type" type="warning" effect="plain">
               {{ row.behavior_type }}
@@ -150,14 +150,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="risk_score" label="行为风险分" min-width="100" />
+        <el-table-column prop="risk_score" label="攻击风险分" min-width="100" />
 
         <el-table-column prop="block_reason" label="封禁原因" min-width="220" show-overflow-tooltip />
 
         <el-table-column label="执行模式" min-width="120">
           <template #default="{ row }">
             <el-tag :type="row.enforcement_mode === 'REAL' ? 'danger' : 'info'" effect="plain">
-              {{ formatEnforcementMode(row.enforcement_mode) }}
+              {{ formatEnforcementModeDisplay(row.enforcement_mode) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -514,6 +514,24 @@ function formatEnforcementMode(mode) {
   }
 
   return "模拟执行";
+}
+
+function formatEnforcementModeDisplay(mode) {
+  const normalizedMode = String(mode || "").toUpperCase();
+
+  if (normalizedMode === "WINDOWS_FIREWALL" || normalizedMode === "REAL") {
+    return "Windows 防火墙";
+  }
+
+  if (normalizedMode === "WEB_BLOCKLIST") {
+    return "Web 阻断";
+  }
+
+  if (normalizedMode === "MOCK") {
+    return "模拟执行";
+  }
+
+  return normalizedMode || "-";
 }
 
 function formatEnforcementBackend(backend) {

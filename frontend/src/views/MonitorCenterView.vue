@@ -5,7 +5,7 @@
       <div>
         <h1 class="page-title">日志监控中心</h1>
         <p class="page-subtitle">
-          当前页面用于演示“前端开启监控 - 后端持续监听日志目录 - 自动导入 Neo4j - 自动运行检测”的闭环入口，并通过自动监控流程图展示系统自动化拓扑。
+          当前页面用于展示“日志原地读取 - 识别攻击源 - 自动主机级封禁 - 放行恢复”的最小闭环，并在最近处理记录中直接呈现自动封禁结果。
         </p>
       </div>
       <el-tag :type="monitorStatus.running ? 'success' : 'info'" effect="dark" size="large">
@@ -88,19 +88,16 @@
         <el-table-column label="检测状态" min-width="120">
           <template #default="{ row }"><el-tag :type="detectionTagType(row.detection_status)" effect="plain">{{ row.detection_status || "-" }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="unified_event_count" label="统一事件数" min-width="110" />
-        <el-table-column prop="behavior_count" label="行为数" min-width="90" />
-        <el-table-column prop="blockable_behavior_count" label="可封禁行为" min-width="110" />
-        <el-table-column label="行为驱动" min-width="120">
+        <el-table-column label="自动封禁 IP" min-width="180">
           <template #default="{ row }">
-            <el-tag :type="row.behavior_driven_used ? 'success' : 'info'" effect="plain">
-              {{ row.behavior_driven_used ? "已接入" : "未使用" }}
-            </el-tag>
+            <span v-if="!row.auto_blocked_ips || row.auto_blocked_ips.length === 0">-</span>
+            <el-space v-else wrap>
+              <el-tag v-for="item in row.auto_blocked_ips.slice(0, 2)" :key="item" size="small" effect="dark" type="danger">
+                {{ item }}
+              </el-tag>
+            </el-space>
           </template>
         </el-table-column>
-        <el-table-column prop="alert_count_from_behaviors" label="行为告警" min-width="100" />
-        <el-table-column prop="block_candidate_count_from_behaviors" label="封禁候选" min-width="100" />
-        <el-table-column prop="blocked_behavior_count" label="已落封禁" min-width="100" />
         <el-table-column label="自动真封禁" min-width="150">
           <template #default="{ row }">
             <div class="batch-metric-stack">
@@ -120,16 +117,16 @@
         <el-table-column label="执行模式 / 主要行为" min-width="170">
           <template #default="{ row }">
             <div class="batch-metric-stack">
-              <div>{{ formatBatchEnforcementMode(row.enforcement_mode) }}</div>
+              <div>{{ formatBatchEnforcementModeDisplay(row.enforcement_mode) }}</div>
               <div>{{ row.top_auto_block_behavior_type || "-" }}</div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="行为类型" min-width="180">
+        <el-table-column label="识别攻击类型" min-width="180">
           <template #default="{ row }">
-            <span v-if="!row.behavior_types || row.behavior_types.length === 0">-</span>
+            <span v-if="!row.detected_attack_types || row.detected_attack_types.length === 0">-</span>
             <el-space v-else wrap>
-              <el-tag v-for="item in row.behavior_types.slice(0, 2)" :key="item" size="small" effect="plain">{{ item }}</el-tag>
+              <el-tag v-for="item in row.detected_attack_types.slice(0, 2)" :key="item" size="small" effect="plain">{{ item }}</el-tag>
             </el-space>
           </template>
         </el-table-column>
@@ -226,9 +223,11 @@ const monitorStatus = reactive({ running: false, pid: null, started_at: "", inte
 const topologyData = reactive({ nodes: [], links: [], categories: [], summary: { displayed_batch_count: 0, success_batch_count: 0, failed_batch_count: 0, partial_batch_count: 0, latest_success_batch_id: "", latest_failed_batch_id: "", running: false } });
 
 const detectionStatusClass = computed(() => monitorStatus.latest_detection_status === "SUCCESS" ? "summary-card__value--success" : monitorStatus.latest_detection_status === "FAILED" ? "summary-card__value--danger" : monitorStatus.latest_detection_status === "NOT_RUN" ? "summary-card__value--warning" : "summary-card__value--muted");
+const latestRecentRecord = computed(() => recentRecords.value?.[0] || {});
 const summaryCards = computed(() => [
   { label: "当前状态", value: monitorStatus.running ? "运行中" : "已停止", className: monitorStatus.running ? "summary-card__value--success" : "summary-card__value--muted", hint: "依据 monitor_state.json 与 PID 探测结果实时更新" },
-  { label: "Watcher PID", value: monitorStatus.pid || "-", className: "summary-card__value--primary", hint: "当前 log_watcher.py 后台监听进程编号" },
+  { label: "最近自动封禁 IP", value: latestRecentRecord.value.auto_blocked_ips?.[0] || "-", className: "summary-card__value--danger summary-card__value--small", hint: "最近一次批次中被自动封禁的攻击源 IP" },
+  { label: "自动封禁 / 仍在拦截", value: `${latestRecentRecord.value.auto_block_success_count ?? 0} / ${latestRecentRecord.value.truly_blocked_count ?? 0}`, className: "summary-card__value--primary", hint: "对应最近批次的自动封禁成功数与真实拦截数" },
   { label: "最近处理时间", value: monitorStatus.latest_processed_at || "-", className: "summary-card__value--warning summary-card__value--small", hint: "来自 data/runtime/batches/*/status.json 的最近批次时间" },
   { label: "最近检测状态", value: monitorStatus.latest_detection_status || "IDLE", className: detectionStatusClass.value, hint: "便于快速确认自动检测是否已执行成功" }
 ]);
@@ -248,6 +247,13 @@ const selectedTopologyNodeMeta = computed(() => {
 
 function recordStatusTagType(status) { return status === "SUCCESS" ? "success" : status === "FAILED" ? "danger" : status === "PARTIAL" || status === "WARNING" ? "warning" : "info"; }
 function detectionTagType(status) { return status === "SUCCESS" ? "success" : status === "FAILED" ? "danger" : status === "NOT_RUN" ? "warning" : "info"; }
+function formatBatchEnforcementModeDisplay(mode) {
+  const normalizedMode = String(mode || "").toUpperCase();
+  if (normalizedMode === "WINDOWS_FIREWALL" || normalizedMode === "REAL") return "Windows 防火墙";
+  if (normalizedMode === "WEB_BLOCKLIST") return "Web 阻断";
+  if (normalizedMode === "MOCK") return "模拟执行";
+  return normalizedMode || "-";
+}
 function formatBatchEnforcementMode(mode) {
   const normalizedMode = String(mode || "").toUpperCase();
   if (normalizedMode === "WEB_BLOCKLIST") return "Web 阻断";

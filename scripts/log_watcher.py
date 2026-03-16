@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import ipaddress
 import json
 import locale
 import os
@@ -46,6 +47,7 @@ ARCHIVE_ROOT = BASE_DIR / "data" / "archive"
 FAILED_ROOT = BASE_DIR / "data" / "failed"
 RUNTIME_ROOT = BASE_DIR / "data" / "runtime"
 BATCH_ROOT = RUNTIME_ROOT / "batches"
+DIRECT_HOST_BLOCK_STATE_FILE = RUNTIME_ROOT / "direct_host_block_state.json"
 
 SOURCE_DIRECTORIES = [
     "unified",
@@ -55,6 +57,14 @@ SOURCE_DIRECTORIES = [
     "linux_firewall",
 ]
 SUPPORTED_EXTENSIONS = {".json", ".jsonl", ".csv", ".log", ".txt"}
+DIRECT_HOST_HIGH_RISK_TYPES = {"SQL_INJECTION", "COMMAND_INJECTION", "BRUTE_FORCE", "LATERAL_MOVEMENT"}
+DIRECT_HOST_BRUTE_FORCE_THRESHOLD = 3
+DIRECT_HOST_DEFAULT_RISK_SCORE = {
+    "SQL_INJECTION": 95,
+    "COMMAND_INJECTION": 98,
+    "BRUTE_FORCE": 88,
+    "LATERAL_MOVEMENT": 92,
+}
 
 
 # 将 scripts 目录加入搜索路径，方便脚本直接导入本地适配器与分类器。
@@ -86,6 +96,9 @@ from behavior_aggregator import (  # noqa: E402
     recognize_attack_behaviors,
     summarize_behaviors,
 )
+
+
+_DIRECT_BACKEND_APP = None
 
 
 LOGIN_RAW_FIELDS = [
@@ -295,6 +308,257 @@ def discover_files() -> List[Path]:
             discovered_files.append(file_path)
 
     return discovered_files
+
+
+def is_direct_host_block_mode_enabled() -> bool:
+    """
+    判断是否启用“日志原地读取 + 直接主机级封禁”简化模式。
+
+    设计说明：
+    1. 该模式只通过环境变量控制，不推翻现有旧链路。
+    2. 启用后优先走“最小分析 -> 直接调用 Windows 防火墙封禁”。
+    """
+    return str(os.getenv("DIRECT_HOST_BLOCK_MODE", "false")).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def get_direct_host_block_threshold() -> int:
+    """
+    获取简化模式下的自动封禁风险阈值。
+    """
+    try:
+        return max(1, int(os.getenv("DIRECT_HOST_BLOCK_MIN_RISK_SCORE", "85")))
+    except ValueError:
+        return 85
+
+
+def load_direct_host_block_state() -> Dict[str, Any]:
+    """
+    读取简化模式的轻量处理状态。
+
+    作用：
+    1. 原始日志文件保持原位时，避免 watcher 每轮重复处理同一份未变化文件。
+    2. 只记录文件签名和最近处理结果，不引入复杂数据库或队列。
+    """
+    if not DIRECT_HOST_BLOCK_STATE_FILE.exists():
+        return {}
+
+    try:
+        payload = json.loads(DIRECT_HOST_BLOCK_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    return payload if isinstance(payload, dict) else {}
+
+
+def save_direct_host_block_state(state_payload: Dict[str, Any]) -> None:
+    """
+    持久化简化模式的轻量处理状态。
+    """
+    DIRECT_HOST_BLOCK_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DIRECT_HOST_BLOCK_STATE_FILE.write_text(
+        json.dumps(state_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def build_file_signature(file_path: Path) -> str:
+    """
+    基于文件大小和最后修改时间构造轻量签名。
+    """
+    stat_result = file_path.stat()
+    return f"{stat_result.st_size}:{stat_result.st_mtime_ns}"
+
+
+def should_skip_direct_host_file(file_path: Path, state_payload: Dict[str, Any]) -> bool:
+    """
+    判断简化模式下当前文件是否需要跳过。
+
+    规则：
+    1. 同一路径、同一签名且已经处理过，则不重复处理。
+    2. 文件只要被修改过，签名变化后仍可再次进入处理。
+    """
+    state_key = str(file_path.resolve())
+    state_item = state_payload.get(state_key, {}) or {}
+    return state_item.get("signature") == build_file_signature(file_path)
+
+
+def mark_direct_host_file_processed(
+    file_path: Path,
+    state_payload: Dict[str, Any],
+    *,
+    status: str,
+    batch_id: str,
+    source_type: str,
+    auto_blocked_ips: List[str],
+    message: str,
+) -> None:
+    """
+    更新单个原始日志文件的轻量处理状态。
+    """
+    state_payload[str(file_path.resolve())] = {
+        "signature": build_file_signature(file_path),
+        "status": status,
+        "batch_id": batch_id,
+        "source_type": source_type,
+        "auto_blocked_ips": list(auto_blocked_ips or []),
+        "message": message,
+        "processed_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+
+
+def normalize_ip_text(value: Any) -> str:
+    """
+    规范化 IP 文本；非法 IP 返回空字符串。
+    """
+    normalized_text = normalize_text(value)
+    if not normalized_text:
+        return ""
+
+    try:
+        return str(ipaddress.ip_address(normalized_text))
+    except ValueError:
+        return ""
+
+
+def infer_direct_attack_type(record: Dict[str, Any]) -> str:
+    """
+    从适配器解析结果中提取最小可运行的攻击类型。
+
+    说明：
+    1. 本轮不追求复杂建模，只要能稳定识别高危行为并触发动作即可。
+    2. 优先使用 event_type / rule_name / raw_message 等已有字段做启发式判断。
+    """
+    event_type = normalize_upper_text(record.get("event_type") or record.get("event_type_hint"))
+    rule_name = normalize_upper_text(record.get("rule_name"))
+    action = normalize_upper_text(record.get("action"))
+    status = normalize_upper_text(record.get("status") or record.get("result"))
+    raw_message = normalize_upper_text(record.get("raw_message") or record.get("message"))
+    joined_text = " ".join(item for item in [event_type, rule_name, action, status, raw_message] if item)
+
+    if "SQL_INJECTION" in joined_text or "SQLI" in joined_text or "UNION SELECT" in joined_text:
+        return "SQL_INJECTION"
+    if "COMMAND_INJECTION" in joined_text or "CMD_INJECTION" in joined_text or "SHELL" in joined_text:
+        return "COMMAND_INJECTION"
+    if "LOGIN_FAIL" in joined_text or "BRUTE_FORCE" in joined_text or "AUTH_FAIL" in joined_text:
+        return "BRUTE_FORCE"
+    if "LATERAL" in joined_text or "LATERAL_MOVEMENT" in joined_text or "PASS_THE_HASH" in joined_text:
+        return "LATERAL_MOVEMENT"
+
+    return ""
+
+
+def calculate_direct_risk_score(record: Dict[str, Any], attack_type: str, event_count: int) -> int:
+    """
+    为简化模式下的直接封禁决策生成可解释的风险分。
+    """
+    explicit_score = safe_int(record.get("risk_score"), safe_int(record.get("risk_score_hint"), 0))
+    if explicit_score > 0:
+        base_score = explicit_score
+    else:
+        base_score = DIRECT_HOST_DEFAULT_RISK_SCORE.get(attack_type, severity_to_risk_score(
+            normalize_upper_text(record.get("severity")) or "MEDIUM",
+            normalize_upper_text(record.get("status")) or "OBSERVED",
+            attack_type or "GENERIC_EVENT",
+        ))
+
+    if attack_type == "BRUTE_FORCE":
+        return min(100, max(base_score, 70 + event_count * 6))
+    if attack_type in {"SQL_INJECTION", "COMMAND_INJECTION", "LATERAL_MOVEMENT"}:
+        return min(100, max(base_score, 90 + min(event_count, 3) * 3))
+
+    return min(100, max(base_score, 0))
+
+
+def analyze_records_for_direct_block(records: List[Dict[str, Any]], threshold_score: int) -> Dict[str, Any]:
+    """
+    对原地日志做最小分析，只提取“谁需要被封、为什么被封”。
+
+    输出内容：
+    1. block_decisions：按源 IP 聚合后的自动封禁决策。
+    2. detected_attack_types：当前日志中识别到的攻击类型列表。
+    3. source_ips：解析出的源 IP 列表。
+    """
+    grouped_behaviors: Dict[tuple, Dict[str, Any]] = {}
+    detected_attack_types: List[str] = []
+    source_ips: List[str] = []
+
+    for record in records:
+        attacker_ip = normalize_ip_text(record.get("src_ip"))
+        if not attacker_ip:
+            continue
+
+        attack_type = infer_direct_attack_type(record)
+        if not attack_type:
+            continue
+
+        source_ips.append(attacker_ip)
+        detected_attack_types.append(attack_type)
+        grouping_key = (
+            attacker_ip,
+            attack_type,
+            normalize_text(record.get("dst_ip")) or resolve_hostname(record),
+        )
+        current_group = grouped_behaviors.setdefault(
+            grouping_key,
+            {
+                "attacker_ip": attacker_ip,
+                "attack_type": attack_type,
+                "event_count": 0,
+                "risk_score": 0,
+                "source_type": normalize_text(record.get("log_source") or record.get("source_type")).lower(),
+                "evidence": [],
+            },
+        )
+        current_group["event_count"] += 1
+        current_group["risk_score"] = max(
+            current_group["risk_score"],
+            calculate_direct_risk_score(record, attack_type, current_group["event_count"]),
+        )
+        current_group["evidence"].append(
+            normalize_text(record.get("raw_message") or record.get("message") or record.get("rule_name") or attack_type)
+        )
+
+    behavior_candidates: List[Dict[str, Any]] = []
+    for behavior in grouped_behaviors.values():
+        attack_type = behavior["attack_type"]
+        event_count = behavior["event_count"]
+        risk_score = behavior["risk_score"]
+        should_block = False
+
+        if attack_type in {"SQL_INJECTION", "COMMAND_INJECTION", "LATERAL_MOVEMENT"} and risk_score >= threshold_score:
+            should_block = True
+        elif attack_type == "BRUTE_FORCE" and event_count >= DIRECT_HOST_BRUTE_FORCE_THRESHOLD and risk_score >= threshold_score:
+            should_block = True
+
+        behavior["can_block"] = should_block
+        behavior["reason"] = (
+            f"检测到高危攻击行为 {attack_type}，来源 IP {behavior['attacker_ip']}，命中证据 {event_count} 条，风险分 {risk_score}"
+        )
+        behavior_candidates.append(behavior)
+
+    decisions_by_ip: Dict[str, Dict[str, Any]] = {}
+    for behavior in behavior_candidates:
+        if not behavior["can_block"]:
+            continue
+
+        attacker_ip = behavior["attacker_ip"]
+        current_decision = decisions_by_ip.get(attacker_ip)
+        if not current_decision or behavior["risk_score"] > current_decision["risk_score"]:
+            decisions_by_ip[attacker_ip] = {
+                "attacker_ip": attacker_ip,
+                "attack_type": behavior["attack_type"],
+                "risk_score": behavior["risk_score"],
+                "source_type": behavior["source_type"],
+                "event_count": behavior["event_count"],
+                "reason": behavior["reason"],
+            }
+
+    return {
+        "behavior_candidates": behavior_candidates,
+        "block_decisions": list(decisions_by_ip.values()),
+        "detected_attack_types": sorted(set(detected_attack_types)),
+        "source_ips": sorted(set(source_ips)),
+    }
 
 
 def resolve_host_profile(hostname: str) -> Dict[str, Any]:
@@ -681,6 +945,306 @@ def resolve_file_routing(file_path: Path) -> Dict[str, Any]:
         "adapter_info": adapter_info,
         "unsupported_message": unsupported_message,
     }
+
+
+def get_direct_backend_app():
+    """
+    获取用于直接主机级封禁的 Flask 应用实例。
+
+    设计说明：
+    1. 简化模式下 watcher 需要直接调用 ban_service，因此这里借用现有应用工厂创建 app context。
+    2. 采用进程内缓存，避免每处理一个文件都重复初始化整个 Flask 应用。
+    """
+    global _DIRECT_BACKEND_APP
+
+    if _DIRECT_BACKEND_APP is not None:
+        return _DIRECT_BACKEND_APP
+
+    backend_root = BASE_DIR / "backend"
+    if str(backend_root) not in sys.path:
+        sys.path.insert(0, str(backend_root))
+
+    from app import create_app  # 延迟导入，避免普通模式下额外初始化
+
+    _DIRECT_BACKEND_APP = create_app()
+    return _DIRECT_BACKEND_APP
+
+
+def execute_direct_host_blocks(block_decisions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    在简化模式下，直接把日志分析出的高危攻击源 IP 送入 ban_service。
+    """
+    if not block_decisions:
+        return []
+
+    app = get_direct_backend_app()
+    execution_results: List[Dict[str, Any]] = []
+
+    with app.app_context():
+        from app.services import ban_service  # 延迟导入，避免 watcher 启动时拉起过多上下文
+
+        for decision in block_decisions:
+            try:
+                result = ban_service.block_ip(
+                    decision["attacker_ip"],
+                    reason=decision["reason"],
+                    source="automatic",
+                    attack_type=decision["attack_type"],
+                    risk_score=decision["risk_score"],
+                    operator="simple_host_blocker",
+                    source_type=decision.get("source_type", ""),
+                    event_count=decision.get("event_count", 1),
+                    can_block=True,
+                )
+                execution_results.append(
+                    {
+                        "target_ip": decision["attacker_ip"],
+                        "attack_type": decision["attack_type"],
+                        "risk_score": decision["risk_score"],
+                        "success": bool((result.get("enforcement") or {}).get("success", False)),
+                        "verification_result": (result.get("enforcement") or {}).get("verification_result", ""),
+                        "block_effective": bool((result.get("enforcement") or {}).get("block_effective", False)),
+                        "message": result.get("message", ""),
+                        "item": result.get("item") or {},
+                        "enforcement": result.get("enforcement") or {},
+                    }
+                )
+            except Exception as exc:
+                execution_results.append(
+                    {
+                        "target_ip": decision["attacker_ip"],
+                        "attack_type": decision["attack_type"],
+                        "risk_score": decision["risk_score"],
+                        "success": False,
+                        "verification_result": "FAILED",
+                        "block_effective": False,
+                        "message": f"自动主机级封禁失败：{exc}",
+                        "item": {},
+                        "enforcement": {},
+                    }
+                )
+
+    return execution_results
+
+
+def process_file_direct_host_block(
+    file_path: Path,
+    dry_run: bool,
+    env_mapping: Dict[str, str],
+    direct_state: Dict[str, Any],
+) -> None:
+    """
+    简化主机级自动封禁模式：
+    1. 原地读取日志，不移动原文件。
+    2. 只做最小分析：识别 src_ip、攻击类型和是否达到封禁条件。
+    3. 直接调用 ban_service，在 Windows 防火墙模式下执行主机级真实封禁。
+    """
+    if should_skip_direct_host_file(file_path, direct_state):
+        print(f"[log_watcher] 简化模式跳过未变化文件：{file_path}")
+        return
+
+    route_info = resolve_file_routing(file_path)
+    source_key = route_info["source_directory_name"]
+    source_type = route_info["source_type"]
+    classifier_result = route_info["classifier_result"]
+    selected_adapter_key = route_info["selected_adapter_key"]
+    selected_adapter_name = route_info["selected_adapter_name"]
+    adapter_info = route_info["adapter_info"]
+
+    batch_dir = create_batch_directory(source_key, file_path, create_on_disk=not dry_run)
+    status_file_path = batch_dir / "status.json"
+
+    print(f"[log_watcher] 简化主机级自动封禁模式：处理文件 {file_path}")
+    print(f"[log_watcher] 原始日志将保持原位，不执行归档移动")
+
+    if adapter_info is None:
+        reason_text = route_info["unsupported_message"] or "当前文件无法匹配到可用解析器。"
+        print(f"[log_watcher] {reason_text}")
+        if not dry_run:
+            write_status_json(
+                status_file_path,
+                build_status_payload(
+                    status="FAILED",
+                    source_file=file_path,
+                    source_directory_name=source_key,
+                    source_type=source_type,
+                    classifier_result=classifier_result,
+                    selected_adapter_key=selected_adapter_key,
+                    selected_adapter_name=selected_adapter_name,
+                    failed_step="classify_or_route",
+                    auto_block_enabled=True,
+                    auto_block_attempted=0,
+                    auto_block_success_count=0,
+                    auto_block_failed_count=0,
+                    enforcement_mode=os.getenv("BAN_ENFORCEMENT_MODE", "MOCK").upper(),
+                ),
+            )
+            mark_direct_host_file_processed(
+                file_path,
+                direct_state,
+                status="FAILED",
+                batch_id=batch_dir.name,
+                source_type=source_type,
+                auto_blocked_ips=[],
+                message=reason_text,
+            )
+            save_direct_host_block_state(direct_state)
+        return
+
+    try:
+        records, parse_errors = adapter_info["parse_file"](file_path)
+    except Exception as exc:
+        reason_text = f"适配器解析失败：{exc}"
+        print(f"[log_watcher] {reason_text}")
+        if not dry_run:
+            write_status_json(
+                status_file_path,
+                build_status_payload(
+                    status="FAILED",
+                    source_file=file_path,
+                    source_directory_name=source_key,
+                    source_type=source_type,
+                    classifier_result=classifier_result,
+                    selected_adapter_key=selected_adapter_key,
+                    selected_adapter_name=selected_adapter_name,
+                    failed_step="parse_file",
+                    auto_block_enabled=True,
+                    auto_block_attempted=0,
+                    auto_block_success_count=0,
+                    auto_block_failed_count=0,
+                    enforcement_mode=os.getenv("BAN_ENFORCEMENT_MODE", "MOCK").upper(),
+                ),
+            )
+            mark_direct_host_file_processed(
+                file_path,
+                direct_state,
+                status="FAILED",
+                batch_id=batch_dir.name,
+                source_type=source_type,
+                auto_blocked_ips=[],
+                message=reason_text,
+            )
+            save_direct_host_block_state(direct_state)
+        return
+
+    if not records:
+        reason_text = "未解析出任何有效日志记录。"
+        print(f"[log_watcher] {reason_text}")
+        if not dry_run:
+            write_status_json(
+                status_file_path,
+                build_status_payload(
+                    status="FAILED",
+                    source_file=file_path,
+                    source_directory_name=source_key,
+                    source_type=source_type,
+                    classifier_result=classifier_result,
+                    selected_adapter_key=selected_adapter_key,
+                    selected_adapter_name=selected_adapter_name,
+                    parse_error_count=len(parse_errors),
+                    failed_step="parse_file",
+                    auto_block_enabled=True,
+                    auto_block_attempted=0,
+                    auto_block_success_count=0,
+                    auto_block_failed_count=0,
+                    enforcement_mode=os.getenv("BAN_ENFORCEMENT_MODE", "MOCK").upper(),
+                ),
+            )
+            mark_direct_host_file_processed(
+                file_path,
+                direct_state,
+                status="FAILED",
+                batch_id=batch_dir.name,
+                source_type=source_type,
+                auto_blocked_ips=[],
+                message=reason_text,
+            )
+            save_direct_host_block_state(direct_state)
+        return
+
+    analysis_summary = analyze_records_for_direct_block(records, get_direct_host_block_threshold())
+    execution_results: List[Dict[str, Any]] = []
+
+    print(
+        "[log_watcher] 简化分析结果："
+        f"source_ips={','.join(analysis_summary['source_ips']) or '-'}，"
+        f"attack_types={','.join(analysis_summary['detected_attack_types']) or '-'}，"
+        f"block_decisions={len(analysis_summary['block_decisions'])}"
+    )
+
+    if dry_run:
+        return
+
+    if analysis_summary["block_decisions"]:
+        execution_results = execute_direct_host_blocks(analysis_summary["block_decisions"])
+
+    auto_blocked_ips = [item["target_ip"] for item in execution_results if item.get("success")]
+    auto_block_behavior_types = [item["attack_type"] for item in execution_results if item.get("success")]
+    enforcement_success_count = sum(1 for item in execution_results if item.get("success"))
+    verification_success_count = sum(1 for item in execution_results if item.get("verification_result") == "VERIFIED")
+    truly_blocked_count = sum(1 for item in execution_results if item.get("block_effective"))
+    primary_enforcement_mode = (
+        execution_results[0].get("item", {}).get("enforcement_backend")
+        or execution_results[0].get("enforcement", {}).get("backend")
+        if execution_results
+        else os.getenv("BAN_ENFORCEMENT_MODE", "MOCK").upper()
+    )
+
+    write_status_json(
+        status_file_path,
+        build_status_payload(
+            status="SUCCESS" if not execution_results or enforcement_success_count == len(execution_results) else "PARTIAL",
+            source_file=file_path,
+            source_directory_name=source_key,
+            source_type=source_type,
+            classifier_result=classifier_result,
+            selected_adapter_key=selected_adapter_key,
+            selected_adapter_name=selected_adapter_name,
+            parse_error_count=len(parse_errors),
+            outputs={
+                "direct_host_block_mode": "true",
+                "direct_block_messages": "\n".join(item.get("message", "") for item in execution_results if item.get("message")),
+            },
+            detected_attack_types=analysis_summary["detected_attack_types"],
+            blockable_event_count=len(analysis_summary["block_decisions"]),
+            behavior_count=len(analysis_summary["block_decisions"]),
+            behavior_types=[item["attack_type"] for item in analysis_summary["block_decisions"]],
+            blockable_behavior_count=len(analysis_summary["block_decisions"]),
+            high_risk_behavior_count=len(analysis_summary["block_decisions"]),
+            top_behavior_type=analysis_summary["block_decisions"][0]["attack_type"] if analysis_summary["block_decisions"] else "",
+            behavior_driven_enabled=False,
+            behavior_driven_used=False,
+            auto_block_enabled=True,
+            auto_block_attempted=len(analysis_summary["block_decisions"]),
+            auto_block_success_count=enforcement_success_count,
+            auto_block_failed_count=max(0, len(analysis_summary["block_decisions"]) - enforcement_success_count),
+            auto_blocked_ips=auto_blocked_ips,
+            auto_block_behavior_types=auto_block_behavior_types,
+            enforcement_mode=str(primary_enforcement_mode or ""),
+            enforcement_success_count=enforcement_success_count,
+            verification_success_count=verification_success_count,
+            truly_blocked_count=truly_blocked_count,
+            top_auto_block_behavior_type=auto_block_behavior_types[0] if auto_block_behavior_types else "",
+        ),
+    )
+
+    final_status = "SUCCESS" if not execution_results or enforcement_success_count == len(execution_results) else "PARTIAL"
+    final_message = (
+        f"已完成直接主机级自动封禁，成功 {enforcement_success_count} 个"
+        if execution_results
+        else "已完成日志读取与最小分析，当前无符合自动封禁条件的攻击源 IP"
+    )
+    mark_direct_host_file_processed(
+        file_path,
+        direct_state,
+        status=final_status,
+        batch_id=batch_dir.name,
+        source_type=source_type,
+        auto_blocked_ips=auto_blocked_ips,
+        message=final_message,
+    )
+    save_direct_host_block_state(direct_state)
+    print(f"[log_watcher] 简化模式处理完成：{final_message}")
 
 
 def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) -> None:
@@ -1166,10 +1730,13 @@ def main() -> int:
     args = parser.parse_args()
 
     env_mapping = os.environ.copy()
+    direct_host_block_mode = is_direct_host_block_mode_enabled()
+    direct_state = load_direct_host_block_state() if direct_host_block_mode else {}
     print("[log_watcher] 自动日志接入模块已启动")
     print(f"[log_watcher] 监听目录：{INCOMING_ROOT}")
     print(f"[log_watcher] 运行模式：{'单次执行' if args.once else '轮询模式'}")
     print(f"[log_watcher] Dry Run：{'是' if args.dry_run else '否'}")
+    print(f"[log_watcher] 简化主机级自动封禁模式：{'启用' if direct_host_block_mode else '关闭'}")
 
     try:
         while True:
@@ -1177,7 +1744,10 @@ def main() -> int:
             if pending_files:
                 print(f"[log_watcher] 本轮发现待处理文件 {len(pending_files)} 个。")
                 for file_path in pending_files:
-                    process_file(file_path, args.dry_run, env_mapping)
+                    if direct_host_block_mode:
+                        process_file_direct_host_block(file_path, args.dry_run, env_mapping, direct_state)
+                    else:
+                        process_file(file_path, args.dry_run, env_mapping)
             else:
                 if args.once:
                     print("[log_watcher] 当前没有发现待处理日志文件。")
