@@ -13,7 +13,8 @@
 2. firewall
 3. web_access
 4. middleware
-5. unknown
+5. auth
+6. unknown
 """
 
 from __future__ import annotations
@@ -108,6 +109,14 @@ MIDDLEWARE_KEYWORDS = [
     "java.lang",
     "upstream",
     "stack trace",
+]
+AUTH_KEYWORDS = [
+    "login failed",
+    "authentication failed",
+    "invalid password",
+    "user auth failed",
+    "failed password",
+    "登录失败",
 ]
 
 
@@ -231,6 +240,18 @@ def _looks_like_middleware(preview_text: str) -> bool:
     return _contains_any(lowered_text, MIDDLEWARE_KEYWORDS)
 
 
+def _looks_like_auth(preview_text: str) -> bool:
+    """
+    判断是否像认证 / 登录日志。
+
+    说明：
+    1. 本轮只做轻量识别，不额外引入新的认证专用解析器。
+    2. 先把认证类日志标记为 auth，便于下一轮继续接入统一事件层。
+    """
+    lowered_text = preview_text.lower()
+    return _contains_any(lowered_text, AUTH_KEYWORDS)
+
+
 def classify_log_file(file_path: Path, directory_hint: str = "") -> Dict[str, Any]:
     """
     对日志文件做最小可运行的类型识别。
@@ -324,6 +345,19 @@ def classify_log_file(file_path: Path, directory_hint: str = "") -> Dict[str, An
             "is_supported": False,
         }
 
+    if _looks_like_auth(preview_text):
+        matched_signatures.append("auth_keywords")
+        return {
+            "classifier_name": "heuristic_classifier_v1",
+            "directory_hint": normalized_directory_hint,
+            "source_type": "auth",
+            "adapter_key": "",
+            "confidence": 0.68,
+            "reason": "识别为认证 / 登录日志，当前第一阶段仅完成类型识别与统一入口接入",
+            "matched_signatures": matched_signatures,
+            "is_supported": False,
+        }
+
     return {
         "classifier_name": "heuristic_classifier_v1",
         "directory_hint": normalized_directory_hint,
@@ -334,4 +368,3 @@ def classify_log_file(file_path: Path, directory_hint: str = "") -> Dict[str, An
         "matched_signatures": matched_signatures,
         "is_supported": False,
     }
-

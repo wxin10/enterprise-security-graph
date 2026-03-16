@@ -77,12 +77,18 @@
       <el-table :data="recentRecords" v-loading="pageLoading" stripe>
         <el-table-column prop="batch_id" label="批次编号" min-width="200" show-overflow-tooltip />
         <el-table-column prop="source_file" label="原始文件" min-width="280" show-overflow-tooltip />
+        <el-table-column label="识别类型" min-width="120">
+          <template #default="{ row }">
+            <el-tag effect="plain">{{ row.source_type || "-" }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="处理状态" min-width="110">
           <template #default="{ row }"><el-tag :type="recordStatusTagType(row.status)" effect="dark">{{ row.status || "-" }}</el-tag></template>
         </el-table-column>
         <el-table-column label="检测状态" min-width="120">
           <template #default="{ row }"><el-tag :type="detectionTagType(row.detection_status)" effect="plain">{{ row.detection_status || "-" }}</el-tag></template>
         </el-table-column>
+        <el-table-column prop="unified_event_count" label="统一事件数" min-width="110" />
         <el-table-column prop="processed_at" label="处理时间" min-width="170" />
         <el-table-column prop="failed_step" label="失败步骤" min-width="120" />
         <el-table-column prop="parse_error_count" label="解析异常数" min-width="110" />

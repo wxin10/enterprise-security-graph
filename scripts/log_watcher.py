@@ -75,6 +75,11 @@ from adapters.common import (  # noqa: E402
     severity_to_risk_score,
 )
 from log_classifier import classify_log_file  # noqa: E402
+from event_normalizer import (  # noqa: E402
+    UNIFIED_EVENT_FIELDS,
+    normalize_records_to_events,
+    summarize_events,
+)
 
 
 LOGIN_RAW_FIELDS = [
@@ -249,6 +254,21 @@ def write_csv_rows(file_path: Path, fieldnames: List[str], rows: Iterable[Dict[s
         writer.writeheader()
         for row in rows:
             writer.writerow({field_name: format_csv_value(row.get(field_name, "")) for field_name in fieldnames})
+
+
+def write_json_rows(file_path: Path, rows: Iterable[Dict[str, Any]]) -> None:
+    """
+    写出 JSON 文件。
+
+    设计说明：
+    1. 统一安全事件层需要显式落盘，便于答辩演示和后续行为驱动改造复用。
+    2. 当前以 JSON 数组形式保存，方便人工阅读与脚本再次消费。
+    """
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(
+        json.dumps(list(rows), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def discover_files() -> List[Path]:
@@ -521,9 +541,14 @@ def build_status_payload(
     failed_file: Path | None = None,
     reason_file: Path | None = None,
     normalized_file: Path | None = None,
+    unified_event_json_file: Path | None = None,
+    unified_event_csv_file: Path | None = None,
     raw_files: List[Path] | None = None,
     processed_dir: Path | None = None,
     parse_warning_file: Path | None = None,
+    unified_event_count: int = 0,
+    detected_attack_types: List[str] | None = None,
+    blockable_event_count: int = 0,
 ) -> Dict[str, Any]:
     """
     统一构造批次 status.json 结构。
@@ -540,10 +565,15 @@ def build_status_payload(
         "failed_file": str(failed_file) if failed_file else "",
         "reason_file": str(reason_file) if reason_file else "",
         "normalized_file": str(normalized_file) if normalized_file else "",
+        "unified_event_json_file": str(unified_event_json_file) if unified_event_json_file else "",
+        "unified_event_csv_file": str(unified_event_csv_file) if unified_event_csv_file else "",
         "raw_files": [str(item) for item in (raw_files or [])],
         "processed_dir": str(processed_dir) if processed_dir else "",
         "parse_error_count": parse_error_count,
         "parse_warning_file": str(parse_warning_file) if parse_warning_file else "",
+        "unified_event_count": unified_event_count,
+        "detected_attack_types": detected_attack_types or [],
+        "blockable_event_count": blockable_event_count,
         "failed_step": failed_step,
         "outputs": outputs or {},
     }
@@ -617,6 +647,8 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
     runtime_processed_dir = batch_dir / "processed"
     warnings_file_path = batch_dir / "parse_warnings.txt"
     status_file_path = batch_dir / "status.json"
+    unified_events_json_path = batch_dir / "unified_events.json"
+    unified_events_csv_path = batch_dir / "unified_events.csv"
 
     print(f"[log_watcher] 发现文件：{file_path}")
     print(f"[log_watcher] 目录来源：{source_key}")
@@ -714,14 +746,27 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
     if parse_errors:
         print(f"[log_watcher] 解析警告数：{len(parse_errors)}，将继续处理有效记录。")
 
+    unified_events = normalize_records_to_events(records, classifier_result, file_path)
+    unified_event_summary = summarize_events(unified_events)
+
     print(f"[log_watcher] 将生成统一中间文件：{normalized_file_path}")
+    print(f"[log_watcher] 将生成统一安全事件文件：{unified_events_json_path}")
+    print(f"[log_watcher] 将生成统一安全事件文件：{unified_events_csv_path}")
     print(f"[log_watcher] 将生成批次原始目录：{runtime_raw_dir}")
     print(f"[log_watcher] 将生成批次处理目录：{runtime_processed_dir}")
+    print(
+        "[log_watcher] 统一安全事件统计："
+        f"count={unified_event_summary['unified_event_count']}，"
+        f"attack_types={','.join(unified_event_summary['detected_attack_types']) or '-'}，"
+        f"blockable={unified_event_summary['blockable_event_count']}"
+    )
 
     if dry_run:
         return
 
     write_csv_rows(normalized_file_path, UNIFIED_LOG_FIELDS, records)
+    write_json_rows(unified_events_json_path, unified_events)
+    write_csv_rows(unified_events_csv_path, UNIFIED_EVENT_FIELDS, unified_events)
     if parse_errors:
         warnings_file_path.write_text("\n".join(parse_errors), encoding="utf-8")
 
@@ -809,9 +854,14 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
                     failed_file=failed_file_path,
                     reason_file=reason_file_path,
                     normalized_file=normalized_file_path,
+                    unified_event_json_file=unified_events_json_path,
+                    unified_event_csv_file=unified_events_csv_path,
                     raw_files=[login_raw_file, host_raw_file, alert_raw_file],
                     processed_dir=runtime_processed_dir,
                     parse_warning_file=warnings_file_path if parse_errors else None,
+                    unified_event_count=unified_event_summary["unified_event_count"],
+                    detected_attack_types=unified_event_summary["detected_attack_types"],
+                    blockable_event_count=unified_event_summary["blockable_event_count"],
                 ),
             )
             print(f"[log_watcher] 处理失败，已移动到失败目录：{failed_file_path}")
@@ -831,10 +881,15 @@ def process_file(file_path: Path, dry_run: bool, env_mapping: Dict[str, str]) ->
             selected_adapter_name=selected_adapter_name,
             archived_file=archived_file_path,
             normalized_file=normalized_file_path,
+            unified_event_json_file=unified_events_json_path,
+            unified_event_csv_file=unified_events_csv_path,
             raw_files=[login_raw_file, host_raw_file, alert_raw_file],
             processed_dir=runtime_processed_dir,
             parse_error_count=len(parse_errors),
             parse_warning_file=warnings_file_path if parse_errors else None,
+            unified_event_count=unified_event_summary["unified_event_count"],
+            detected_attack_types=unified_event_summary["detected_attack_types"],
+            blockable_event_count=unified_event_summary["blockable_event_count"],
             outputs=execution_outputs,
         ),
     )
