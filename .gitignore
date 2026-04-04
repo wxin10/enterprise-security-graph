@@ -34,3 +34,5 @@ data/runtime/
 Thumbs.db
 .vscode/
 .idea/
+docs/thesis/
+docs/repository_scan.md

@@ -1,0 +1,151 @@
+################################################################################
+# Codex project configuration for:
+# D:\毕业设计总项目\design
+#
+# 说明：
+# 1. 这是“项目级配置”，用于当前 design 仓库。
+# 2. 它不会替代 AGENTS.md，而是和 AGENTS.md 一起工作。
+# 3. 请在 Codex 中将本项目标记为 Trusted / 可信项目，否则项目级 .codex 配置不会生效。
+# 4. 本配置偏向“稳定、小步、少越界”，适合你当前这个毕业设计仓库。
+################################################################################
+
+################################################################################
+# Core defaults
+################################################################################
+
+# 默认模型。官方文档给出的示例是 gpt-5.4。
+model = "gpt-5.4"
+
+# 使用 OpenAI provider。
+model_provider = "openai"
+
+# 默认启用的 profile。
+profile = "design-dev"
+
+# 沟通风格：pragmatic 更偏执行型，适合代码任务。
+personality = "pragmatic"
+
+# 这里采用 on-request，更稳妥。
+# 如果你后面明确确认当前仓库长期可信、且希望减少停顿，
+# 可以改成 never，但建议先用 on-request。
+approval_policy = "on-request"
+
+# 将沙箱限制在可写工作区，而不是全盘危险写入。
+sandbox_mode = "workspace-write"
+
+# 常规推理强度。
+model_reasoning_effort = "medium"
+
+# Plan 模式下用更高的推理强度，适合“先分析再改”的仓库。
+plan_mode_reasoning_effort = "high"
+
+# 允许更大的项目说明文件，避免 AGENTS.md 太长被截断。
+project_doc_max_bytes = 65536
+
+# 只有在 AGENTS.md 缺失时才会尝试这些备用文档名。
+# 当前仓库会优先读取 AGENTS.md。
+project_doc_fallback_filenames = [
+  "AGENTS.override.md",
+  "PLANS.md",
+  "CODEX_NEXT.md"
+]
+
+# 帮助 Codex 更准确识别项目根目录。
+project_root_markers = [
+  ".git",
+  "package.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "package-lock.json",
+  "vite.config.js",
+  "vite.config.ts"
+]
+
+################################################################################
+# Sandbox rules
+################################################################################
+
+[sandbox_workspace_write]
+# 在可写沙箱模式下，默认禁止网络访问，减少不必要的外部请求和干扰。
+network_access = false
+
+# 将可写范围明确限制在当前 design 仓库。
+# 这和你的目录边界要求是一致的。
+writable_roots = [
+  'D:\毕业设计总项目\design'
+]
+
+################################################################################
+# Tool options
+################################################################################
+
+[tools]
+# 项目级关闭 web_search，避免系统开发任务时无关搜索。
+# 需要联网检索时，你可以临时改 profile 或显式要求。
+web_search = false
+
+################################################################################
+# TUI / terminal behavior
+################################################################################
+
+[tui]
+# 关闭动画，减少终端视觉干扰。
+animations = false
+
+# 使用自动模式，保留兼容性。
+alternate_screen = "auto"
+
+################################################################################
+# Main profile
+################################################################################
+
+[profiles.design-dev]
+# 对当前仓库的常用开发任务使用更稳的服务层级偏好。
+service_tier = "flex"
+
+# Plan 模式下更高推理强度，适合先做现状分析和修改计划。
+plan_mode_reasoning_effort = "high"
+
+# 保留看图能力，方便读取设计稿 / 截图。
+tools_view_image = true
+
+# Profile 里也明确关闭 web_search，防止切 profile 后误开。
+web_search = "disabled"
+
+################################################################################
+# Optional safer profile
+################################################################################
+
+[profiles.design-safe]
+# 更保守的备选 profile。
+service_tier = "flex"
+plan_mode_reasoning_effort = "high"
+tools_view_image = true
+web_search = "disabled"
+
+################################################################################
+# Optional faster profile
+################################################################################
+
+[profiles.design-fast]
+# 如果你后面想让它更快一点，可以手动切到这个 profile。
+# 但不建议一上来就用 fast 做大批量修改。
+service_tier = "flex"
+plan_mode_reasoning_effort = "medium"
+tools_view_image = true
+web_search = "disabled"
+
+################################################################################
+# Notes
+################################################################################
+# 1. 如果你后续想减少人为确认次数，可以把 approval_policy 改成 "never"。
+#    但这样一定要保持 sandbox_mode = "workspace-write"，并把 writable_roots
+#    严格锁在 design 仓库内。
+#
+# 2. 如果项目级 .codex/config.toml 没生效，优先检查：
+#    - 当前项目是否被 Codex 标记为 trusted
+#    - 当前工作目录是否真的位于 design 仓库内
+#
+# 3. 如果你未来要做更强自动化（比如通知、脚本续跑、批量计划），建议另加脚本层，
+#    不要把所有自动化都堆在 config.toml 里。
+################################################################################

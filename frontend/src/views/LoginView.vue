@@ -3,7 +3,8 @@
     文件路径：frontend/src/views/LoginView.vue
     作用说明：
     1. 提供系统登录页。
-    2. 当前阶段只做静态跳转，不接真实鉴权接口。
+    2. 在现有静态登录基础上接入前端模拟角色逻辑。
+    3. 登录后根据角色跳转到对应首页，并初始化本地模拟申请数据。
   -->
   <div class="login-page">
     <div class="login-page__background"></div>
@@ -24,10 +25,10 @@
       <div class="login-panel security-panel">
         <div class="login-panel__header">
           <h1>安全控制台登录</h1>
-          <p>当前版本先使用静态登录跳转，后续阶段再接入真实鉴权接口。</p>
+          <p>当前版本先采用前端模拟角色登录，优先打通管理员与普通用户的内部运维使用流程。</p>
         </div>
 
-        <el-form ref="formRef" :model="formModel" label-position="top" class="login-form">
+        <el-form :model="formModel" label-position="top" class="login-form">
           <el-form-item label="账号">
             <el-input
               v-model="formModel.username"
@@ -56,13 +57,28 @@
             </el-input>
           </el-form-item>
 
+          <el-form-item label="登录角色">
+            <el-radio-group v-model="formModel.role" class="role-selector">
+              <el-radio-button
+                v-for="item in LOGIN_ROLE_OPTIONS"
+                :key="item.value"
+                :value="item.value"
+              >
+                {{ item.label }}
+              </el-radio-button>
+            </el-radio-group>
+            <div class="role-description">
+              {{ currentRoleDescription }}
+            </div>
+          </el-form-item>
+
           <el-button class="login-button" type="primary" size="large" @click="handleLogin">
             进入安全平台
           </el-button>
         </el-form>
 
         <div class="login-hint">
-          演示说明：输入任意账号和密码即可进入系统，用于展示前端页面与后端接口联调效果。
+          演示说明：当前阶段不接后端权限接口。登录时会根据你选择的角色，生成本地模拟用户并写入会话存储。
         </div>
       </div>
     </div>
@@ -72,27 +88,65 @@
 <script setup>
 // 文件路径：frontend/src/views/LoginView.vue
 // 作用说明：
-// 1. 提供静态登录入口。
-// 2. 通过 router.push 进入业务布局页，不触发真实鉴权流程。
+// 1. 提供前端模拟角色登录入口。
+// 2. 登录成功后写入统一的用户信息，并根据角色跳转到对应首页。
+// 3. 初始化本地模拟申请数据，便于后续普通用户 / 管理员流程演示。
 
-import { reactive } from "vue";
+import { computed, onMounted, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+
+import {
+  ROLE_ADMIN,
+  LOGIN_ROLE_OPTIONS,
+  buildMockUser,
+  getCurrentUser,
+  getRoleHomePath,
+  getRoleLabel,
+  saveCurrentUser
+} from "@/utils/auth";
+import { listDisposalRequests } from "@/utils/mock-storage";
 
 const router = useRouter();
 
 const formModel = reactive({
   username: "admin",
-  password: "123456"
+  password: "123456",
+  role: ROLE_ADMIN
+});
+
+const currentRoleDescription = computed(() => {
+  const currentRoleOption = LOGIN_ROLE_OPTIONS.find((item) => item.value === formModel.role);
+  return currentRoleOption?.description || "";
 });
 
 function handleLogin() {
-  // 当前阶段只实现静态登录跳转。
-  // 为了让演示流程更自然，这里将输入的账号暂存到 sessionStorage，供后续扩展使用。
-  sessionStorage.setItem("mock_login_user", formModel.username || "admin");
-  ElMessage.success("登录成功，正在进入控制台");
-  router.push("/console/dashboard");
+  // 当前阶段采用前端模拟登录。
+  // 这里统一调用 auth.js 构造用户对象，并调用 mock-storage 初始化本地处置申请数据。
+  if (!String(formModel.username || "").trim()) {
+    ElMessage.warning("请输入登录账号");
+    return;
+  }
+
+  if (!String(formModel.password || "").trim()) {
+    ElMessage.warning("请输入登录密码");
+    return;
+  }
+
+  const currentUser = buildMockUser(formModel);
+  saveCurrentUser(currentUser);
+  listDisposalRequests();
+
+  ElMessage.success(`${getRoleLabel(currentUser.role)}登录成功，正在进入系统`);
+  router.replace(getRoleHomePath(currentUser.role));
 }
+
+onMounted(() => {
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    router.replace(getRoleHomePath(currentUser.role));
+  }
+});
 </script>
 
 <style scoped>
@@ -178,6 +232,17 @@ function handleLogin() {
 
 .login-form {
   margin-top: 26px;
+}
+
+.role-selector {
+  width: 100%;
+}
+
+.role-description {
+  margin-top: 12px;
+  color: #8fa7ca;
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 .login-button {

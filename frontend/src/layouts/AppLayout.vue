@@ -4,7 +4,7 @@
     作用说明：
     1. 提供系统主布局，采用左侧菜单 + 顶部栏 + 内容区结构。
     2. 承载仪表盘、告警管理、封禁管理与日志监控中心等业务页面。
-    3. 当前阶段保持静态登录跳转，不接入真实权限系统。
+    3. 当前阶段在现有布局基础上接入模拟角色菜单和用户信息展示。
   -->
   <div class="layout-page">
     <el-container class="layout-shell">
@@ -27,26 +27,22 @@
           active-text-color="#f3f7ff"
           @select="handleMenuSelect"
         >
-          <el-menu-item index="/console/dashboard">
-            <el-icon><DataLine /></el-icon>
-            <span>仪表盘</span>
-          </el-menu-item>
-
-          <el-menu-item index="/console/alerts">
-            <el-icon><Bell /></el-icon>
-            <span>告警管理</span>
-          </el-menu-item>
-
-          <el-menu-item index="/console/bans">
-            <el-icon><Lock /></el-icon>
-            <span>封禁管理</span>
-          </el-menu-item>
-
-          <el-menu-item index="/console/monitor">
-            <el-icon><Monitor /></el-icon>
-            <span>日志监控</span>
+          <el-menu-item v-for="item in sideMenuItems" :key="item.path" :index="item.path">
+            <el-icon>
+              <component :is="item.icon" />
+            </el-icon>
+            <span>{{ item.label }}</span>
           </el-menu-item>
         </el-menu>
+
+        <div class="aside-user-card">
+          <div class="aside-user-card__label">当前登录</div>
+          <div class="aside-user-card__name">{{ currentUser?.display_name || "未登录用户" }}</div>
+          <div class="aside-user-card__meta">
+            <span>{{ currentUser?.username || "-" }}</span>
+            <span>{{ currentRoleLabel }}</span>
+          </div>
+        </div>
       </el-aside>
 
       <el-container>
@@ -60,6 +56,10 @@
           </div>
 
           <div class="header-right">
+            <div class="header-user">
+              <div class="header-user__name">{{ currentUser?.display_name || "未登录用户" }}</div>
+              <div class="header-user__role">{{ currentRoleLabel }}</div>
+            </div>
             <div class="header-time">{{ currentTimeText }}</div>
             <el-button type="primary" plain @click="handleLogout">
               <el-icon><SwitchButton /></el-icon>
@@ -80,21 +80,68 @@
 // 文件路径：frontend/src/layouts/AppLayout.vue
 // 作用说明：
 // 1. 管理系统主布局、菜单跳转和顶部标题。
-// 2. 根据当前路由同步菜单高亮和页面标题。
+// 2. 根据当前登录角色筛选可见菜单，并在顶部和侧边栏展示用户信息。
 // 3. 通过定时器更新时间，增强企业安全控制台的在线监控氛围。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { Bell, DataLine, Lock, Monitor } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
+import { clearCurrentUser, getCurrentUser, getMenuItemsByRole, getRoleLabel } from "@/utils/auth";
 
 const router = useRouter();
 const route = useRoute();
 
 const currentTimeText = ref("");
+const currentUser = ref(getCurrentUser());
 let timerId = null;
+
+const localMenuRegistry = [
+  {
+    path: "/console/dashboard",
+    label: "工作台",
+    icon: DataLine
+  },
+  {
+    path: "/console/alerts",
+    label: "告警中心",
+    icon: Bell
+  },
+  {
+    path: "/console/monitor",
+    label: "日志监控",
+    icon: Monitor
+  },
+  {
+    path: "/console/bans",
+    label: "封禁审批",
+    icon: Lock
+  }
+];
 
 const activeMenu = computed(() => route.path);
 
 const currentPageTitle = computed(() => {
   return route.meta?.title || "控制台";
+});
+
+const currentRoleLabel = computed(() => {
+  return currentUser.value ? getRoleLabel(currentUser.value.role) : "未登录";
+});
+
+const sideMenuItems = computed(() => {
+  const currentRole = currentUser.value?.role;
+  if (!currentRole) {
+    return [];
+  }
+
+  const authMenuMap = new Map(getMenuItemsByRole(currentRole).map((item) => [item.path, item]));
+
+  return localMenuRegistry.filter((item) => {
+    if (item.path === "/console/monitor") {
+      return Boolean(currentRole);
+    }
+
+    return authMenuMap.has(item.path);
+  });
 });
 
 function updateCurrentTime() {
@@ -112,13 +159,15 @@ function handleMenuSelect(index) {
 }
 
 function handleLogout() {
-  // 当前阶段不实现真实登录鉴权。
-  // 这里仅清理静态登录标记并回到登录页，保持演示流程完整。
-  sessionStorage.removeItem("mock_login_user");
+  // 当前阶段统一复用 auth.js 的登录态清理方法。
+  // 这样后续如果登录态字段调整，不需要再回头修改布局层逻辑。
+  clearCurrentUser();
+  currentUser.value = null;
   router.push("/login");
 }
 
 onMounted(() => {
+  currentUser.value = getCurrentUser();
   updateCurrentTime();
   timerId = window.setInterval(updateCurrentTime, 1000);
 });
@@ -199,6 +248,35 @@ onBeforeUnmount(() => {
   background: var(--menu-hover-bg);
 }
 
+.aside-user-card {
+  margin-top: 22px;
+  padding: 16px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(143, 167, 202, 0.14);
+}
+
+.aside-user-card__label {
+  font-size: 12px;
+  color: #7b93b9;
+}
+
+.aside-user-card__name {
+  margin-top: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #eef5ff;
+}
+
+.aside-user-card__meta {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #9fb4d5;
+  font-size: 12px;
+}
+
 .layout-header {
   height: 72px;
   display: flex;
@@ -233,6 +311,24 @@ onBeforeUnmount(() => {
   gap: 14px;
 }
 
+.header-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.header-user__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #eef5ff;
+}
+
+.header-user__role {
+  font-size: 12px;
+  color: #89a3ca;
+}
+
 .header-time {
   font-size: 13px;
   color: #9fb4d5;
@@ -253,12 +349,20 @@ onBeforeUnmount(() => {
     display: none;
   }
 
+  .aside-user-card {
+    padding: 12px 10px;
+  }
+
   :deep(.side-menu .el-menu-item span) {
     display: none;
   }
 
   .layout-header {
     padding: 0 16px;
+  }
+
+  .header-user {
+    display: none;
   }
 
   .header-time {
