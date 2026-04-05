@@ -3,8 +3,8 @@
     文件路径：frontend/src/views/LoginView.vue
     作用说明：
     1. 提供系统登录页。
-    2. 提供当前版本的控制台登录入口和入口选择。
-    3. 登录后根据现有会话状态跳转到对应首页，并初始化本地申请数据。
+    2. 提供当前版本的安全控制台统一登录入口。
+    3. 登录后根据账号身份生成本地会话，并跳转到对应首页。
   -->
   <div class="login-page">
     <div class="login-page__background"></div>
@@ -25,7 +25,9 @@
       <div class="login-panel security-panel">
         <div class="login-panel__header">
           <h1>安全控制台登录</h1>
-          <p>请使用系统账号进入安全控制台。当前版本提供管理员与普通用户两类控制台入口，登录后将加载对应的菜单与访问范围。</p>
+          <p>
+            请输入系统账号和密码。登录成功后，系统将根据当前账号身份自动加载对应的控制台菜单与页面访问范围。
+          </p>
         </div>
 
         <el-form :model="formModel" label-position="top" class="login-form">
@@ -57,28 +59,13 @@
             </el-input>
           </el-form-item>
 
-          <el-form-item label="控制台入口">
-            <el-radio-group v-model="formModel.role" class="role-selector">
-              <el-radio-button
-                v-for="item in LOGIN_ROLE_OPTIONS"
-                :key="item.value"
-                :value="item.value"
-              >
-                {{ item.label }}
-              </el-radio-button>
-            </el-radio-group>
-            <div class="role-description">
-              {{ currentRoleDescription }}
-            </div>
-          </el-form-item>
-
           <el-button class="login-button" type="primary" size="large" @click="handleLogin">
             登录并进入控制台
           </el-button>
         </el-form>
 
         <div class="login-hint">
-          登录后系统将按当前控制台会话状态加载菜单与页面访问范围。如需切换入口，请退出后重新登录。
+          当前版本会根据账号身份解析本地会话角色；未授权账号无法进入系统。
         </div>
       </div>
     </div>
@@ -88,41 +75,26 @@
 <script setup>
 // 文件路径：frontend/src/views/LoginView.vue
 // 作用说明：
-// 1. 提供当前版本的控制台登录入口。
-// 2. 登录成功后写入统一的会话用户信息，并根据角色跳转到对应首页。
-// 3. 初始化本地申请数据，保持控制台流程可运行。
-
-import { computed, onMounted, reactive } from "vue";
+// 1. 提供当前版本的安全控制台统一登录入口。
+// 2. 登录成功后写入统一的会话用户信息，并根据账号映射角色跳转到对应首页。
+// 3. 初始化本地申请数据，保持当前控制台流程可运行。
+import { onMounted, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 
-import {
-  ROLE_USER,
-  LOGIN_ROLE_OPTIONS,
-  buildMockUser,
-  getCurrentUser,
-  getRoleHomePath,
-  getRoleLabel,
-  saveCurrentUser
-} from "@/utils/auth";
+import { buildMockUser, getCurrentUser, getRoleHomePath, getRoleLabel, saveCurrentUser } from "@/utils/auth";
 import { listDisposalRequests } from "@/utils/mock-storage";
 
 const router = useRouter();
 
 const formModel = reactive({
   username: "",
-  password: "",
-  role: ROLE_USER
-});
-
-const currentRoleDescription = computed(() => {
-  const currentRoleOption = LOGIN_ROLE_OPTIONS.find((item) => item.value === formModel.role);
-  return currentRoleOption?.description || "";
+  password: ""
 });
 
 function handleLogin() {
-  // 当前版本继续复用现有会话构造逻辑，保证登录页、控制台入口和菜单加载链路保持可运行。
-  // 这里同时初始化本地申请数据，避免后续页面首次进入时缺少必要的基础记录。
+  // 当前阶段继续复用本地会话构造逻辑，保证登录页、控制台入口和菜单加载链路保持可运行。
+  // 与前一版本不同的是，角色不再由页面手动选择，而是由账号映射结果自动决定。
   if (!String(formModel.username || "").trim()) {
     ElMessage.warning("请输入登录账号");
     return;
@@ -134,6 +106,11 @@ function handleLogin() {
   }
 
   const currentUser = buildMockUser(formModel);
+  if (!currentUser) {
+    ElMessage.error("账号不存在或当前账号无权限进入系统");
+    return;
+  }
+
   saveCurrentUser(currentUser);
   listDisposalRequests();
 
@@ -236,17 +213,6 @@ onMounted(() => {
 
 .login-form {
   margin-top: 26px;
-}
-
-.role-selector {
-  width: 100%;
-}
-
-.role-description {
-  margin-top: 12px;
-  color: #475569;
-  font-size: 12px;
-  line-height: 1.7;
 }
 
 .login-button {

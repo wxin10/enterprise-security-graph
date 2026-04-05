@@ -21,10 +21,10 @@
 - [ ] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 当前继续处于系统一致性整改阶段，但整改重点已从“登录页与主布局文案”切换到“鉴权与联调真实性收口”
-- 当前系统真实状态为：`Dashboard / Alerts / Bans / MonitorCenter` 已调用后端接口；登录、菜单、路由权限、处置申请、我的记录、审计展示仍以本地会话或本地存储逻辑为主
-- 本轮进入“系统一致性整改批 2：鉴权与联调真实性收口”，只允许修改 4 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`
-- 本轮目标不是新增功能，而是把“登录、菜单、路由守卫、接口调用”四条链路的真实实现状态统一表达出来
+- 当前继续处于系统一致性整改阶段，但整改重点已从“鉴权与联调真实性收口”切换到“登录角色由账号决定”
+- 当前系统真实状态为：登录页仍保留“管理员 / 普通用户”手动入口，而 `auth.js` 仍依赖登录页传入 `role` 来生成当前用户
+- 本轮进入“系统一致性整改批 3：登录角色改为账号决定”，只允许修改 4 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/views/LoginView.vue`、`frontend/src/utils/auth.js`
+- 本轮目标不是新增功能，而是在不引入后端鉴权接口的前提下，把“角色手选”收口成“账号决定角色”
 
 ---
 
@@ -33,20 +33,20 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-系统一致性整改批 2：鉴权与联调真实性收口
+系统一致性整改批 3：登录角色改为账号决定
 
 ## 当前批次目标
-- 先查清并收口当前系统的真实链路，不新增页面、不扩展功能
-- 明确哪些页面模块已经真实调用后端接口，哪些页面模块仍以本地会话或本地存储逻辑为主
-- 在不改动整体路由结构的前提下，明确当前权限控制属于前端会话守卫，而不是后端完整鉴权
-- 进一步收口主布局顶部状态文案，避免把不同页面统一表述成“已完成核心接口联调”
-- 将进度文件同步切换到新的整改批状态，为后续继续细化登录链路或后端鉴权方案留出入口
+- 去掉登录页中的“控制台入口”角色手动选择，不再允许用户手动选管理员 / 普通用户
+- 在 `frontend/src/utils/auth.js` 中新增本地账号到角色的映射逻辑，让登录角色改由账号自动解析
+- 保持当前会话结构、路由守卫和主布局兼容，不改动 `router` 与 `layout`
+- 在未识别账号时明确拒绝登录，在识别成功后自动写入对应角色并跳转到首页
+- 将进度文件同步切换到新的整改批状态，为后续继续细化本地会话边界或后端鉴权方案留出入口
 
 ## 当前批次允许修改的文件
 - `CODEX_NEXT.md`
 - `CODEX_PROGRESS.md`
-- `frontend/src/router/index.js`
-- `frontend/src/layouts/AppLayout.vue`
+- `frontend/src/views/LoginView.vue`
+- `frontend/src/utils/auth.js`
 
 ## 当前批次禁止修改的文件
 - 除本批允许修改的 4 个文件外，其余业务文件默认禁止修改
@@ -55,10 +55,10 @@
   - `backend/app/api/`
   - `backend/app/services/`
   - `frontend/src/api/http.js`
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
   - `frontend/src/styles/global.css`
-  - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
-  - `frontend/src/views/LoginView.vue`
   - `frontend/src/views/AuditLogView.vue`
   - `frontend/src/views/UserManageView.vue`
   - `frontend/src/views/RuleManageView.vue`
@@ -74,25 +74,21 @@
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
 - 已确认当前分支为 `current-ui-sync`
-- 已检查 `frontend/src/api/http.js`
-- 已检查 `frontend/src/api/` 下全部文件
-- 已检查 `frontend/src/router/index.js`
-- 已检查 `frontend/src/utils/auth.js`
-- 已检查 `frontend/src/utils/mock-storage.js`
 - 已检查 `frontend/src/views/LoginView.vue`
+- 已检查 `frontend/src/utils/auth.js`
+- 已检查 `frontend/src/router/index.js`
 - 已检查 `frontend/src/layouts/AppLayout.vue`
-- 已检查 `backend/app/api/` 与 `backend/app/services/`
-- 已确认 `DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView` 已通过 `frontend/src/api/*` 调用后端接口
-- 已确认登录、菜单、路由权限、处置申请、我的记录、审计展示仍以 `auth.js` / `mock-storage.js` 本地逻辑为主
-- 已确认后端当前没有真实登录 / 用户 / 权限接口，因此当前权限控制只能归类为前端会话守卫
-- 已确认当前需要优先收口 `router` 与 `layout` 的真实性表达，而不是继续新增页面或改 backend
+- 已确认登录页当前通过 `formModel.role` 和 `LOGIN_ROLE_OPTIONS` 手动选择控制台入口
+- 已确认 `auth.js` 当前通过 `buildMockUser(formModel)` 读取登录页传入的 `role` 生成当前用户
+- 已确认 `router` 与 `layout` 只依赖会话中的 `currentUser.role`，因此当前结构可以继续复用
+- 已确认本轮只需改登录页、账号映射和进度文件，不需要触碰 backend、`router`、`layout` 或业务页面本体
 
 ## 当前批次验收标准
-- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“系统一致性整改批 2”状态
-- `frontend/src/router/index.js` 已在不改动整体路由结构的前提下，通过注释、meta 和守卫表达明确当前为前端会话守卫
-- `frontend/src/layouts/AppLayout.vue` 已根据当前页面真实实现状态显示更克制、更准确的顶部状态说明
-- 本批不改 `LoginView`、`auth.js`、`http.js`、backend 或任何业务页面本体
-- 本批完成后，再根据真实现状决定是否进入下一轮一致性整改，而不是回退到泛化表述
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“系统一致性整改批 3”状态
+- `frontend/src/views/LoginView.vue` 已删除“控制台入口”角色选择区域，只保留账号和密码输入
+- `frontend/src/utils/auth.js` 已新增本地账号到角色的映射逻辑，登录角色由账号自动决定
+- 未识别账号时会拒绝登录，识别成功后会自动写入对应角色并跳转首页
+- 本批不改 backend、`router`、`layout`、`http.js` 或任何业务页面本体
 
 ---
 
@@ -192,9 +188,9 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 已从“系统一致性整改批 1”切换为“系统一致性整改批 2”
-- 本轮仅处理鉴权与联调真实性表达，不新增页面、不改 backend、不扩展业务功能
-- 本轮完成后，再判断是否需要进入下一轮一致性整改，而不是继续沿用过满或过泛的统一口径
+- 已从“系统一致性整改批 2”切换为“系统一致性整改批 3”
+- 本轮仅处理登录角色由账号决定，不新增页面、不改 backend、不扩展业务功能
+- 本轮完成后，再判断是否需要进入下一轮一致性整改，而不是继续保留角色手动选择入口
 
 ---
 

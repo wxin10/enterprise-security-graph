@@ -1,9 +1,8 @@
 // 文件路径：frontend/src/utils/auth.js
 // 作用说明：
-// 1. 统一维护前端模拟登录用户、角色、菜单和按钮权限配置。
+// 1. 统一维护当前版本的本地登录会话用户、角色、菜单和按钮权限配置。
 // 2. 为登录页、路由守卫、主布局菜单和后续页面权限控制提供公共方法。
-// 3. 当前阶段不依赖后端权限接口，优先保证毕业设计演示流程完整。
-
+// 3. 当前阶段不接入后端登录 / 用户 / 权限接口，账号身份仍由前端本地映射解析。
 export const STORAGE_USER_KEY = "mock_login_user";
 
 export const ROLE_ADMIN = "admin";
@@ -18,19 +17,6 @@ export const ROLE_HOME_MAP = {
   [ROLE_ADMIN]: "/console/dashboard",
   [ROLE_USER]: "/console/dashboard"
 };
-
-export const LOGIN_ROLE_OPTIONS = [
-  {
-    value: ROLE_ADMIN,
-    label: ROLE_LABEL_MAP[ROLE_ADMIN],
-    description: "高权限运维负责人，可执行审批、规则管理和最终封禁。"
-  },
-  {
-    value: ROLE_USER,
-    label: ROLE_LABEL_MAP[ROLE_USER],
-    description: "一线运维 / 安全分析员，可研判告警、分析图谱并发起申请。"
-  }
-];
 
 export const PERMISSION_KEYS = {
   ALERT_MARK: "alert:mark",
@@ -77,8 +63,8 @@ export const MENU_ITEMS = [
   { path: "/console/profile", label: "个人中心", icon: "User", roles: [ROLE_ADMIN, ROLE_USER] }
 ];
 
-const USER_TEMPLATES = {
-  [ROLE_ADMIN]: {
+const ACCOUNT_USER_TEMPLATES = {
+  admin: {
     user_id: "ADMIN-001",
     username: "admin",
     display_name: "平台管理员",
@@ -86,18 +72,45 @@ const USER_TEMPLATES = {
     title: "高权限运维负责人",
     role: ROLE_ADMIN
   },
-  [ROLE_USER]: {
+  analyst: {
     user_id: "OPS-001",
     username: "analyst",
     display_name: "值班分析员",
     department: "安全运营中心",
     title: "一线运维 / 安全分析员",
     role: ROLE_USER
+  },
+  user: {
+    user_id: "OPS-002",
+    username: "user",
+    display_name: "一线运维人员",
+    department: "安全运营中心",
+    title: "一线运维 / 安全分析员",
+    role: ROLE_USER
   }
 };
 
+const ACCOUNT_ROLE_MAP = Object.keys(ACCOUNT_USER_TEMPLATES).reduce((result, accountKey) => {
+  result[accountKey] = ACCOUNT_USER_TEMPLATES[accountKey].role;
+  return result;
+}, {});
+
+function normalizeAccountName(username) {
+  return String(username || "").trim().toLowerCase();
+}
+
+function getAccountTemplate(username) {
+  const normalizedAccount = normalizeAccountName(username);
+  return normalizedAccount ? ACCOUNT_USER_TEMPLATES[normalizedAccount] || null : null;
+}
+
 export function normalizeRole(role) {
   return role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER;
+}
+
+export function resolveRoleByAccount(username) {
+  const normalizedAccount = normalizeAccountName(username);
+  return normalizedAccount ? ACCOUNT_ROLE_MAP[normalizedAccount] || null : null;
 }
 
 export function getRoleLabel(role) {
@@ -130,14 +143,16 @@ export function canAccessRoles(user, roles = []) {
 }
 
 export function buildMockUser(formModel = {}) {
-  const resolvedRole = normalizeRole(formModel.role);
-  const template = USER_TEMPLATES[resolvedRole];
+  const template = getAccountTemplate(formModel.username);
+  if (!template) {
+    return null;
+  }
 
   return {
     ...template,
-    username: String(formModel.username || template.username).trim() || template.username,
-    display_name: String(formModel.display_name || template.display_name).trim() || template.display_name,
-    role: resolvedRole,
+    username: template.username,
+    display_name: template.display_name,
+    role: normalizeRole(template.role),
     login_at: new Date().toISOString()
   };
 }
@@ -161,9 +176,20 @@ export function getCurrentUser() {
     return parsedValue ? { ...parsedValue, role: normalizeRole(parsedValue.role) } : null;
   } catch (error) {
     // 兼容旧版本仅保存账号字符串的情况，避免已有演示数据失效。
+    const fallbackUser = buildMockUser({ username: rawValue });
+    if (fallbackUser) {
+      saveCurrentUser(fallbackUser);
+      return fallbackUser;
+    }
+
     const fallbackRole = String(rawValue).toLowerCase().includes("admin") ? ROLE_ADMIN : ROLE_USER;
-    const fallbackUser = buildMockUser({ username: rawValue, role: fallbackRole });
-    saveCurrentUser(fallbackUser);
-    return fallbackUser;
+    const fallbackTemplate = fallbackRole === ROLE_ADMIN ? ACCOUNT_USER_TEMPLATES.admin : ACCOUNT_USER_TEMPLATES.analyst;
+    const legacyUser = {
+      ...fallbackTemplate,
+      role: fallbackRole,
+      login_at: new Date().toISOString()
+    };
+    saveCurrentUser(legacyUser);
+    return legacyUser;
   }
 }
