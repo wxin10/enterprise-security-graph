@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from flask import Flask
 
+from app.api.auth_api import auth_api_bp
 from app.api.alert_api import alert_api_bp
 from app.api.ban_api import ban_api_bp
 from app.api.graph_api import graph_api_bp
@@ -22,6 +23,8 @@ from app.api.monitor_api import monitor_api_bp
 # 当前阶段已开放接口列表。
 # 这个列表会被应用根路径说明接口复用，避免写两份接口清单。
 AVAILABLE_API_ENDPOINTS = [
+    "POST /api/auth/login",
+    "GET /api/auth/me",
     "GET /api/graph/overview",
     "GET /api/graph/stats",
     "GET /api/alerts",
@@ -43,6 +46,7 @@ AVAILABLE_API_ENDPOINTS = [
 # 当前阶段的 API 蓝图集合。
 # 后续如果增加审计日志、封禁执行等接口，只需要继续在这里补充蓝图即可。
 API_BLUEPRINTS = [
+    auth_api_bp,
     graph_api_bp,
     alert_api_bp,
     ban_api_bp,

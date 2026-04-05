@@ -21,10 +21,10 @@
 - [ ] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 当前继续处于系统一致性整改阶段，但整改重点已从“登录角色由账号决定”切换到“登录提示与本地会话边界说明收口”
-- 当前系统真实状态为：登录角色已改为由账号决定，但登录、菜单权限和路由守卫仍属于前端本地会话链路，页面表达还需要进一步收口
-- 本轮进入“系统一致性整改批 4：登录提示与本地会话边界说明收口”，只允许修改 4 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/views/LoginView.vue`、`frontend/src/layouts/AppLayout.vue`
-- 本轮目标不是新增功能，而是把登录提示、主布局状态文案和当前主结论统一到“本地会话 + 部分后端接口联调”的真实状态
+- 当前继续处于登录与鉴权链路整改阶段，但整改重点已从“前端本地会话边界说明收口”切换到“后端真实登录接口落地”
+- 当前系统真实状态为：前端登录角色已由账号决定，但 backend 仍缺少真实登录 / 当前用户接口，因此前端登录、菜单权限与路由守卫仍依赖本地会话链路
+- 本轮进入“后端真实登录最小闭环批 1：后端鉴权接口落地”，只允许修改 5 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`backend/app/services/auth_service.py`、`backend/app/api/auth_api.py`、`backend/app/api/routes.py`
+- 本轮目标不是接前端，而是在 backend 内补出最小可用的真实登录接口闭环，为下一轮前端切换到后端登录提供稳定接口基础
 
 ---
 
@@ -33,30 +33,31 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-系统一致性整改批 4：登录提示与本地会话边界说明收口
+后端真实登录最小闭环批 1：后端鉴权接口落地
 
 ## 当前批次目标
-- 保留当前“账号决定角色”的登录逻辑，不新增功能、不改动后端
-- 将登录页提示收口为正式、克制、专业的控制台会话表达，不再沿用模糊口径
-- 将主布局顶部状态文案收口为“本地会话登录 + 分页面数据接入”的真实描述
-- 在进度文件中明确：登录角色已改为账号决定，但当前登录与权限控制仍属于前端本地会话链路
-- 将进度文件同步切换到新的整改批状态，为后续继续细化本地会话边界说明留出入口
+- 在 backend 内补出最小真实登录接口闭环，不改 frontend 页面与本地会话逻辑
+- 新增 `POST /api/auth/login` 与 `GET /api/auth/me` 两个接口
+- 账号口径沿用当前前端 `auth.js`：`admin` 对应管理员，`analyst` / `user` 对应普通用户
+- 登录成功后返回兼容前端现有用户结构的 `user` 数据以及可供后续接入的 `session_token`
+- 当前阶段允许采用后端内存态会话 / 轻量令牌实现，但必须复用现有统一响应格式与错误处理风格
+- 将进度文件同步切换到新的整改批状态，为下一轮前端切换到后端真实登录留出入口
 
 ## 当前批次允许修改的文件
 - `CODEX_NEXT.md`
 - `CODEX_PROGRESS.md`
-- `frontend/src/views/LoginView.vue`
-- `frontend/src/layouts/AppLayout.vue`
+- `backend/app/services/auth_service.py`
+- `backend/app/api/auth_api.py`
+- `backend/app/api/routes.py`
 
 ## 当前批次禁止修改的文件
-- 除本批允许修改的 4 个文件外，其余业务文件默认禁止修改
+- 除本批允许修改的 5 个文件外，其余业务文件默认禁止修改
 - 尤其不要回改：
-  - `backend/app.py`
-  - `backend/app/api/`
-  - `backend/app/services/`
-  - `frontend/src/api/http.js`
-  - `frontend/src/router/index.js`
   - `frontend/src/utils/auth.js`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/router/index.js`
+  - `frontend/src/api/http.js`
   - `frontend/src/styles/global.css`
   - `frontend/src/utils/mock-storage.js`
   - `frontend/src/views/AuditLogView.vue`
@@ -67,6 +68,14 @@
   - `frontend/src/views/RequestActionView.vue`
   - `frontend/src/views/ForbiddenView.vue`
   - `frontend/src/views/ProfileView.vue`
+  - `backend/app.py`
+  - `backend/app/api/alert_api.py`
+  - `backend/app/api/ban_api.py`
+  - `backend/app/api/graph_api.py`
+  - `backend/app/api/monitor_api.py`
+  - `backend/app/services/ban_service.py`
+  - `backend/app/services/graph_service.py`
+  - `backend/app/services/monitor_service.py`
   - `AGENTS.md`
 
 ## 当前批次进入条件
@@ -74,21 +83,28 @@
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
 - 已确认当前分支为 `current-ui-sync`
-- 已检查 `frontend/src/views/LoginView.vue`
-- 已检查 `frontend/src/layouts/AppLayout.vue`
+- 已检查 `backend/app.py`
+- 已检查 `backend/config.py`
+- 已检查 `backend/app/api/routes.py`
+- 已检查 `backend/app/api/__init__.py`
+- 已检查 `backend/app/core/response.py`
+- 已检查 `backend/app/core/errors.py`
+- 已检查 `backend/app/services/`
 - 已检查 `frontend/src/utils/auth.js`
-- 已检查 `frontend/src/router/index.js`
-- 已确认登录角色已由账号决定，`auth.js` 继续负责本地会话用户生成与保存
-- 已确认菜单权限与路由守卫仍由 `currentUser.role` 驱动，属于前端本地会话链路
-- 已确认工作台、告警、封禁、日志监控等页面存在后端接口接入，但并非所有页面都已联通后端
-- 已确认本轮只需改登录提示、主布局状态文案和进度文件，不需要触碰 backend、`auth.js`、`router` 或业务页面本体
+- 已检查 `frontend/src/views/LoginView.vue`
+- 已确认 backend 当前通过 `backend/app/api/routes.py` 统一注册蓝图，并由 `backend/app/__init__.py` 挂载到 `/api`
+- 已确认 backend 当前统一响应格式为 `code + message + data + timestamp`
+- 已确认 backend 目前没有可复用的用户 / 权限 / 会话服务，需新增最小鉴权服务文件
+- 已确认前端当前账号口径为：`admin`、`analyst`、`user`
+- 已确认本轮只需改 backend 鉴权服务、鉴权接口、路由注册和进度文件，不需要触碰 frontend、`backend/app.py` 或现有业务接口
 
 ## 当前批次验收标准
-- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“系统一致性整改批 4”状态
-- `frontend/src/views/LoginView.vue` 已将登录提示改为符合当前控制台会话机制的正式表达
-- `frontend/src/layouts/AppLayout.vue` 已将顶部状态文案改为符合“本地会话 + 分页面数据接入”真实状态的说明
-- `CODEX_PROGRESS.md` 已明确“登录角色已改为账号决定”与“当前登录和权限控制仍属前端本地会话链路”
-- 本批不改 backend、`auth.js`、`router`、`http.js` 或任何业务页面本体
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“后端真实登录最小闭环批 1”状态
+- `backend/app/services/auth_service.py` 已落地后端最小登录 / 会话查询服务
+- `backend/app/api/auth_api.py` 已提供 `POST /api/auth/login` 与 `GET /api/auth/me`
+- `backend/app/api/routes.py` 已完成鉴权蓝图注册，且不破坏现有图谱、告警、封禁、监控接口
+- 登录接口返回的 `user` 字段已与前端现有结构兼容，并包含 `session_token`
+- 本批不改 frontend、`backend/app.py`、Neo4j 相关业务接口或任何业务页面本体
 
 ---
 
@@ -188,9 +204,9 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 已从“系统一致性整改批 3”切换为“系统一致性整改批 4”
-- 本轮仅处理登录提示与本地会话边界说明，不新增页面、不改 backend、不扩展业务功能
-- 本轮完成后，再判断是否需要进入下一轮一致性整改，而不是继续保留模糊或过满的系统表达
+- 已从“系统一致性整改批 4”切换为“后端真实登录最小闭环批 1”
+- 本轮仅处理 backend 登录接口闭环，不接 frontend、不扩展图谱/告警/封禁/监控功能
+- 本轮完成后，下一轮优先进入“前端真实登录最小闭环批 2：前端调用 backend /api/auth/login”
 
 ---
 
