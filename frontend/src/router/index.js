@@ -8,10 +8,17 @@ import { ElMessage } from "element-plus";
 
 import AppLayout from "@/layouts/AppLayout.vue";
 import AlertsView from "@/views/AlertsView.vue";
+import AuditLogView from "@/views/AuditLogView.vue";
 import BansView from "@/views/BansView.vue";
 import DashboardView from "@/views/DashboardView.vue";
+import ForbiddenView from "@/views/ForbiddenView.vue";
 import LoginView from "@/views/LoginView.vue";
 import MonitorCenterView from "@/views/MonitorCenterView.vue";
+import MyRecordsView from "@/views/MyRecordsView.vue";
+import ProfileView from "@/views/ProfileView.vue";
+import RequestActionView from "@/views/RequestActionView.vue";
+import RuleManageView from "@/views/RuleManageView.vue";
+import UserManageView from "@/views/UserManageView.vue";
 import { canAccessRoles, getCurrentUser, getRoleHomePath, ROLE_ADMIN, ROLE_USER } from "@/utils/auth";
 
 const CONSOLE_ROLES = [ROLE_ADMIN, ROLE_USER];
@@ -71,11 +78,74 @@ const router = createRouter({
           }
         },
         {
+          path: "users",
+          name: "users",
+          component: UserManageView,
+          meta: {
+            title: "用户管理",
+            roles: [ROLE_ADMIN]
+          }
+        },
+        {
+          path: "rules",
+          name: "rules",
+          component: RuleManageView,
+          meta: {
+            title: "规则管理",
+            roles: [ROLE_ADMIN]
+          }
+        },
+        {
+          path: "audit",
+          name: "audit",
+          component: AuditLogView,
+          meta: {
+            title: "审计日志",
+            roles: [ROLE_ADMIN]
+          }
+        },
+        {
           path: "monitor",
           name: "monitor",
           component: MonitorCenterView,
           meta: {
             title: "日志监控中心",
+            roles: CONSOLE_ROLES
+          }
+        },
+        {
+          path: "forbidden",
+          name: "forbidden",
+          component: ForbiddenView,
+          meta: {
+            title: "无权限访问",
+            roles: CONSOLE_ROLES
+          }
+        },
+        {
+          path: "profile",
+          name: "profile",
+          component: ProfileView,
+          meta: {
+            title: "个人中心",
+            roles: CONSOLE_ROLES
+          }
+        },
+        {
+          path: "my-records",
+          name: "my-records",
+          component: MyRecordsView,
+          meta: {
+            title: "我的处理记录",
+            roles: CONSOLE_ROLES
+          }
+        },
+        {
+          path: "disposals",
+          name: "disposals",
+          component: RequestActionView,
+          meta: {
+            title: "处置申请",
             roles: CONSOLE_ROLES
           }
         }
@@ -113,8 +183,13 @@ router.beforeEach((to) => {
   }
 
   if (accessRoles.length > 0 && !canAccessRoles(currentUser, accessRoles)) {
-    ElMessage.warning("当前账号无权访问该页面，已为你返回工作台");
-    return currentRoleHomePath;
+    ElMessage.warning("当前账号无权访问该页面，已为你跳转到无权限说明页");
+    return {
+      path: "/console/forbidden",
+      query: {
+        from: to.fullPath
+      }
+    };
   }
 
   return true;

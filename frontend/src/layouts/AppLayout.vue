@@ -23,8 +23,8 @@
           :default-active="activeMenu"
           class="side-menu"
           background-color="transparent"
-          text-color="#8fa7ca"
-          active-text-color="#f3f7ff"
+          text-color="var(--text-secondary)"
+          active-text-color="var(--brand-primary)"
           @select="handleMenuSelect"
         >
           <el-menu-item v-for="item in sideMenuItems" :key="item.path" :index="item.path">
@@ -83,7 +83,7 @@
 // 2. 根据当前登录角色筛选可见菜单，并在顶部和侧边栏展示用户信息。
 // 3. 通过定时器更新时间，增强企业安全控制台的在线监控氛围。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { Bell, DataLine, Lock, Monitor } from "@element-plus/icons-vue";
+import { Bell, DataLine, Document, DocumentAdd, Lock, Monitor, SetUp, Tickets, User, UserFilled } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import { clearCurrentUser, getCurrentUser, getMenuItemsByRole, getRoleLabel } from "@/utils/auth";
 
@@ -111,9 +111,39 @@ const localMenuRegistry = [
     icon: Monitor
   },
   {
+    path: "/console/disposals",
+    label: "处置申请",
+    icon: DocumentAdd
+  },
+  {
+    path: "/console/my-records",
+    label: "我的处理记录",
+    icon: Tickets
+  },
+  {
     path: "/console/bans",
     label: "封禁审批",
     icon: Lock
+  },
+  {
+    path: "/console/users",
+    label: "用户管理",
+    icon: UserFilled
+  },
+  {
+    path: "/console/rules",
+    label: "规则管理",
+    icon: SetUp
+  },
+  {
+    path: "/console/audit",
+    label: "审计日志",
+    icon: Document
+  },
+  {
+    path: "/console/profile",
+    label: "个人中心",
+    icon: User
   }
 ];
 
@@ -190,10 +220,9 @@ onBeforeUnmount(() => {
 }
 
 .layout-aside {
-  background:
-    linear-gradient(180deg, rgba(7, 18, 33, 0.98), rgba(6, 14, 27, 0.98)),
-    var(--menu-bg);
-  border-right: 1px solid rgba(71, 114, 176, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98));
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 12px 0 32px rgba(15, 23, 42, 0.04);
   padding: 18px 16px;
 }
 
@@ -220,13 +249,13 @@ onBeforeUnmount(() => {
 .brand-title {
   font-size: 16px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .brand-subtitle {
   margin-top: 4px;
   font-size: 12px;
-  color: #7b93b9;
+  color: var(--text-secondary);
 }
 
 .side-menu {
@@ -237,35 +266,43 @@ onBeforeUnmount(() => {
   height: 46px;
   border-radius: 12px;
   margin-bottom: 8px;
+  color: var(--text-secondary);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 :deep(.side-menu .el-menu-item.is-active) {
-  background: linear-gradient(90deg, rgba(43, 124, 255, 0.22), rgba(54, 183, 255, 0.14));
-  box-shadow: inset 0 0 0 1px rgba(90, 144, 245, 0.12);
+  background: linear-gradient(90deg, rgba(43, 124, 255, 0.14), rgba(54, 183, 255, 0.08));
+  color: var(--brand-primary);
+  box-shadow: inset 0 0 0 1px rgba(43, 124, 255, 0.12);
 }
 
 :deep(.side-menu .el-menu-item:hover) {
   background: var(--menu-hover-bg);
+  color: var(--text-primary);
 }
 
 .aside-user-card {
   margin-top: 22px;
   padding: 16px 14px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(143, 167, 202, 0.14);
+  background: linear-gradient(180deg, rgba(244, 247, 252, 0.92), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .aside-user-card__label {
   font-size: 12px;
-  color: #7b93b9;
+  color: var(--text-secondary);
 }
 
 .aside-user-card__name {
   margin-top: 10px;
   font-size: 16px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .aside-user-card__meta {
@@ -273,7 +310,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: #9fb4d5;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -283,9 +320,10 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 28px;
-  background: var(--topbar-bg);
-  border-bottom: 1px solid rgba(80, 121, 181, 0.12);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.94));
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(12px);
 }
 
 .header-left {
@@ -297,12 +335,12 @@ onBeforeUnmount(() => {
 .header-title {
   font-size: 20px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .header-status {
   font-size: 12px;
-  color: #89a3ca;
+  color: var(--text-secondary);
 }
 
 .header-right {
@@ -321,17 +359,17 @@ onBeforeUnmount(() => {
 .header-user__name {
   font-size: 14px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .header-user__role {
   font-size: 12px;
-  color: #89a3ca;
+  color: var(--text-secondary);
 }
 
 .header-time {
   font-size: 13px;
-  color: #9fb4d5;
+  color: var(--text-secondary);
 }
 
 .layout-main {

@@ -15,14 +15,16 @@
 
 请选择并维护当前模式：
 
-- [x] 正常模式：本批最多 2 个文件
+- [ ] 正常模式：本批最多 2 个文件
 - [ ] 降级模式：本批只处理 1 个文件
 - [ ] 恢复模式：先核对上一批是否真实落地
-- [ ] 验收模式：本轮只核验，不改代码
+- [x] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 上一轮无中断，本轮可继续按正常模式推进
-- 由于普通用户页面本体已落地但入口未打通，下一批优先处理路由与布局接入
+- 本轮已完成“进度纠偏批”，不需要恢复模式，也不再继续追加新的业务编码批次
+- 已按真实工作区状态重新核对 9 个重点文件，确认它们均已真实落地，且此前已经登记，不存在“已落地但未登记”的管理员相关文件
+- 当前仍保持验收模式；`frontend` 的 `npm.cmd run build` 最近一次执行仍受 `esbuild spawn EPERM` 阻塞，`node --check` 与相关 Vue SFC 编译检查通过
+- 下一轮继续保持验收模式；若环境允许，优先重新执行 `frontend` 构建级校验
 
 ---
 
@@ -31,43 +33,50 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-批次 6：接入普通用户页面路由与菜单
+无待办业务批（进度已纠偏，等待可执行构建环境）
 
 ## 当前批次目标
-- 在 `frontend/src/router/index.js` 中补上无权限页、个人中心页、我的处理记录页和处置申请页的路由入口
-- 在 `frontend/src/layouts/AppLayout.vue` 中补上普通用户可见菜单，让已创建页面能从控制台进入
-- 严格保持现有登录逻辑、权限工具和页面本体不变，只做入口接入
+- 已按“进度纠偏批”重新核对 9 个重点文件：`frontend/src/views/AuditLogView.vue`、`frontend/src/views/RuleManageView.vue`、`frontend/src/views/UserManageView.vue`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/styles/global.css`、`frontend/src/views/DashboardView.vue`、`frontend/src/components/ChartPlaceholder.vue`、`frontend/src/components/StatCard.vue`
+- 上述 9 个文件均已真实落地；其中管理员页面本体、管理员路由入口、管理员菜单入口和白色主题相关改动都已经写入工作区
+- 本轮明确结论：已落地但未登记的文件为无；仍需继续开发的文件为无；当前不生成新的业务开发批
+- 后续默认只做整体验收、工作区状态核对与可执行的构建级校验；若后续真发现业务缺口，再据实生成新的最小业务批
 
 ## 当前批次允许修改的文件
-- `frontend/src/router/index.js`
-- `frontend/src/layouts/AppLayout.vue`
+- 无待办业务文件
+- 若进入验收模式，仅允许根据核验结果回写 `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md`
 
 ## 当前批次禁止修改的文件
-- 除本批允许文件外，其余业务文件默认禁止修改
+- 除验收回写所需的进度文件外，其余业务文件默认禁止修改
 - 尤其不要回改：
+  - `frontend/src/router/index.js`
+  - `frontend/src/styles/global.css`
+  - `frontend/src/utils/auth.js`
+  - `frontend/src/utils/mock-storage.js`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/DashboardView.vue`
+  - `frontend/src/views/AuditLogView.vue`
+  - `frontend/src/views/UserManageView.vue`
+  - `frontend/src/views/RuleManageView.vue`
   - `frontend/src/views/MyRecordsView.vue`
   - `frontend/src/views/RequestActionView.vue`
   - `frontend/src/views/ForbiddenView.vue`
   - `frontend/src/views/ProfileView.vue`
   - `frontend/src/views/LoginView.vue`
-  - `frontend/src/utils/auth.js`
-  - `frontend/src/utils/mock-storage.js`
   - `AGENTS.md`
 
 ## 当前批次进入条件
 - 已读 `CODEX_PROGRESS.md`
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
-- 已明确本批只处理路由和布局两个文件
-- 已确认当前页面文件本体已存在，下一步目标是打通访问入口
+- 已完成 2026-04-05 09:32 的进度纠偏：指定 9 个重点文件均已核对为真实落地，且此前已经登记
+- 已确认当前没有待继续编码的最小业务批，后续应先做验收而不是扩展范围
+- 已完成多次验收尝试：最近一次构建级验收仍失败于 `esbuild spawn EPERM`，但 `node --check frontend/src/router/index.js` 与相关 Vue 文件 SFC 编译检查通过
+- 已明确下一轮继续只核验整体状态，不预先改动路由、权限、页面本体或全局样式入口
 
 ## 当前批次验收标准
-- `frontend/src/router/index.js` 已接入对应路由
-- `frontend/src/layouts/AppLayout.vue` 已补上普通用户菜单入口
-- 普通用户不会被误做成访客，仍能访问核心业务页面
-- `git status --short` 可见对应变更
-- 已更新 `CODEX_PROGRESS.md`
-- 已重写本文件并切换到后续业务批
+- 已在 `CODEX_PROGRESS.md` 中明确记录“进度纠偏批”结论，并写清“已落地但未登记”为无、“仍需继续开发”为无
+- 本文件已标记“无待办业务批”，并继续保持验收模式
+- 下一轮如执行验收，优先重试 `frontend` 构建级校验；若环境仍阻塞，只输出真实核验结论，不强行继续编码
 
 ---
 
@@ -92,11 +101,13 @@
 ## 阶段 D：管理员页面
 11. 用户管理页
 12. 规则管理页
-13. 审计日志页
+13. 接入用户管理 / 规则管理入口
+14. 审计日志页
+15. 接入审计日志入口
 
 ## 阶段 E：白色主题统一
-14. 统一 `global.css`
-15. 局部页面白色主题微调
+16. 统一 `global.css`
+17. 局部页面白色主题微调
 
 ---
 
@@ -129,17 +140,46 @@
 ### 批次 6
 - `frontend/src/router/index.js`
 - `frontend/src/layouts/AppLayout.vue`
-- 状态：当前下一批
+- 状态：已完成
 
 ### 批次 7
 - `frontend/src/views/UserManageView.vue`
 - `frontend/src/views/RuleManageView.vue`
+- 状态：已完成
 
 ### 批次 8
-- `frontend/src/views/AuditLogView.vue`
+- `frontend/src/router/index.js`
+- `frontend/src/layouts/AppLayout.vue`
+- 状态：已完成
 
 ### 批次 9
+- `frontend/src/views/AuditLogView.vue`
+- 状态：已完成
+
+### 批次 10
+- `frontend/src/router/index.js`
+- `frontend/src/layouts/AppLayout.vue`
+- 状态：已完成
+
+### 批次 11
 - `frontend/src/styles/global.css`
+- 状态：已完成
+
+### 批次 12
+- `frontend/src/layouts/AppLayout.vue`
+- `frontend/src/views/DashboardView.vue`
+- 状态：已完成
+
+### 批次 13
+- `frontend/src/components/StatCard.vue`
+- `frontend/src/components/ChartPlaceholder.vue`
+- 状态：已完成
+
+### 当前业务批状态
+- 无待办业务批
+- 下一轮继续保持验收模式
+- 若环境允许，优先重新执行 `frontend` 的 `npm.cmd run build`
+- 若环境仍然阻塞，只回写真实验收结论，不强行恢复业务编码
 
 ---
 
@@ -151,8 +191,8 @@
    - 只从未完成的最小一批继续
 
 2. 如果上一轮已完整落地：
-   - 直接进入当前最小下一批
-   - 不跨批改动页面本体、全局样式和管理员页面
+   - 若仍有待办业务批，直接进入当前最小下一批
+   - 若已无待办业务批，切到验收模式，不继续追加新业务改动
 
 3. 如果发现当前页面已创建但入口未打通：
    - 优先安排“路由 + 布局”小批次补入口

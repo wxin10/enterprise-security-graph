@@ -33,10 +33,10 @@
 - [x] 路由权限接入中
 - [x] 布局与菜单区分接入中
 - [x] 权限相关页面本体补齐中
-- [ ] 普通用户业务页路由与菜单接入完成
-- [ ] 管理员页面落地完成
-- [ ] 白色主题统一中
-- [x] 当前批次已完成，等待下一批
+- [x] 普通用户业务页路由与菜单接入完成
+- [x] 管理员页面落地完成
+- [x] 白色主题统一完成
+- [x] 当前业务批次已全部完成，等待验收
 - [ ] 当前处于中断恢复模式
 
 ## 当前主结论
@@ -46,33 +46,45 @@
   - `frontend/src/views/LoginView.vue`
   - `frontend/src/router/index.js`
   - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/DashboardView.vue`
   - `frontend/src/views/ForbiddenView.vue`
   - `frontend/src/views/ProfileView.vue`
   - `frontend/src/views/MyRecordsView.vue`
   - `frontend/src/views/RequestActionView.vue`
+  - `frontend/src/styles/global.css`
+  - `frontend/src/views/UserManageView.vue`
+  - `frontend/src/views/RuleManageView.vue`
+  - `frontend/src/views/AuditLogView.vue`
+  - `frontend/src/components/StatCard.vue`
+  - `frontend/src/components/ChartPlaceholder.vue`
 - 最近一次已确认未落地的文件：无
-- 当前建议下一批处理的文件：
-  - `frontend/src/router/index.js`
-  - `frontend/src/layouts/AppLayout.vue`
+- 本轮进度纠偏重点核对结果（2026-04-05 09:32）：
+  - 已按用户指定范围核对 9 个文件：`frontend/src/views/AuditLogView.vue`、`frontend/src/views/RuleManageView.vue`、`frontend/src/views/UserManageView.vue`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/styles/global.css`、`frontend/src/views/DashboardView.vue`、`frontend/src/components/ChartPlaceholder.vue`、`frontend/src/components/StatCard.vue`
+  - 以上 9 个文件均已真实落地到当前工作区，不存在“文件缺失”或“只计划未写入”的情况
+  - 其中 3 个管理员页面文件已存在真实页面本体，`router/index.js` 已接入管理员路由，`AppLayout.vue` 已接入管理员菜单入口，白色主题相关 5 个文件也均为已写入状态
+  - 本轮未发现“已落地但未登记”的管理员相关文件；换言之，这 9 个文件此前已经在进度文件中被登记过
+  - 本轮未发现这 9 个文件中仍需继续开发的业务缺口；当前阻塞点仍是构建环境 `esbuild spawn EPERM`，而不是这批文件本身缺页、缺入口或缺主题落地
+- 当前建议下一批处理的文件：无待办业务批
+  - 当前继续保持验收模式，不再追加新的业务编码批次
+  - 若环境允许，下一轮继续验收并优先重新执行 `frontend` 整仓构建级校验
 - 当前 git 工作区状态：非干净
-  - `M AGENTS.md`
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
   - `M frontend/src/layouts/AppLayout.vue`
   - `M frontend/src/router/index.js`
-  - `M frontend/src/views/LoginView.vue`
-  - `?? .codex/`
-  - `?? CODEX_NEXT.md`
-  - `?? CODEX_PROGRESS.md`
-  - `?? docs/repository_scan.md`
-  - `?? docs/thesis/`
-  - `?? frontend/src/utils/`
-  - `?? frontend/src/views/ForbiddenView.vue`
-  - `?? frontend/src/views/MyRecordsView.vue`
-  - `?? frontend/src/views/ProfileView.vue`
-  - `?? frontend/src/views/RequestActionView.vue`
-- 当前是否适合继续编码：适合
-  - 本轮为正常模式，不是恢复模式
-  - 批次 5 的两个页面文件已落地并通过模板编译检查
-  - 但新页面尚未接入当前路由与侧边菜单，下一批应优先打通入口
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 当前是否适合继续编码：当前不再继续追加业务编码
+  - 本轮开始前 `git status --short` 虽非干净，但与上一批已确认落地状态一致，不构成中断恢复情形
+  - 本轮“进度纠偏批”已确认指定 9 个文件均为已落地且已登记状态，因此当前没有需要立刻补写的管理员业务批
+  - 本轮继续保持验收模式；已于 2026-04-05 09:21 再次实际执行 `frontend` 下的 `npm.cmd run build`，但在加载 `vite.config.js` 时仍受当前环境 `esbuild spawn EPERM` 阻塞
+  - 补充静态核验已通过：`node --check frontend/src/router/index.js` 通过，`@vue/compiler-sfc` 对本轮相关 7 个 Vue 文件的解析与模板编译通过，`git diff --check` 仅保留 LF/CRLF 提示
+  - 当前没有待继续编码的最小业务批；后续应等待可执行构建环境或新的明确业务需求，而不是继续扩展页面或权限逻辑
 
 ---
 
@@ -89,14 +101,17 @@
 - [x] frontend/src/views/LoginView.vue
 - [x] frontend/src/router/index.js
 - [x] frontend/src/layouts/AppLayout.vue
-- [ ] frontend/src/styles/global.css
+- [x] frontend/src/views/DashboardView.vue
+- [x] frontend/src/styles/global.css
 - [x] frontend/src/views/ForbiddenView.vue
 - [x] frontend/src/views/ProfileView.vue
 - [x] frontend/src/views/MyRecordsView.vue
 - [x] frontend/src/views/RequestActionView.vue
-- [ ] frontend/src/views/UserManageView.vue
-- [ ] frontend/src/views/RuleManageView.vue
-- [ ] frontend/src/views/AuditLogView.vue
+- [x] frontend/src/views/UserManageView.vue
+- [x] frontend/src/views/RuleManageView.vue
+- [x] frontend/src/views/AuditLogView.vue
+- [x] frontend/src/components/StatCard.vue
+- [x] frontend/src/components/ChartPlaceholder.vue
 
 ---
 
@@ -310,6 +325,412 @@
   - 已通过 `@vue/compiler-sfc` 对两个页面做解析与模板编译检查
   - 额外核对发现当前路由和侧边菜单尚未接入这些新页面，因此下一批需优先补入口
 
+### [批次 4] 2026-04-05 01:54
+- 任务目标：完成业务批次 6，接入普通用户页面路由与菜单
+- 本批允许修改文件：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- 实际修改文件：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+- 每个文件改动摘要：
+  - `frontend/src/router/index.js`：补上无权限页、个人中心、我的处理记录和处置申请路由；普通用户误入管理员页面时改为跳转到无权限说明页并带上来源地址
+  - `frontend/src/layouts/AppLayout.vue`：在现有角色菜单筛选逻辑上补齐处置申请、我的处理记录和个人中心入口，保持管理员与普通用户菜单边界不变
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前工作区状态、风险和下一批建议
+  - `CODEX_NEXT.md`：将当前最小下一批切换到“用户管理页 + 规则管理页”
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/views/UserManageView.vue`
+  - `frontend/src/views/RuleManageView.vue`
+- 验收说明：
+  - `node --check src/router/index.js` 已通过
+  - `@vue/compiler-sfc` 对 `src/layouts/AppLayout.vue` 的解析已通过
+  - 本轮未运行整仓 `vite build`，当前仅完成本批相关文件的轻量语法核验
+
+### [批次 5] 2026-04-05 02:41
+- 任务目标：完成业务批次 7，补齐管理员页面本体（用户管理 + 规则管理）
+- 本批允许修改文件：
+  - `frontend/src/views/UserManageView.vue`
+  - `frontend/src/views/RuleManageView.vue`
+- 实际修改文件：
+  - `frontend/src/views/UserManageView.vue`
+  - `frontend/src/views/RuleManageView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/UserManageView.vue`：新增管理员用户管理页，展示账号筛选、角色边界说明和待审批事项，并补充本地模拟操作按钮
+  - `frontend/src/views/RuleManageView.vue`：新增管理员规则管理页，展示识别规则 / 封禁规则列表、规则变更流程和待评估队列，并补充灰度发布与启停的前端演示交互
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前风险与下一批建议
+  - `CODEX_NEXT.md`：按硬规则将下一批切换为“优先补通管理员页面入口（路由 + 菜单）”
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- 验收说明：
+  - `@vue/compiler-sfc` 已对 `src/views/UserManageView.vue` 与 `src/views/RuleManageView.vue` 完成解析与模板编译检查
+  - 本轮未运行整仓 `vite build`
+  - 额外核对发现管理员页面入口尚未在当前 `router` / `layout` 中打通，因此后续需优先补入口而不是继续堆积页面本体
+
+### [批次 6] 2026-04-05 03:23
+- 任务目标：完成业务批次 8，补通管理员页面入口（用户管理 + 规则管理）
+- 本批允许修改文件：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- 实际修改文件：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/router/index.js`：接入管理员“用户管理 / 规则管理”路由，保持普通用户公共业务路由与无权限跳转逻辑不变
+  - `frontend/src/layouts/AppLayout.vue`：在现有角色菜单筛选逻辑上补齐管理员“用户管理 / 规则管理”菜单入口
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前风险与下一批建议
+  - `CODEX_NEXT.md`：将当前最小下一批切换为“管理员审计日志页本体”
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/views/AuditLogView.vue`
+- 验收说明：
+  - `node --check src/router/index.js` 已通过
+  - `@vue/compiler-sfc` 对 `src/layouts/AppLayout.vue` 的解析与模板编译已通过
+  - 本轮未运行整仓 `vite build`，当前仅完成本批相关文件的轻量语法核验
+
+### [批次 7] 2026-04-05 04:10
+- 任务目标：完成业务批次 9，落地管理员审计日志页本体
+- 本批允许修改文件：
+  - `frontend/src/views/AuditLogView.vue`
+- 实际修改文件：
+  - `frontend/src/views/AuditLogView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/AuditLogView.vue`：新建管理员审计日志页，整合处置申请留痕与管理员治理动作，补充筛选表格、风险提醒和详情抽屉，明确普通用户不能查看完整审计日志
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、风险变化与下一批建议
+  - `CODEX_NEXT.md`：将当前最小下一批切换到“路由 + 布局补通审计日志入口”
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- 验收说明：
+  - `@vue/compiler-sfc` 已对 `src/views/AuditLogView.vue` 完成解析与模板编译检查
+  - 本批仅新增管理员审计日志页本体，未提前改动 `router`、`layout`、白色主题或其他业务页
+
+### [批次 8] 2026-04-05 04:53
+- 任务目标：完成业务批次 10，补通管理员审计日志路由与布局入口
+- 本批允许修改文件：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- 实际修改文件：
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/router/index.js`：新增 `AuditLogView` 路由导入与 `/console/audit` 管理员专属子路由，继续复用既有角色守卫拦截普通用户误入
+  - `frontend/src/layouts/AppLayout.vue`：补齐管理员“审计日志”侧边菜单入口，并继续通过角色菜单映射保证普通用户不显示该入口
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前阶段结论与下一批建议
+  - `CODEX_NEXT.md`：将当前最小下一批切换到“global.css 白色主题全局入口统一”
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/styles/global.css`
+- 验收说明：
+  - `node --check frontend/src/router/index.js` 已通过
+  - `@vue/compiler-sfc` 对 `frontend/src/layouts/AppLayout.vue` 的解析与模板编译已通过
+  - 本批仅补通管理员审计日志访问链路，不提前改动白色主题、其他业务页面本体或权限规则
+
+### [批次 9] 2026-04-05 05:39
+- 任务目标：完成业务批次 11，统一 `global.css` 白色主题入口
+- 本批允许修改文件：
+  - `frontend/src/styles/global.css`
+- 实际修改文件：
+  - `frontend/src/styles/global.css`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/styles/global.css`：将全局颜色变量切到白色主题，统一页面背景、卡片、输入框、按钮、表格、分页、弹层与布局容器的浅色基线
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前阶段结论与下一批建议
+  - `CODEX_NEXT.md`：将当前最小下一批切换到“布局壳 + 工作台”的局部白色主题微调
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/DashboardView.vue`
+- 验收说明：
+  - `git diff --check -- frontend/src/styles/global.css CODEX_PROGRESS.md CODEX_NEXT.md` 已通过，当前仅提示 Git 行尾将于后续写入时转为 `CRLF`
+  - 本批只收口全局主题入口，不回改路由守卫、角色菜单逻辑或其他业务页面本体
+
+### [批次 10] 2026-04-05 06:31
+- 任务目标：完成业务批次 12，微调布局壳与工作台白色主题
+- 本批允许修改文件：
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/DashboardView.vue`
+- 实际修改文件：
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/DashboardView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/layouts/AppLayout.vue`：把侧栏、顶部栏、用户卡片和菜单激活态改为浅色体系，并将菜单文本色改为白色主题变量，保留现有角色筛选与登出逻辑
+  - `frontend/src/views/DashboardView.vue`：将首页告警与排行标签切到浅色效果，收口排行卡片文本与背景，并通过局部 `:deep` 覆盖把统计卡与图表占位区压回白色主题
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前阶段结论与下一批建议
+  - `CODEX_NEXT.md`：将当前最小下一批切换到“工作台复用组件白色主题收口”
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - `frontend/src/components/StatCard.vue`
+  - `frontend/src/components/ChartPlaceholder.vue`
+- 验收说明：
+  - `@vue/compiler-sfc` 对 `src/layouts/AppLayout.vue` 与 `src/views/DashboardView.vue` 的解析与模板编译已通过
+  - `git diff --check -- frontend/src/layouts/AppLayout.vue frontend/src/views/DashboardView.vue` 已通过，仅提示 Git 后续写入时会转为 `CRLF`
+  - 本批只做白色主题局部微调，不回改路由、权限逻辑、全局样式入口或其他业务页面
+
+### [批次 11] 2026-04-05 07:10
+- 任务目标：完成业务批次 13，收口工作台复用组件白色主题
+- 本批允许修改文件：
+  - `frontend/src/components/StatCard.vue`
+  - `frontend/src/components/ChartPlaceholder.vue`
+- 实际修改文件：
+  - `frontend/src/components/StatCard.vue`
+  - `frontend/src/components/ChartPlaceholder.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/components/StatCard.vue`：将标题、提示文案与主数值切回浅色主题下的深字体系，并为各状态图标补上更轻的高亮阴影，避免继续残留深色卡片语义
+  - `frontend/src/components/ChartPlaceholder.vue`：将占位图容器、网格、标题与说明文本切回浅色背景和浅边框体系，去掉“保留深色面板”的旧注释表述
+  - `CODEX_PROGRESS.md`：回写本批真实落地结果、当前阶段结论与“无待办业务批”状态
+  - `CODEX_NEXT.md`：切换到验收模式，并标记当前无待办业务批
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 无待办业务批
+  - 下一轮建议进入验收模式，优先核验 `frontend` 构建结果
+- 验收说明：
+  - `git diff --check -- frontend/src/components/StatCard.vue frontend/src/components/ChartPlaceholder.vue` 已通过，仅提示 Git 后续写入时会转为 `CRLF`
+  - `@vue/compiler-sfc` 对 `src/components/StatCard.vue` 与 `src/components/ChartPlaceholder.vue` 的解析与模板编译已通过
+  - 本批仅收口复用组件主题本体，不改路由、权限守卫、接口结构或其他业务页面
+
+### [批次 12] 2026-04-05 07:52
+- 任务目标：进入验收模式，核验已完成业务批次的真实可构建性与当前工作区状态
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：补录本轮验收结论，明确当前无待办业务批、`vite build` 被环境 `esbuild spawn EPERM` 阻塞，以及补充静态核验结果
+  - `CODEX_NEXT.md`：继续维持验收模式，标记下一轮仍无待办业务批，只在环境允许时重试构建级校验
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 无待办业务批
+  - 若环境允许，下一轮继续验收并优先重试 `frontend` 的 `npm.cmd run build`
+- 验收说明：
+  - `npm.cmd run build` 已实际执行，但在加载 `vite.config.js` 时失败，错误为 `esbuild spawn EPERM`
+  - `node --check frontend/src/router/index.js` 已通过
+  - `@vue/compiler-sfc` 已对 `src/components/ChartPlaceholder.vue`、`src/components/StatCard.vue`、`src/layouts/AppLayout.vue`、`src/views/DashboardView.vue`、`src/views/AuditLogView.vue`、`src/views/RuleManageView.vue`、`src/views/UserManageView.vue` 完成解析与模板编译检查
+  - `git diff --check -- CODEX_PROGRESS.md CODEX_NEXT.md frontend/src/components/ChartPlaceholder.vue frontend/src/components/StatCard.vue frontend/src/layouts/AppLayout.vue frontend/src/router/index.js frontend/src/styles/global.css frontend/src/views/DashboardView.vue` 已通过，仅有 LF/CRLF 提示
+
+### [批次 13] 2026-04-05 08:37
+- 任务目标：继续验收已完成业务批次，重试整仓构建级校验并回写最新状态
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：补录本轮重复验收结果，明确当前仍为验收模式、无待办业务批，且构建阻塞状态未变化
+  - `CODEX_NEXT.md`：继续维持“无待办业务批”的验收面板，并把下一轮入口保持为优先重试 `frontend` 构建级校验
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 无待办业务批
+  - 若环境允许，下一轮继续验收并优先重试 `frontend` 的 `npm.cmd run build`
+- 验收说明：
+  - `npm.cmd run build` 已在 `frontend` 目录再次实际执行，但仍在加载 `vite.config.js` 时失败，错误为 `esbuild spawn EPERM`
+  - `node --check frontend/src/router/index.js` 已通过
+  - `@vue/compiler-sfc` 已对 `src/components/ChartPlaceholder.vue`、`src/components/StatCard.vue`、`src/layouts/AppLayout.vue`、`src/views/DashboardView.vue`、`src/views/AuditLogView.vue`、`src/views/RuleManageView.vue`、`src/views/UserManageView.vue` 完成解析与模板编译检查
+  - `git diff --check -- CODEX_PROGRESS.md CODEX_NEXT.md frontend/src/components/ChartPlaceholder.vue frontend/src/components/StatCard.vue frontend/src/layouts/AppLayout.vue frontend/src/router/index.js frontend/src/styles/global.css frontend/src/views/DashboardView.vue` 已通过，仅有 LF/CRLF 提示
+
+### [批次 14] 2026-04-05 09:21
+- 任务目标：继续验收已完成业务批次，再次核对构建阻塞是否变化并回写最新状态
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：补录本轮验收结论，明确当前仍为验收模式、无待办业务批，且构建阻塞状态未发生变化
+  - `CODEX_NEXT.md`：继续维持“无待办业务批”的验收面板，并把下一轮入口保持为优先重试 `frontend` 构建级校验
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 无待办业务批
+  - 若环境允许，下一轮继续验收并优先重试 `frontend` 的 `npm.cmd run build`
+- 验收说明：
+  - `npm.cmd run build` 已于 2026-04-05 09:21 在 `frontend` 目录再次实际执行，但仍在加载 `vite.config.js` 时失败，错误为 `esbuild spawn EPERM`
+  - `node --check frontend/src/router/index.js` 已通过
+  - `@vue/compiler-sfc` 已对 `src/components/ChartPlaceholder.vue`、`src/components/StatCard.vue`、`src/layouts/AppLayout.vue`、`src/views/DashboardView.vue`、`src/views/AuditLogView.vue`、`src/views/RuleManageView.vue`、`src/views/UserManageView.vue` 完成解析与模板编译检查
+  - `git diff --check -- CODEX_PROGRESS.md CODEX_NEXT.md frontend/src/components/ChartPlaceholder.vue frontend/src/components/StatCard.vue frontend/src/layouts/AppLayout.vue frontend/src/router/index.js frontend/src/styles/global.css frontend/src/views/DashboardView.vue frontend/src/views/AuditLogView.vue frontend/src/views/RuleManageView.vue frontend/src/views/UserManageView.vue` 已通过，仅有 LF/CRLF 提示
+
+### [批次 15] 2026-04-05 09:32
+- 任务目标：执行“进度纠偏批”，按真实工作区状态重判管理员相关改动是否已落地、是否已登记，并重写进度结论
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：重写当前主结论，明确指定 9 个文件均已真实落地，且此前已经登记，不存在“已落地但未登记”的管理员相关文件
+  - `CODEX_NEXT.md`：重写当前行动板，明确当前无待办业务批，本轮纠偏后下一步仍应保持验收模式而不是继续新增业务开发
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 无待办业务批
+  - 若环境允许，下一轮优先继续做 `frontend` 构建级验收；若仍是 `esbuild spawn EPERM`，只回写真实结果，不新增业务编码批
+- 验收说明：
+  - 已逐一核对 `frontend/src/views/AuditLogView.vue`、`frontend/src/views/RuleManageView.vue`、`frontend/src/views/UserManageView.vue`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/styles/global.css`、`frontend/src/views/DashboardView.vue`、`frontend/src/components/ChartPlaceholder.vue`、`frontend/src/components/StatCard.vue`
+  - 3 个管理员页面文件均真实存在且包含页面主体内容，不是空壳占位文件
+  - `frontend/src/router/index.js` 已导入并挂接 `UserManageView`、`RuleManageView`、`AuditLogView`，且对应路由权限为管理员
+  - `frontend/src/layouts/AppLayout.vue` 已包含 `/console/users`、`/console/rules`、`/console/audit` 菜单入口
+  - `frontend/src/styles/global.css`、`frontend/src/views/DashboardView.vue`、`frontend/src/components/ChartPlaceholder.vue`、`frontend/src/components/StatCard.vue` 的白色主题相关改动均已真实写入
+  - 本轮纠偏确认：已落地但未登记的文件为无；仍需继续开发的文件为无
+
 ---
 
 # 6. 已验收功能汇总
@@ -329,21 +750,23 @@
 - [x] 个人中心页页面本体已落地
 - [x] 我的处理记录页页面本体已落地
 - [x] 处置申请页页面本体已落地
-- [ ] 普通用户页面路由与菜单接入完成
-- [ ] 管理员用户管理页页面本体已落地
-- [ ] 管理员规则管理页页面本体已落地
-- [ ] 管理员审计日志页页面本体已落地
-- [ ] 白色主题统一完成
+- [x] 普通用户页面路由与菜单接入完成
+- [x] 管理员用户管理页页面本体已落地
+- [x] 管理员规则管理页页面本体已落地
+- [x] 管理员用户管理 / 规则管理入口已接入
+- [x] 管理员审计日志页页面本体已落地
+- [x] 管理员审计日志入口已接入
+- [x] `global.css` 白色主题全局入口已统一
+- [x] 布局壳与工作台白色主题微调已完成
+- [x] 白色主题统一完成
+- [ ] 整仓 `vite build` 构建级验收
 
 ---
 
 # 7. 当前风险与注意事项
 
-- 风险 1：当前仓库工作区本就非干净状态，后续批次必须继续区分“已有历史变更”和“本轮新增变更”
-- 风险 2：`frontend/src/router/index.js` 与 `frontend/src/layouts/AppLayout.vue` 已存在待提交修改，下一批要在理解现有改动的基础上增量接入，不能覆盖
-- 风险 3：`MyRecordsView.vue`、`RequestActionView.vue`、`ForbiddenView.vue`、`ProfileView.vue` 页面本体已落地，但当前路由与侧边菜单尚未接入这些页面
-- 风险 4：由于本轮遵守批次限制，没有修改路由和布局，因此“页面文件已存在”不等于“界面入口已打通”
-- 风险 5：普通用户角色必须继续保持“安全分析员”定位，后续路由和菜单接入时不能被误做成访客模式
+- 风险 1：整仓 `vite build` 已多次尝试执行，但受当前环境 `esbuild spawn EPERM` 持续阻塞，暂时拿不到构建级验收结果
+- 风险 2：普通用户角色必须持续保持“一线运维 / 安全分析员”定位，后续若再扩展页面或验收权限边界，不能误改为访客或只读模式
 
 ---
 

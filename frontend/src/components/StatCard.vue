@@ -71,14 +71,14 @@ const iconClass = computed(() => `stat-card__icon--${props.tone}`);
 }
 
 .stat-card__title {
-  color: #8ea7cb;
+  color: #6c7f96;
   font-size: 13px;
   letter-spacing: 0.06em;
 }
 
 .stat-card__hint {
   margin-top: 10px;
-  color: #6f86ab;
+  color: #8a96a8;
   font-size: 12px;
   line-height: 1.6;
 }
@@ -95,19 +95,23 @@ const iconClass = computed(() => `stat-card__icon--${props.tone}`);
 }
 
 .stat-card__icon--primary {
-  background: linear-gradient(135deg, rgba(43, 124, 255, 0.9), rgba(54, 183, 255, 0.82));
+  background: linear-gradient(135deg, rgba(43, 124, 255, 0.88), rgba(71, 170, 255, 0.78));
+  box-shadow: 0 12px 24px rgba(43, 124, 255, 0.18);
 }
 
 .stat-card__icon--danger {
-  background: linear-gradient(135deg, rgba(255, 93, 108, 0.92), rgba(255, 149, 102, 0.82));
+  background: linear-gradient(135deg, rgba(255, 93, 108, 0.88), rgba(255, 149, 102, 0.76));
+  box-shadow: 0 12px 24px rgba(255, 108, 120, 0.16);
 }
 
 .stat-card__icon--warning {
-  background: linear-gradient(135deg, rgba(255, 176, 32, 0.92), rgba(255, 123, 64, 0.84));
+  background: linear-gradient(135deg, rgba(255, 176, 32, 0.88), rgba(255, 134, 84, 0.78));
+  box-shadow: 0 12px 24px rgba(255, 176, 32, 0.16);
 }
 
 .stat-card__icon--success {
-  background: linear-gradient(135deg, rgba(35, 193, 107, 0.92), rgba(26, 157, 182, 0.78));
+  background: linear-gradient(135deg, rgba(35, 193, 107, 0.88), rgba(36, 171, 182, 0.74));
+  box-shadow: 0 12px 24px rgba(35, 193, 107, 0.16);
 }
 
 .stat-card__value {
@@ -115,6 +119,6 @@ const iconClass = computed(() => `stat-card__icon--${props.tone}`);
   font-size: 36px;
   font-weight: 700;
   line-height: 1;
-  color: #f1f6ff;
+  color: #18324d;
 }
 </style>

@@ -45,7 +45,7 @@
             <el-table-column prop="alert_name" label="告警名称" min-width="150" />
             <el-table-column label="严重等级" min-width="110">
               <template #default="{ row }">
-                <el-tag :type="severityTagType(row.severity)" effect="dark">
+                <el-tag :type="severityTagType(row.severity)" effect="light">
                   {{ row.severity || "-" }}
                 </el-tag>
               </template>
@@ -75,7 +75,7 @@
                   <div class="risk-list__name">{{ item.username }}</div>
                   <div class="risk-list__meta">{{ item.department || "未标记部门" }}</div>
                 </div>
-                <el-tag type="danger" effect="dark">{{ item.risk_score ?? "-" }}</el-tag>
+                <el-tag type="danger" effect="light">{{ item.risk_score ?? "-" }}</el-tag>
               </div>
             </div>
           </div>
@@ -88,7 +88,7 @@
                   <div class="risk-list__name">{{ item.ip_address }}</div>
                   <div class="risk-list__meta">{{ item.ip_type || "未知类型" }}</div>
                 </div>
-                <el-tag :type="item.is_blocked ? 'danger' : 'warning'" effect="dark">
+                <el-tag :type="item.is_blocked ? 'danger' : 'warning'" effect="light">
                   {{ item.risk_score ?? "-" }}
                 </el-tag>
               </div>
@@ -103,7 +103,7 @@
                   <div class="risk-list__name">{{ item.hostname }}</div>
                   <div class="risk-list__meta">{{ item.asset_type || "未知资产" }}</div>
                 </div>
-                <el-tag type="warning" effect="dark">{{ item.risk_score ?? "-" }}</el-tag>
+                <el-tag type="warning" effect="light">{{ item.risk_score ?? "-" }}</el-tag>
               </div>
             </div>
           </div>
@@ -232,6 +232,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(237, 244, 255, 0.92));
 }
 
 .summary-grid {
@@ -263,12 +264,12 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -282,7 +283,7 @@ onMounted(() => {
 .risk-block__title {
   font-size: 14px;
   font-weight: 700;
-  color: #dfe9ff;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -299,20 +300,60 @@ onMounted(() => {
   gap: 12px;
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(13, 29, 50, 0.72);
-  border: 1px solid rgba(74, 118, 185, 0.12);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.94));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
 }
 
 .risk-list__name {
   font-size: 14px;
   font-weight: 600;
-  color: #f2f7ff;
+  color: var(--text-primary);
 }
 
 .risk-list__meta {
   margin-top: 5px;
-  color: #7f98be;
+  color: var(--text-secondary);
   font-size: 12px;
+}
+
+:deep(.stat-card__title) {
+  color: var(--text-secondary) !important;
+}
+
+:deep(.stat-card__hint) {
+  color: var(--text-secondary) !important;
+}
+
+:deep(.stat-card__value) {
+  color: var(--text-primary) !important;
+}
+
+:deep(.chart-placeholder__header h3) {
+  color: var(--text-primary) !important;
+}
+
+:deep(.chart-placeholder__header span) {
+  color: var(--text-secondary) !important;
+}
+
+:deep(.chart-placeholder__body) {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(237, 244, 255, 0.94)) !important;
+  border: 1px dashed rgba(148, 163, 184, 0.24);
+}
+
+:deep(.chart-placeholder__grid) {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px) !important;
+}
+
+:deep(.chart-placeholder__main) {
+  color: var(--text-primary) !important;
+}
+
+:deep(.chart-placeholder__sub) {
+  color: var(--text-secondary) !important;
 }
 
 @media (max-width: 992px) {

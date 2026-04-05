@@ -26,7 +26,7 @@
 // 文件路径：frontend/src/components/ChartPlaceholder.vue
 // 作用说明：
 // 1. 当前不直接渲染复杂图表。
-// 2. 先保留深色可视化面板结构，后续接入 ECharts 时可以原位替换。
+// 2. 先保留浅色可视化占位结构，后续接入 ECharts 时可以原位替换。
 
 defineProps({
   title: {
@@ -56,11 +56,11 @@ defineProps({
 .chart-placeholder__header h3 {
   margin: 0;
   font-size: 16px;
-  color: #edf4ff;
+  color: #1d3147;
 }
 
 .chart-placeholder__header span {
-  color: #7e97bb;
+  color: #8292a8;
   font-size: 12px;
 }
 
@@ -70,16 +70,18 @@ defineProps({
   min-height: 190px;
   border-radius: 16px;
   overflow: hidden;
+  border: 1px solid rgba(220, 230, 241, 0.92);
   background:
-    linear-gradient(180deg, rgba(18, 37, 65, 0.9), rgba(9, 19, 34, 0.82));
+    linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(238, 245, 252, 0.95));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 .chart-placeholder__grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(82, 128, 191, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(82, 128, 191, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(116, 145, 185, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 145, 185, 0.12) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -98,13 +100,13 @@ defineProps({
 .chart-placeholder__main {
   font-size: 18px;
   font-weight: 700;
-  color: #dbe8ff;
+  color: #203750;
 }
 
 .chart-placeholder__sub {
   margin-top: 10px;
   max-width: 420px;
-  color: #88a3ca;
+  color: #7c8ea6;
   line-height: 1.7;
   font-size: 13px;
 }

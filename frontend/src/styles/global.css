@@ -1,36 +1,46 @@
 :root {
   /* 全局颜色变量：
-     当前系统整体视觉方向偏企业安全平台，采用深蓝 / 蓝黑风格。 */
-  --page-bg: #07111f;
-  --panel-bg: rgba(10, 24, 44, 0.92);
-  --panel-border: rgba(78, 140, 255, 0.22);
-  --panel-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-  --text-primary: #e8f1ff;
-  --text-secondary: #9cb3d9;
-  --text-muted: #6f86ab;
+     当前批次统一切到白色主题基线，便于后续页面做局部微调。 */
+  --page-bg: #f5f7fb;
+  --page-bg-accent: #edf4ff;
+  --panel-bg: rgba(255, 255, 255, 0.96);
+  --panel-border: rgba(148, 163, 184, 0.22);
+  --panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  --text-primary: #1f2937;
+  --text-secondary: #5f6f85;
+  --text-muted: #94a3b8;
   --brand-primary: #2b7cff;
   --brand-secondary: #36b7ff;
   --success-color: #23c16b;
   --warning-color: #ffb020;
   --danger-color: #ff5d6c;
-  --layout-bg: #081423;
-  --menu-bg: #081423;
-  --menu-hover-bg: rgba(43, 124, 255, 0.14);
-  --topbar-bg: rgba(8, 20, 35, 0.88);
+  --layout-bg: #f5f7fb;
+  --menu-bg: #ffffff;
+  --menu-hover-bg: rgba(43, 124, 255, 0.08);
+  --topbar-bg: rgba(255, 255, 255, 0.92);
 
-  /* 表格与分页器深色主题变量：
-     这些变量用于统一告警页、封禁页及后续所有表格型页面的暗色表现。 */
-  --table-row-bg: rgba(9, 21, 38, 0.76);
-  --table-row-stripe-bg: rgba(12, 27, 48, 0.9);
-  --table-row-hover-bg: rgba(30, 73, 139, 0.34);
-  --table-row-current-bg: rgba(43, 124, 255, 0.24);
-  --table-header-bg: rgba(20, 40, 70, 0.72);
-  --table-border-color: rgba(84, 129, 194, 0.14);
-  --table-empty-bg: rgba(9, 21, 38, 0.72);
-  --pagination-item-bg: rgba(8, 20, 35, 0.94);
-  --pagination-item-hover-bg: rgba(22, 51, 95, 0.96);
+  /* 表格与分页器白色主题变量：
+     统一收口 Element Plus 在后台页中的表格、分页与下拉层颜色。 */
+  --table-row-bg: #ffffff;
+  --table-row-stripe-bg: #f8fbff;
+  --table-row-hover-bg: #edf4ff;
+  --table-row-current-bg: rgba(43, 124, 255, 0.1);
+  --table-header-bg: #f6f9fc;
+  --table-border-color: rgba(148, 163, 184, 0.18);
+  --table-empty-bg: #ffffff;
+  --pagination-item-bg: #ffffff;
+  --pagination-item-hover-bg: #edf4ff;
   --pagination-item-active-bg: linear-gradient(135deg, rgba(43, 124, 255, 0.92), rgba(54, 183, 255, 0.88));
-  --dropdown-bg: rgba(8, 20, 35, 0.98);
+  --dropdown-bg: #ffffff;
+  --control-bg: #ffffff;
+  --control-border: rgba(148, 163, 184, 0.3);
+  --control-border-active: rgba(43, 124, 255, 0.32);
+  --control-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --overlay-mask: rgba(15, 23, 42, 0.2);
+  --el-color-primary: #2b7cff;
+  --el-bg-color: #ffffff;
+  --el-fill-color-blank: #ffffff;
+  --el-border-color-light: rgba(148, 163, 184, 0.18);
 }
 
 * {
@@ -44,9 +54,9 @@ body,
   min-height: 100%;
   min-width: 320px;
   background:
-    radial-gradient(circle at top left, rgba(43, 124, 255, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(54, 183, 255, 0.12), transparent 24%),
-    linear-gradient(180deg, #06101c 0%, #07111f 42%, #050b15 100%);
+    radial-gradient(circle at top left, rgba(43, 124, 255, 0.1), transparent 26%),
+    radial-gradient(circle at top right, rgba(54, 183, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, #fbfdff 0%, #f5f7fb 48%, #eef3f8 100%);
   color: var(--text-primary);
   font-family:
     "Segoe UI",
@@ -57,6 +67,12 @@ body,
 
 body {
   margin: 0;
+  background-color: var(--page-bg);
+}
+
+::selection {
+  background: rgba(43, 124, 255, 0.16);
+  color: var(--text-primary);
 }
 
 a {
@@ -110,20 +126,44 @@ a {
   background: var(--danger-color);
 }
 
-/* 统一覆盖 Element Plus 的部分浅色默认样式，使其更贴合深蓝安全平台风格。 */
+/* 统一卡片、浮层和业务容器的白色主题表现。 */
 .el-card {
-  --el-card-bg-color: transparent;
-  --el-card-border-color: transparent;
+  --el-card-bg-color: var(--panel-bg);
+  --el-card-border-color: var(--panel-border);
   color: var(--text-primary);
+  box-shadow: var(--panel-shadow);
 }
 
-/* 表单组件暗色化：
-   统一输入框、下拉框和文本域背景，避免与深色布局割裂。 */
+.el-dialog,
+.el-drawer,
+.el-message-box,
+.el-popover.el-popper {
+  background: var(--panel-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.el-dialog__header,
+.el-dialog__body,
+.el-drawer__header,
+.el-drawer__body,
+.el-message-box__header,
+.el-message-box__content {
+  color: var(--text-primary) !important;
+}
+
+.el-overlay {
+  background-color: var(--overlay-mask) !important;
+}
+
+/* 表单组件白色化：
+   统一输入框、下拉框和文本域边框与聚焦态，避免局部仍残留深色底。 */
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
-  background: rgba(11, 25, 44, 0.88) !important;
-  box-shadow: 0 0 0 1px rgba(79, 131, 214, 0.16) inset !important;
+  background: var(--control-bg) !important;
+  box-shadow: 0 0 0 1px var(--control-border) inset, var(--control-shadow) !important;
   color: var(--text-primary) !important;
 }
 
@@ -133,14 +173,49 @@ a {
   color: var(--text-primary) !important;
 }
 
-.el-form-item__label {
-  color: #b7cae8 !important;
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--text-muted) !important;
 }
 
-/* 表格深色主题修复：
-   重点处理普通行、斑马纹、悬停、高亮行以及边框线。
-   之所以需要显式覆盖，是因为 Element Plus 的 striped / hover 默认颜色偏浅，
-   在暗色背景下会形成白条或浅灰条。 */
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow:
+    0 0 0 1px var(--control-border-active) inset,
+    0 0 0 4px rgba(43, 124, 255, 0.08) !important;
+}
+
+.el-form-item__label {
+  color: var(--text-secondary) !important;
+}
+
+.el-button {
+  border-radius: 12px;
+}
+
+.el-button:not(.is-text):not(.is-link) {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.el-button--default,
+.el-button--primary.is-plain {
+  background: #ffffff !important;
+  color: var(--brand-primary) !important;
+}
+
+.el-button--default:hover,
+.el-button--primary.is-plain:hover {
+  background: var(--page-bg-accent) !important;
+  border-color: rgba(43, 124, 255, 0.24) !important;
+}
+
+.el-button--primary {
+  box-shadow: 0 10px 24px rgba(43, 124, 255, 0.18);
+}
+
+/* 表格白色主题修复：
+   将行背景、表头、悬停与高亮统一到浅色体系，避免出现黑底残留。 */
 .el-table {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: var(--table-row-bg);
@@ -153,7 +228,7 @@ a {
   --el-bg-color: var(--table-row-bg);
   --el-fill-color-light: var(--table-row-stripe-bg);
   --el-fill-color-lighter: var(--table-row-stripe-bg);
-  --el-mask-color: rgba(6, 16, 28, 0.56);
+  --el-mask-color: rgba(15, 23, 42, 0.08);
   background: transparent !important;
   color: var(--text-primary);
 }
@@ -167,7 +242,7 @@ a {
 
 .el-table th.el-table__cell {
   background: var(--table-header-bg) !important;
-  color: #b7cae8 !important;
+  color: var(--text-secondary) !important;
   border-bottom-color: var(--table-border-color) !important;
 }
 
@@ -210,10 +285,10 @@ a {
 }
 
 .el-loading-mask {
-  background-color: rgba(6, 16, 28, 0.52) !important;
+  background-color: rgba(255, 255, 255, 0.72) !important;
 }
 
-/* 分页器暗色适配：
+/* 分页器白色适配：
    包括分页按钮、激活态、禁用态与页大小选择器。 */
 .el-pagination {
   color: var(--text-secondary);
@@ -232,7 +307,7 @@ a {
 .el-pagination .el-pager li {
   background: var(--pagination-item-bg) !important;
   color: var(--text-secondary) !important;
-  border: 1px solid rgba(84, 129, 194, 0.14);
+  border: 1px solid var(--table-border-color);
 }
 
 .el-pagination.is-background .el-pager li:hover,
@@ -246,35 +321,36 @@ a {
 .el-pagination .el-pager li.is-active {
   background: var(--pagination-item-active-bg) !important;
   color: #ffffff !important;
-  border-color: rgba(54, 183, 255, 0.28);
+  border-color: rgba(54, 183, 255, 0.3);
 }
 
 .el-pagination button:disabled,
 .el-pagination .btn-prev:disabled,
 .el-pagination .btn-next:disabled {
-  background: rgba(8, 20, 35, 0.58) !important;
-  color: rgba(159, 180, 213, 0.48) !important;
-  border-color: rgba(84, 129, 194, 0.08) !important;
+  background: rgba(248, 250, 252, 0.96) !important;
+  color: rgba(148, 163, 184, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
 }
 
 .el-pagination .el-select .el-select__wrapper,
 .el-pagination .el-input__wrapper {
-  background: rgba(11, 25, 44, 0.9) !important;
+  background: #ffffff !important;
   color: var(--text-primary) !important;
 }
 
-/* 分页器页大小下拉框暗色适配：
+/* 分页器页大小下拉框白色适配：
    该下拉框会被 Teleport 到 body，因此必须在全局样式中统一覆盖。 */
 .el-select-dropdown,
 .el-popper.is-light {
   background: var(--dropdown-bg) !important;
-  border-color: rgba(84, 129, 194, 0.16) !important;
+  border-color: var(--table-border-color) !important;
   color: var(--text-primary) !important;
+  box-shadow: var(--panel-shadow);
 }
 
 .el-popper.is-light .el-popper__arrow::before {
   background: var(--dropdown-bg) !important;
-  border-color: rgba(84, 129, 194, 0.16) !important;
+  border-color: var(--table-border-color) !important;
 }
 
 .el-select-dropdown__item {
@@ -284,15 +360,76 @@ a {
 .el-select-dropdown__item.hover,
 .el-select-dropdown__item:hover,
 .el-select-dropdown__item.is-hovering {
-  background: rgba(30, 73, 139, 0.3) !important;
-  color: #eef5ff !important;
+  background: var(--page-bg-accent) !important;
+  color: var(--text-primary) !important;
 }
 
 .el-select-dropdown__item.selected {
-  color: #67a8ff !important;
+  color: var(--brand-primary) !important;
   font-weight: 700;
 }
 
 .el-tag {
   border-radius: 999px;
+}
+
+/* 布局容器统一覆盖：
+   不回改布局文件本体，通过全局样式把侧栏、头部和菜单收口到白色后台风格。 */
+.layout-page .layout-aside {
+  background: linear-gradient(180deg, #ffffff, #f8fbff) !important;
+  border-right: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 12px 0 32px rgba(15, 23, 42, 0.04);
+}
+
+.layout-page .layout-header {
+  background: var(--topbar-bg) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(12px);
+}
+
+.layout-page .brand-title,
+.layout-page .header-title,
+.layout-page .header-user__name,
+.layout-page .aside-user-card__name {
+  color: var(--text-primary) !important;
+}
+
+.layout-page .brand-subtitle,
+.layout-page .aside-user-card__label,
+.layout-page .aside-user-card__meta,
+.layout-page .header-status,
+.layout-page .header-user__role,
+.layout-page .header-time {
+  color: var(--text-secondary) !important;
+}
+
+.layout-page .aside-user-card {
+  background: linear-gradient(180deg, rgba(244, 247, 252, 0.92), rgba(255, 255, 255, 0.96)) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.layout-page .side-menu {
+  --el-menu-bg-color: transparent !important;
+  --el-menu-text-color: var(--text-secondary) !important;
+  --el-menu-hover-text-color: var(--text-primary) !important;
+  --el-menu-active-color: var(--brand-primary) !important;
+}
+
+.layout-page .side-menu .el-menu-item,
+.layout-page .side-menu .el-sub-menu__title {
+  color: var(--text-secondary) !important;
+}
+
+.layout-page .side-menu .el-menu-item.is-active {
+  background: linear-gradient(90deg, rgba(43, 124, 255, 0.14), rgba(54, 183, 255, 0.08)) !important;
+  color: var(--brand-primary) !important;
+  box-shadow: inset 0 0 0 1px rgba(43, 124, 255, 0.12);
+}
+
+.layout-page .side-menu .el-menu-item:hover,
+.layout-page .side-menu .el-sub-menu__title:hover {
+  background: var(--menu-hover-bg) !important;
+  color: var(--text-primary) !important;
 }
