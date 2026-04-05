@@ -38,12 +38,14 @@
 - [x] 白色主题统一完成
 - [x] 当前业务批次已全部完成，等待验收
 - [x] 当前阶段业务开发已完成
+- [x] 系统一致性整改已启动
 - [ ] 当前处于中断恢复模式
 
 ## 当前主结论
-- 当前阶段业务开发已完成；当前不再继续新增功能或修改业务源码
-- 当前只剩整仓 `vite build` 构建级验收待通过
-- 最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`
+- 当前业务页面和后端核心业务接口已基本落地，但系统表达口径并不一致
+- 后端当前已开放图谱、告警、封禁、监控接口，但没有真实登录 / 用户 / 权限接口
+- 前端当前为“部分真实业务接口联调 + 本地登录与本地路由权限”并存状态
+- 因此当前不应继续保持单纯验收模式，而应切换到“系统一致性整改批 1：登录页与主布局口径收口”
 - 最近一次已确认落地的文件：
   - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
@@ -68,27 +70,17 @@
   - 其中 3 个管理员页面文件已存在真实页面本体，`router/index.js` 已接入管理员路由，`AppLayout.vue` 已接入管理员菜单入口，白色主题相关 5 个文件也均为已写入状态
   - 本轮未发现“已落地但未登记”的管理员相关文件；换言之，这 9 个文件此前已经在进度文件中被登记过
   - 本轮未发现这 9 个文件中仍需继续开发的业务缺口；当前阻塞点仍是构建环境 `esbuild spawn EPERM`，而不是这批文件本身缺页、缺入口或缺主题落地
-- 当前建议下一批处理的文件：无待办业务批
-  - 当前继续保持验收模式，不再追加新的业务编码批次
-  - 下一轮若继续处理，仍应优先做 `frontend` 整仓构建级验收，而不是新增业务开发批
-- 当前 git 工作区状态：非干净
-  - `M CODEX_NEXT.md`
-  - `M CODEX_PROGRESS.md`
-  - `M frontend/src/components/ChartPlaceholder.vue`
-  - `M frontend/src/components/StatCard.vue`
-  - `M frontend/src/layouts/AppLayout.vue`
-  - `M frontend/src/router/index.js`
-  - `M frontend/src/styles/global.css`
-  - `M frontend/src/views/DashboardView.vue`
-  - `?? frontend/src/views/AuditLogView.vue`
-  - `?? frontend/src/views/RuleManageView.vue`
-  - `?? frontend/src/views/UserManageView.vue`
-- 当前是否适合继续编码：当前不再继续追加业务编码
-  - 本轮开始前 `git status --short` 虽非干净，但与上一批已确认落地状态一致，不构成中断恢复情形
-  - 本轮“进度纠偏批”已确认指定 9 个文件均为已落地且已登记状态，因此当前没有需要立刻补写的管理员业务批
-  - 当前继续保持验收模式；最近一次实际执行 `frontend` 下的 `npm.cmd run build` 时，仍在加载 `vite.config.js` 阶段受 `esbuild spawn EPERM` 阻塞
-  - 补充静态核验已通过：`node --check frontend/src/router/index.js` 通过，`@vue/compiler-sfc` 对本轮相关 7 个 Vue 文件的解析与模板编译通过，`git diff --check` 仅保留 LF/CRLF 提示
-  - 当前没有待继续编码的最小业务批；后续应等待可执行构建环境或新的明确业务需求，而不是继续扩展页面或权限逻辑
+- 当前建议下一批处理的文件：
+  - `CODEX_NEXT.md`
+  - `CODEX_PROGRESS.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/layouts/AppLayout.vue`
+- 当前 git 工作区状态：干净（以本批开始前 `git status --short` 为准）
+- 当前是否适合继续编码：适合继续做小批量一致性整改
+  - 本批开始前 `git status --short` 为空，当前分支为 `current-ui-sync`
+  - 已确认后端当前没有真实登录 / 用户 / 权限接口，因此登录页和主布局不能继续沿用“演示”或“联调完全正常”的表述
+  - 已确认前端业务数据接口存在部分真实联调，但登录和路由权限仍由 `frontend/src/utils/auth.js` 本地会话逻辑驱动
+  - 本轮应先收口登录页与主布局口径，再决定后续是否需要继续处理路由守卫、鉴权链路或接口接入问题
 
 ---
 
@@ -770,6 +762,40 @@
   - 当前阶段业务开发已完成，当前仅剩整仓 `vite build` 构建级验收待通过
   - 最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`
 
+### [批次 17] 2026-04-05 10:43
+- 任务目标：执行“系统一致性整改批 1”，收口登录页与主布局的系统口径，并将进度文件从验收模式切换到整改批状态
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/layouts/AppLayout.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/layouts/AppLayout.vue`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/views/LoginView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：根据真实现状改写当前主结论，明确后端缺少登录 / 用户 / 权限接口，前端存在“真实业务接口 + 本地登录鉴权”并存状态，并记录本轮整改批
+  - `CODEX_NEXT.md`：将当前模式从验收切换为新的整改批状态，并明确本轮只允许修改 4 个文件
+  - `frontend/src/views/LoginView.vue`：保留现有可运行逻辑，但移除“模拟 / 演示 / 不接后端权限接口”等文案，取消默认账号密码，统一为正式系统口径和浅色可读样式
+  - `frontend/src/layouts/AppLayout.vue`：保留现有菜单、角色显示和退出逻辑，仅将顶部状态文案改为符合当前工程实现状态的真实表达
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 后续如继续推进，优先考虑“系统一致性整改批 2：路由守卫与鉴权链路现状收口”
+  - 在未明确后端登录 / 权限接口方案前，不要再把系统写成“完整统一鉴权已完成”
+- 验收说明：
+  - 已检查 `frontend/src/views/LoginView.vue`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/router/index.js`、`frontend/src/api/http.js`、`frontend/src/utils/auth.js`、`backend/app.py`、`backend/app/api/`、`backend/app/services/`
+  - 已确认后端当前没有真实登录 / 用户 / 权限接口
+  - 已确认 `frontend/src/api/http.js` 和 `frontend/src/api/*.js` 已对接部分真实业务接口，但登录态与路由权限仍基于本地会话逻辑
+  - 本批不修改 backend、`router/index.js`、`auth.js`、`http.js` 或任何业务页面本体，只做系统口径收口
+
 ---
 
 # 6. 已验收功能汇总
@@ -798,6 +824,7 @@
 - [x] `global.css` 白色主题全局入口已统一
 - [x] 布局壳与工作台白色主题微调已完成
 - [x] 白色主题统一完成
+- [x] 登录页与主布局系统口径收口完成
 - [ ] 整仓 `vite build` 构建级验收
 
 ---
@@ -806,6 +833,7 @@
 
 - 风险 1：整仓 `vite build` 已多次尝试执行，但受当前环境 `esbuild spawn EPERM` 持续阻塞，暂时拿不到构建级验收结果
 - 风险 2：普通用户角色必须持续保持“一线运维 / 安全分析员”定位，后续若再扩展页面或验收权限边界，不能误改为访客或只读模式
+- 风险 3：当前登录、菜单和路由权限仍依赖前端本地会话逻辑；如果后续要做统一鉴权，必须先明确后端登录 / 用户 / 权限接口方案
 
 ---
 

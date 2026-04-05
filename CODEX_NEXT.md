@@ -15,16 +15,16 @@
 
 请选择并维护当前模式：
 
-- [ ] 正常模式：本批最多 2 个文件
+- [x] 正常模式：本批最多 2 个文件
 - [ ] 降级模式：本批只处理 1 个文件
 - [ ] 恢复模式：先核对上一批是否真实落地
-- [x] 验收模式：本轮只核验，不改代码
+- [ ] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 本轮已完成“最终同步收口”，不需要恢复模式，也不再继续追加新的业务编码批次
-- 当前阶段业务开发已完成，当前仅剩整仓 `vite build` 构建级验收待通过
-- 当前仍保持验收模式；最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`，`node --check` 与相关 Vue SFC 编译检查通过
-- 下一轮继续保持验收模式；若环境允许，优先重新执行 `frontend` 构建级校验
+- 当前不再继续保持“验收模式 / 无待办业务批”的结论，而是切换到新的整改批状态
+- 当前系统真实状态为：后端已开放图谱、告警、封禁、监控接口；前端业务数据接口已有部分真实联调，但登录与路由权限仍以本地会话和本地角色逻辑为主
+- 本轮进入“系统一致性整改批 1：登录页与主布局口径收口”，只允许修改 4 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/views/LoginView.vue`、`frontend/src/layouts/AppLayout.vue`
+- 本轮目标不是新增功能，而是先把登录页、主布局和当前系统真实实现状态统一起来
 
 ---
 
@@ -33,50 +33,63 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-无待办业务批（业务开发完成，仅待构建级验收）
+系统一致性整改批 1：登录页与主布局口径收口
 
 ## 当前批次目标
-- 当前阶段业务开发已完成，不再继续新增功能或修改业务源码
-- 当前只剩整仓 `vite build` 构建级验收待通过
-- 最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`
-- 后续默认只做整体验收、工作区状态核对与可执行的构建级校验；若后续真发现业务缺口，再据实生成新的最小业务批
+- 先收口系统口径，不新增功能，不扩展更多页面
+- 将登录页中的“模拟 / 演示 / 不接后端权限接口”等表述改为正式且真实的工程表达
+- 将主布局顶部“前后端联调正常”这类过满表述改为符合当前实现状态的说明
+- 保持当前可运行逻辑、菜单结构、角色显示、退出逻辑不变
+- 将进度文件从验收模式切换到新的整改批状态，为后续真实整改批次留出入口
 
 ## 当前批次允许修改的文件
-- 无待办业务文件
-- 若进入验收模式，仅允许根据核验结果回写 `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md`
+- `CODEX_NEXT.md`
+- `CODEX_PROGRESS.md`
+- `frontend/src/views/LoginView.vue`
+- `frontend/src/layouts/AppLayout.vue`
 
 ## 当前批次禁止修改的文件
-- 除验收回写所需的进度文件外，其余业务文件默认禁止修改
+- 除本批允许修改的 4 个文件外，其余业务文件默认禁止修改
 - 尤其不要回改：
+  - `backend/app.py`
+  - `backend/app/api/`
+  - `backend/app/services/`
   - `frontend/src/router/index.js`
+  - `frontend/src/api/http.js`
   - `frontend/src/styles/global.css`
   - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
-  - `frontend/src/layouts/AppLayout.vue`
-  - `frontend/src/views/DashboardView.vue`
   - `frontend/src/views/AuditLogView.vue`
   - `frontend/src/views/UserManageView.vue`
   - `frontend/src/views/RuleManageView.vue`
+  - `frontend/src/views/DashboardView.vue`
   - `frontend/src/views/MyRecordsView.vue`
   - `frontend/src/views/RequestActionView.vue`
   - `frontend/src/views/ForbiddenView.vue`
   - `frontend/src/views/ProfileView.vue`
-  - `frontend/src/views/LoginView.vue`
   - `AGENTS.md`
 
 ## 当前批次进入条件
 - 已读 `CODEX_PROGRESS.md`
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
-- 已完成最终同步收口：当前阶段业务开发已完成，且当前无待办业务批
-- 已确认当前没有待继续编码的最小业务批，后续应先做验收而不是扩展范围
-- 已完成多次验收尝试：最近一次构建级验收仍失败于 `esbuild spawn EPERM`，但 `node --check frontend/src/router/index.js` 与相关 Vue 文件 SFC 编译检查通过
-- 已明确下一轮继续只核验整体状态，不预先改动路由、权限、页面本体或全局样式入口
+- 已检查 `frontend/src/views/LoginView.vue`
+- 已检查 `frontend/src/layouts/AppLayout.vue`
+- 已检查 `frontend/src/router/index.js`
+- 已检查 `frontend/src/api/http.js`
+- 已检查 `frontend/src/utils/auth.js`
+- 已检查 `backend/app.py`
+- 已检查 `backend/app/api/` 与 `backend/app/services/`
+- 已确认后端当前没有真实登录 / 用户 / 权限接口
+- 已确认前端业务数据接口为部分真实联调，但登录与路由权限仍以本地会话逻辑为主
+- 已确认登录页、主布局和路由守卫的系统口径不一致，因此需要先做文案与进度状态收口
 
 ## 当前批次验收标准
-- 已在 `CODEX_PROGRESS.md` 中明确记录“当前阶段业务开发已完成”“当前只剩整仓 `vite build` 构建级验收待通过”
-- 本文件已标记“无待办业务批”，并继续保持验收模式
-- 下一轮如执行验收，优先重试 `frontend` 构建级校验；若环境仍阻塞，只输出真实核验结论，不强行继续编码
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已从“验收模式 / 无待办业务批”切换为新的整改批状态
+- `frontend/src/views/LoginView.vue` 已去掉“模拟 / 演示 / 不接后端权限接口”等表述，文案改为正式且真实
+- `frontend/src/layouts/AppLayout.vue` 顶部状态文案已改为符合当前工程实现状态的说法
+- 本批不改 `router`、`auth`、`http`、backend 或任何业务页面本体
+- 本批完成后，再根据真实现状决定是否需要开启下一轮一致性整改批
 
 ---
 
@@ -176,10 +189,9 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 无待办业务批
-- 下一轮继续保持验收模式
-- 若环境允许，优先重新执行 `frontend` 的 `npm.cmd run build`
-- 若环境仍然阻塞，只回写真实验收结论，不强行恢复业务编码
+- 已从“无待办业务批”切换为“系统一致性整改批 1”
+- 本轮仅处理登录页、主布局与进度文件口径收口
+- 本轮完成后，再判断是否需要进入下一轮一致性整改，而不是直接恢复验收模式
 
 ---
 

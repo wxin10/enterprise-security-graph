@@ -4,7 +4,7 @@
     作用说明：
     1. 提供系统主布局，采用左侧菜单 + 顶部栏 + 内容区结构。
     2. 承载仪表盘、告警管理、封禁管理与日志监控中心等业务页面。
-    3. 当前阶段在现有布局基础上接入模拟角色菜单和用户信息展示。
+    3. 在现有布局基础上接入角色菜单和用户信息展示。
   -->
   <div class="layout-page">
     <el-container class="layout-shell">
@@ -51,7 +51,7 @@
             <div class="header-title">{{ currentPageTitle }}</div>
             <div class="header-status">
               <span class="status-dot status-dot--success"></span>
-              当前前后端接口联调正常，可直接展示 Neo4j 图数据与自动化监控流程
+              当前版本已接入核心业务接口，控制台登录与菜单权限按当前会话状态加载
             </div>
           </div>
 
@@ -81,7 +81,7 @@
 // 作用说明：
 // 1. 管理系统主布局、菜单跳转和顶部标题。
 // 2. 根据当前登录角色筛选可见菜单，并在顶部和侧边栏展示用户信息。
-// 3. 通过定时器更新时间，增强企业安全控制台的在线监控氛围。
+// 3. 通过定时器更新时间，展示控制台当前在线状态。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Bell, DataLine, Document, DocumentAdd, Lock, Monitor, SetUp, Tickets, User, UserFilled } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
