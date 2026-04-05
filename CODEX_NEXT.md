@@ -21,10 +21,10 @@
 - [ ] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 当前进入“完整系统收口批 1-1：鉴权闭环最小收口”
-- 本轮只处理前端鉴权闭环，不扩展业务页面，不处理图表、文案、排版或 backend
-- 本轮允许修改 7 个文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/utils/auth.js`、`frontend/src/api/http.js`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/views/LoginView.vue`
-- 本轮目标是补齐前端会话迁移、统一恢复、401 失效清理、路由入口恢复和退出登录收口
+- 当前进入“完整系统收口批 1-2：菜单、路由、权限单一来源”
+- 本轮只处理菜单、路由、权限来源统一，不扩展到图表、文案、排版或 backend
+- 本轮允许修改 5 个文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/utils/auth.js`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`
+- 本轮目标是收口唯一菜单来源，修复 `detections / graph / monitor` 不一致，并去掉布局层本地菜单注册
 
 ---
 
@@ -33,33 +33,31 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-完整系统收口批 1-1：鉴权闭环最小收口
+完整系统收口批 1-2：菜单、路由、权限单一来源
 
 ## 当前批次目标
-- 将 `auth.js` 中正式用户存储键从 `mock_login_user` 迁移为正式命名，并保留旧键兼容迁移
-- 为前端会话补齐统一恢复入口和统一清理入口
-- 在 `http.js` 中统一处理 `401 / 鉴权失效`，完成会话清理、重复弹窗抑制和登录页回跳
-- 在 `router/index.js` 中实现路由进入即尝试恢复当前用户，并统一处理已登录访问登录页、未登录访问受保护页
-- 在 `AppLayout.vue` 中将退出登录收口为“彻底清理会话 + 立即回到 /login”
-- 在 `LoginView.vue` 中去掉“仅依赖 mounted 做恢复”的职责，保持页面只负责登录提交和已登录跳转
+- 统一 `auth.js`、`router/index.js`、`AppLayout.vue` 的菜单、路由、权限来源，不再各自维护一套
+- 以 `auth.js` 中的正式菜单配置为唯一来源
+- 修复 `/console/detections`、`/console/graph`、`/console/monitor` 的不一致
+- 去掉 `AppLayout.vue` 中的 `localMenuRegistry`
+- 保持管理员与普通用户现有权限边界不变，不顺手修改页面本体、样式或文案
 
 ## 当前批次允许修改的文件
 - `CODEX_NEXT.md`
 - `CODEX_PROGRESS.md`
 - `frontend/src/utils/auth.js`
-- `frontend/src/api/http.js`
 - `frontend/src/router/index.js`
 - `frontend/src/layouts/AppLayout.vue`
-- `frontend/src/views/LoginView.vue`
 
 ## 当前批次禁止修改的文件
-- 除本批允许修改的 7 个文件外，其余业务文件默认禁止修改
+- 除本批允许修改的 5 个文件外，其余业务文件默认禁止修改
 - 尤其不要回改：
   - `backend/app.py`
   - `backend/app/api/`
   - `backend/app/services/`
   - `frontend/src/styles/global.css`
   - `frontend/src/utils/mock-storage.js`
+  - `frontend/src/views/`
   - `AGENTS.md`
 
 ## 当前批次进入条件
@@ -68,21 +66,18 @@
 - 已检查 `git status --short`
 - 已确认当前分支为 `current-ui-sync`
 - 已检查 `frontend/src/utils/auth.js`
-- 已检查 `frontend/src/api/http.js`
 - 已检查 `frontend/src/router/index.js`
 - 已检查 `frontend/src/layouts/AppLayout.vue`
-- 已检查 `frontend/src/views/LoginView.vue`
 - 已确认当前工作区干净，当前分支为 `current-ui-sync`
 - 已确认本轮不是恢复模式
-- 已确认本轮只处理前端鉴权闭环，不触碰 backend 和无关页面
+- 已确认本轮只处理菜单、路由、权限来源统一，不触碰 backend 和无关页面
 
 ## 当前批次验收标准
-- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“完整系统收口批 1-1：鉴权闭环最小收口”状态
-- `frontend/src/utils/auth.js` 已完成正式键名迁移、旧键兼容读取迁移、统一会话恢复与统一会话清理
-- `frontend/src/api/http.js` 已统一处理 `401 / 鉴权失效`，并完成会话清理、重复弹窗抑制和 `/login` 跳转
-- `frontend/src/router/index.js` 已在路由进入时尝试恢复当前用户，且能统一处理登录页跳转和未登录拦截
-- `frontend/src/layouts/AppLayout.vue` 已将退出登录收口为彻底清理会话并立即回到 `/login`
-- `frontend/src/views/LoginView.vue` 已去掉仅依赖 mounted 恢复用户的职责
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“完整系统收口批 1-2：菜单、路由、权限单一来源”状态
+- `frontend/src/utils/auth.js` 已成为菜单、路由权限的唯一正式来源
+- `frontend/src/router/index.js` 已直接消费统一菜单来源，不再与 `MENU_ITEMS` 分离维护
+- `frontend/src/layouts/AppLayout.vue` 已去掉 `localMenuRegistry`，并直接消费统一菜单来源
+- `/console/detections`、`/console/graph`、`/console/monitor` 已完成收口，不再出现菜单和路由打架
 
 ---
 
@@ -182,8 +177,8 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 当前处于“完整系统收口批 1-1：鉴权闭环最小收口”
-- 本轮只处理前端鉴权闭环，不扩展业务页面，不处理图表、文案、排版或 backend
+- 当前处于“完整系统收口批 1-2：菜单、路由、权限单一来源”
+- 本轮只处理菜单、路由、权限来源统一，不扩展业务页面，不处理图表、文案、排版或 backend
 - 本轮完成后，如需继续推进，再进入下一批收口任务
 
 ---

@@ -29,7 +29,7 @@
         >
           <el-menu-item v-for="item in sideMenuItems" :key="item.path" :index="item.path">
             <el-icon>
-              <component :is="item.icon" />
+              <component :is="item.iconComponent" />
             </el-icon>
             <span>{{ item.label }}</span>
           </el-menu-item>
@@ -94,58 +94,18 @@ const currentTimeText = ref("");
 const currentUser = ref(getCurrentUser());
 let timerId = null;
 
-const localMenuRegistry = [
-  {
-    path: "/console/dashboard",
-    label: "工作台",
-    icon: DataLine
-  },
-  {
-    path: "/console/alerts",
-    label: "告警中心",
-    icon: Bell
-  },
-  {
-    path: "/console/monitor",
-    label: "日志监控",
-    icon: Monitor
-  },
-  {
-    path: "/console/disposals",
-    label: "处置申请",
-    icon: DocumentAdd
-  },
-  {
-    path: "/console/my-records",
-    label: "我的处理记录",
-    icon: Tickets
-  },
-  {
-    path: "/console/bans",
-    label: "封禁审批",
-    icon: Lock
-  },
-  {
-    path: "/console/users",
-    label: "用户管理",
-    icon: UserFilled
-  },
-  {
-    path: "/console/rules",
-    label: "规则管理",
-    icon: SetUp
-  },
-  {
-    path: "/console/audit",
-    label: "审计日志",
-    icon: Document
-  },
-  {
-    path: "/console/profile",
-    label: "个人中心",
-    icon: User
-  }
-];
+const menuIconMap = {
+  DataLine,
+  Bell,
+  Monitor,
+  DocumentAdd,
+  Tickets,
+  Lock,
+  UserFilled,
+  SetUp,
+  Document,
+  User
+};
 
 const activeMenu = computed(() => route.path);
 
@@ -176,15 +136,10 @@ const sideMenuItems = computed(() => {
     return [];
   }
 
-  const authMenuMap = new Map(getMenuItemsByRole(currentRole).map((item) => [item.path, item]));
-
-  return localMenuRegistry.filter((item) => {
-    if (item.path === "/console/monitor") {
-      return Boolean(currentRole);
-    }
-
-    return authMenuMap.has(item.path);
-  });
+  return getMenuItemsByRole(currentRole).map((item) => ({
+    ...item,
+    iconComponent: menuIconMap[item.icon] || Monitor
+  }));
 });
 
 function updateCurrentTime() {

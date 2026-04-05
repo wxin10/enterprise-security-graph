@@ -55,9 +55,8 @@ export const ROLE_PERMISSION_MAP = {
 
 export const MENU_ITEMS = [
   { path: "/console/dashboard", label: "工作台", icon: "DataLine", roles: [ROLE_ADMIN, ROLE_USER] },
-  { path: "/console/detections", label: "检测结果", icon: "Monitor", roles: [ROLE_ADMIN, ROLE_USER] },
   { path: "/console/alerts", label: "告警中心", icon: "Bell", roles: [ROLE_ADMIN, ROLE_USER] },
-  { path: "/console/graph", label: "图谱分析", icon: "Share", roles: [ROLE_ADMIN, ROLE_USER] },
+  { path: "/console/monitor", label: "日志监控中心", icon: "Monitor", roles: [ROLE_ADMIN, ROLE_USER] },
   { path: "/console/disposals", label: "处置申请", icon: "DocumentAdd", roles: [ROLE_USER] },
   { path: "/console/my-records", label: "我的处理记录", icon: "Tickets", roles: [ROLE_USER] },
   { path: "/console/bans", label: "封禁审批", icon: "Lock", roles: [ROLE_ADMIN] },
@@ -158,6 +157,26 @@ export function getRoleHomePath(role) {
 export function getMenuItemsByRole(role) {
   const normalizedRole = normalizeRole(role);
   return MENU_ITEMS.filter((item) => item.roles.includes(normalizedRole));
+}
+
+export function getMenuItemByPath(path) {
+  return MENU_ITEMS.find((item) => item.path === path) || null;
+}
+
+export function buildMenuRouteMeta(path, extraMeta = {}) {
+  const menuItem = getMenuItemByPath(path);
+
+  if (!menuItem) {
+    return {
+      ...extraMeta
+    };
+  }
+
+  return {
+    title: menuItem.label,
+    roles: menuItem.roles,
+    ...extraMeta
+  };
 }
 
 export function getPermissionList(role) {

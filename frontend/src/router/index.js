@@ -19,7 +19,15 @@ import ProfileView from "@/views/ProfileView.vue";
 import RequestActionView from "@/views/RequestActionView.vue";
 import RuleManageView from "@/views/RuleManageView.vue";
 import UserManageView from "@/views/UserManageView.vue";
-import { canAccessRoles, ensureCurrentUser, getCurrentUser, getRoleHomePath, ROLE_ADMIN, ROLE_USER } from "@/utils/auth";
+import {
+  buildMenuRouteMeta,
+  canAccessRoles,
+  ensureCurrentUser,
+  getCurrentUser,
+  getRoleHomePath,
+  ROLE_ADMIN,
+  ROLE_USER
+} from "@/utils/auth";
 
 const CONSOLE_ROLES = [ROLE_ADMIN, ROLE_USER];
 const AUTH_MODE_FRONTEND_SESSION = "frontend-session-guard";
@@ -73,78 +81,64 @@ const router = createRouter({
           path: "dashboard",
           name: "dashboard",
           component: DashboardView,
-          meta: {
-            title: "工作台",
-            roles: CONSOLE_ROLES,
+          meta: buildMenuRouteMeta("/console/dashboard", {
             dataSource: DATA_SOURCE_BACKEND,
             statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
-          }
+          })
         },
         {
           path: "alerts",
           name: "alerts",
           component: AlertsView,
-          meta: {
-            title: "告警中心",
-            roles: CONSOLE_ROLES,
+          meta: buildMenuRouteMeta("/console/alerts", {
             dataSource: DATA_SOURCE_BACKEND,
             statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
-          }
+          })
         },
         {
           path: "bans",
           name: "bans",
           component: BansView,
-          meta: {
-            title: "封禁审批",
-            roles: [ROLE_ADMIN],
+          meta: buildMenuRouteMeta("/console/bans", {
             dataSource: DATA_SOURCE_BACKEND,
             statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
-          }
+          })
         },
         {
           path: "users",
           name: "users",
           component: UserManageView,
-          meta: {
-            title: "用户管理",
-            roles: [ROLE_ADMIN],
+          meta: buildMenuRouteMeta("/console/users", {
             dataSource: DATA_SOURCE_LOCAL,
             statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
-          }
+          })
         },
         {
           path: "rules",
           name: "rules",
           component: RuleManageView,
-          meta: {
-            title: "规则管理",
-            roles: [ROLE_ADMIN],
+          meta: buildMenuRouteMeta("/console/rules", {
             dataSource: DATA_SOURCE_LOCAL,
             statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
-          }
+          })
         },
         {
           path: "audit",
           name: "audit",
           component: AuditLogView,
-          meta: {
-            title: "审计日志",
-            roles: [ROLE_ADMIN],
+          meta: buildMenuRouteMeta("/console/audit", {
             dataSource: DATA_SOURCE_LOCAL,
             statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
-          }
+          })
         },
         {
           path: "monitor",
           name: "monitor",
           component: MonitorCenterView,
-          meta: {
-            title: "日志监控中心",
-            roles: CONSOLE_ROLES,
+          meta: buildMenuRouteMeta("/console/monitor", {
             dataSource: DATA_SOURCE_BACKEND,
             statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
-          }
+          })
         },
         {
           path: "forbidden",
@@ -161,34 +155,28 @@ const router = createRouter({
           path: "profile",
           name: "profile",
           component: ProfileView,
-          meta: {
-            title: "个人中心",
-            roles: CONSOLE_ROLES,
+          meta: buildMenuRouteMeta("/console/profile", {
             dataSource: DATA_SOURCE_LOCAL,
             statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
-          }
+          })
         },
         {
           path: "my-records",
           name: "my-records",
           component: MyRecordsView,
-          meta: {
-            title: "我的处理记录",
-            roles: CONSOLE_ROLES,
+          meta: buildMenuRouteMeta("/console/my-records", {
             dataSource: DATA_SOURCE_LOCAL,
             statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
-          }
+          })
         },
         {
           path: "disposals",
           name: "disposals",
           component: RequestActionView,
-          meta: {
-            title: "处置申请",
-            roles: CONSOLE_ROLES,
+          meta: buildMenuRouteMeta("/console/disposals", {
             dataSource: DATA_SOURCE_LOCAL,
             statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
-          }
+          })
         }
       ]
     },
