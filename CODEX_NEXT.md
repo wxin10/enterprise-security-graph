@@ -21,10 +21,10 @@
 - [ ] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 当前继续处于系统一致性整改阶段，但整改重点已从“鉴权与联调真实性收口”切换到“登录角色由账号决定”
-- 当前系统真实状态为：登录页仍保留“管理员 / 普通用户”手动入口，而 `auth.js` 仍依赖登录页传入 `role` 来生成当前用户
-- 本轮进入“系统一致性整改批 3：登录角色改为账号决定”，只允许修改 4 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/views/LoginView.vue`、`frontend/src/utils/auth.js`
-- 本轮目标不是新增功能，而是在不引入后端鉴权接口的前提下，把“角色手选”收口成“账号决定角色”
+- 当前继续处于系统一致性整改阶段，但整改重点已从“登录角色由账号决定”切换到“登录提示与本地会话边界说明收口”
+- 当前系统真实状态为：登录角色已改为由账号决定，但登录、菜单权限和路由守卫仍属于前端本地会话链路，页面表达还需要进一步收口
+- 本轮进入“系统一致性整改批 4：登录提示与本地会话边界说明收口”，只允许修改 4 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/views/LoginView.vue`、`frontend/src/layouts/AppLayout.vue`
+- 本轮目标不是新增功能，而是把登录提示、主布局状态文案和当前主结论统一到“本地会话 + 部分后端接口联调”的真实状态
 
 ---
 
@@ -33,20 +33,20 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-系统一致性整改批 3：登录角色改为账号决定
+系统一致性整改批 4：登录提示与本地会话边界说明收口
 
 ## 当前批次目标
-- 去掉登录页中的“控制台入口”角色手动选择，不再允许用户手动选管理员 / 普通用户
-- 在 `frontend/src/utils/auth.js` 中新增本地账号到角色的映射逻辑，让登录角色改由账号自动解析
-- 保持当前会话结构、路由守卫和主布局兼容，不改动 `router` 与 `layout`
-- 在未识别账号时明确拒绝登录，在识别成功后自动写入对应角色并跳转到首页
-- 将进度文件同步切换到新的整改批状态，为后续继续细化本地会话边界或后端鉴权方案留出入口
+- 保留当前“账号决定角色”的登录逻辑，不新增功能、不改动后端
+- 将登录页提示收口为正式、克制、专业的控制台会话表达，不再沿用模糊口径
+- 将主布局顶部状态文案收口为“本地会话登录 + 分页面数据接入”的真实描述
+- 在进度文件中明确：登录角色已改为账号决定，但当前登录与权限控制仍属于前端本地会话链路
+- 将进度文件同步切换到新的整改批状态，为后续继续细化本地会话边界说明留出入口
 
 ## 当前批次允许修改的文件
 - `CODEX_NEXT.md`
 - `CODEX_PROGRESS.md`
 - `frontend/src/views/LoginView.vue`
-- `frontend/src/utils/auth.js`
+- `frontend/src/layouts/AppLayout.vue`
 
 ## 当前批次禁止修改的文件
 - 除本批允许修改的 4 个文件外，其余业务文件默认禁止修改
@@ -56,7 +56,7 @@
   - `backend/app/services/`
   - `frontend/src/api/http.js`
   - `frontend/src/router/index.js`
-  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/utils/auth.js`
   - `frontend/src/styles/global.css`
   - `frontend/src/utils/mock-storage.js`
   - `frontend/src/views/AuditLogView.vue`
@@ -75,20 +75,20 @@
 - 已检查 `git status --short`
 - 已确认当前分支为 `current-ui-sync`
 - 已检查 `frontend/src/views/LoginView.vue`
+- 已检查 `frontend/src/layouts/AppLayout.vue`
 - 已检查 `frontend/src/utils/auth.js`
 - 已检查 `frontend/src/router/index.js`
-- 已检查 `frontend/src/layouts/AppLayout.vue`
-- 已确认登录页当前通过 `formModel.role` 和 `LOGIN_ROLE_OPTIONS` 手动选择控制台入口
-- 已确认 `auth.js` 当前通过 `buildMockUser(formModel)` 读取登录页传入的 `role` 生成当前用户
-- 已确认 `router` 与 `layout` 只依赖会话中的 `currentUser.role`，因此当前结构可以继续复用
-- 已确认本轮只需改登录页、账号映射和进度文件，不需要触碰 backend、`router`、`layout` 或业务页面本体
+- 已确认登录角色已由账号决定，`auth.js` 继续负责本地会话用户生成与保存
+- 已确认菜单权限与路由守卫仍由 `currentUser.role` 驱动，属于前端本地会话链路
+- 已确认工作台、告警、封禁、日志监控等页面存在后端接口接入，但并非所有页面都已联通后端
+- 已确认本轮只需改登录提示、主布局状态文案和进度文件，不需要触碰 backend、`auth.js`、`router` 或业务页面本体
 
 ## 当前批次验收标准
-- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“系统一致性整改批 3”状态
-- `frontend/src/views/LoginView.vue` 已删除“控制台入口”角色选择区域，只保留账号和密码输入
-- `frontend/src/utils/auth.js` 已新增本地账号到角色的映射逻辑，登录角色由账号自动决定
-- 未识别账号时会拒绝登录，识别成功后会自动写入对应角色并跳转首页
-- 本批不改 backend、`router`、`layout`、`http.js` 或任何业务页面本体
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“系统一致性整改批 4”状态
+- `frontend/src/views/LoginView.vue` 已将登录提示改为符合当前控制台会话机制的正式表达
+- `frontend/src/layouts/AppLayout.vue` 已将顶部状态文案改为符合“本地会话 + 分页面数据接入”真实状态的说明
+- `CODEX_PROGRESS.md` 已明确“登录角色已改为账号决定”与“当前登录和权限控制仍属前端本地会话链路”
+- 本批不改 backend、`auth.js`、`router`、`http.js` 或任何业务页面本体
 
 ---
 
@@ -188,9 +188,9 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 已从“系统一致性整改批 2”切换为“系统一致性整改批 3”
-- 本轮仅处理登录角色由账号决定，不新增页面、不改 backend、不扩展业务功能
-- 本轮完成后，再判断是否需要进入下一轮一致性整改，而不是继续保留角色手动选择入口
+- 已从“系统一致性整改批 3”切换为“系统一致性整改批 4”
+- 本轮仅处理登录提示与本地会话边界说明，不新增页面、不改 backend、不扩展业务功能
+- 本轮完成后，再判断是否需要进入下一轮一致性整改，而不是继续保留模糊或过满的系统表达
 
 ---
 

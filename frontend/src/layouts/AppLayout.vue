@@ -81,7 +81,7 @@
 // 作用说明：
 // 1. 管理系统主布局、菜单跳转和顶部标题。
 // 2. 根据当前登录角色筛选可见菜单，并在顶部和侧边栏展示用户信息。
-// 3. 根据当前路由 meta 展示页面实现状态说明，避免把所有页面统一写成同一种联调口径。
+// 3. 根据当前路由 meta 展示页面实现状态说明，明确区分本地会话链路与分页面数据接入状态。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Bell, DataLine, Document, DocumentAdd, Lock, Monitor, SetUp, Tickets, User, UserFilled } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
@@ -154,8 +154,16 @@ const currentPageTitle = computed(() => {
 });
 
 const currentPageStatusText = computed(() => {
-  const statusNote = String(route.meta?.statusNote || "").trim();
-  return statusNote || "当前页面访问范围按前端会话守卫生效，模块数据按页面实现分别接入";
+  const dataSource = String(route.meta?.dataSource || "").trim();
+  if (dataSource === "backend-api") {
+    return "当前控制台登录与菜单权限按本地会话状态生效，本页数据已接入后端接口。";
+  }
+
+  if (dataSource === "local-state") {
+    return "当前控制台登录与菜单权限按本地会话状态生效，本页数据仍以本地状态为主。";
+  }
+
+  return "当前控制台登录与菜单权限按本地会话状态生效，模块数据按页面实现分别接入。";
 });
 
 const currentRoleLabel = computed(() => {

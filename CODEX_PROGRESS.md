@@ -42,13 +42,13 @@
 - [ ] 当前处于中断恢复模式
 
 ## 当前主结论
-- 当前业务页面和后端核心业务接口已基本落地，但登录入口仍保留“管理员 / 普通用户”手动选择，仍需继续收口
+- 当前业务页面和后端核心业务接口已基本落地，登录角色也已经改为由账号决定，但登录提示与会话边界说明仍需继续收口
 - 后端当前已开放图谱、告警、封禁、监控接口，但没有真实登录 / 用户 / 权限接口
 - 前端当前真实状态已可拆分为两类：
   - 已真实调用后端接口的页面模块：`DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView`
   - 仍以本地会话或本地存储逻辑为主的页面模块：登录、菜单、路由权限、处置申请、我的记录、审计展示、用户管理、规则管理、个人中心
-- 其中登录链路的具体问题是：登录页仍通过 `formModel.role` 手动传入角色，`auth.js` 仍按页面传入的 `role` 生成当前用户
-- 因此当前应切换到“系统一致性整改批 3：登录角色改为账号决定”，把角色手选收口为账号自动解析
+- 当前登录角色已改为由账号决定，但登录态建立、菜单过滤和路由权限控制仍属于前端本地会话链路
+- 因此当前应切换到“系统一致性整改批 4：登录提示与本地会话边界说明收口”，把系统表达统一到“本地会话 + 部分后端接口联调”的真实状态
 - 最近一次已确认落地的文件：
   - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
@@ -77,13 +77,13 @@
   - `CODEX_NEXT.md`
   - `CODEX_PROGRESS.md`
   - `frontend/src/views/LoginView.vue`
-  - `frontend/src/utils/auth.js`
+  - `frontend/src/layouts/AppLayout.vue`
 - 当前 git 工作区状态：干净（以本批开始前 `git status --short` 为准）
 - 当前是否适合继续编码：适合继续做小批量一致性整改
   - 本批开始前 `git status --short` 为空，当前分支为 `current-ui-sync`
   - 已确认后端当前没有真实登录 / 用户 / 权限接口，因此本轮仍不引入后端鉴权
-  - 已确认 `router/index.js` 与 `AppLayout.vue` 只依赖会话中的 `currentUser.role`，当前结构可以直接复用
-  - 本轮应优先收口 `LoginView.vue` 与 `auth.js` 的登录链路，让角色由账号自动决定，而不是继续保留手动角色入口
+  - 已确认登录角色已由账号决定，但 `router/index.js`、`AppLayout.vue` 与 `auth.js` 继续共同构成本地会话登录和权限链路
+  - 本轮应优先收口 `LoginView.vue` 与 `AppLayout.vue` 的表达边界，让登录提示和顶部状态文案都准确说明当前实现状态
 
 ---
 
@@ -867,6 +867,40 @@
   - 已确认 `router` 与 `layout` 只依赖会话中的 `currentUser.role`，因此本轮无需改动这两个文件
   - 本批不修改 backend、`router/index.js`、`layouts/AppLayout.vue`、`http.js` 或任何业务页面本体，只收口登录角色来源
 
+### [批次 20] 2026-04-05 12:44
+- 任务目标：执行“系统一致性整改批 4”，收口登录提示、主布局状态文案和本地会话边界说明
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/layouts/AppLayout.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/layouts/AppLayout.vue`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/views/LoginView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：更新当前主结论，明确登录角色已改为账号决定，但登录与权限控制仍属前端本地会话链路，并补录本批历史
+  - `CODEX_NEXT.md`：切换到“系统一致性整改批 4：登录提示与本地会话边界说明收口”，并限制本轮只改 4 个文件
+  - `frontend/src/views/LoginView.vue`：保留当前账号决定角色逻辑，仅把登录说明与底部提示改为更克制的控制台会话表达
+  - `frontend/src/layouts/AppLayout.vue`：保留菜单结构和退出逻辑，仅把顶部状态文案改为“本地会话 + 分页面数据接入”的真实说明
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 后续如继续推进，优先考虑“系统一致性整改批 5：本地会话提示与无权限说明页口径统一”
+  - 在后端登录 / 用户 / 权限接口方案明确前，不要把当前系统表述为后端完整统一鉴权
+- 验收说明：
+  - 已检查 `frontend/src/views/LoginView.vue`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/utils/auth.js`、`frontend/src/router/index.js`、`CODEX_NEXT.md`、`CODEX_PROGRESS.md`
+  - 已确认登录角色已由账号决定，但登录、菜单权限和路由守卫仍属于前端本地会话链路
+  - 已确认工作台、告警、封禁、日志监控等页面存在后端接口接入，但并非所有页面都已联通后端
+  - 本批不修改 backend、`auth.js`、`router/index.js`、`http.js` 或任何业务页面本体，只收口系统表达和边界说明
+
 ---
 
 # 6. 已验收功能汇总
@@ -898,6 +932,7 @@
 - [x] 登录页与主布局系统口径收口完成
 - [x] 鉴权与联调真实性表达收口完成
 - [x] 登录角色改为账号决定
+- [x] 登录提示与本地会话边界说明收口完成
 - [ ] 整仓 `vite build` 构建级验收
 
 ---
