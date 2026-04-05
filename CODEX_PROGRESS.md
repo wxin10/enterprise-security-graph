@@ -37,9 +37,13 @@
 - [x] 管理员页面落地完成
 - [x] 白色主题统一完成
 - [x] 当前业务批次已全部完成，等待验收
+- [x] 当前阶段业务开发已完成
 - [ ] 当前处于中断恢复模式
 
 ## 当前主结论
+- 当前阶段业务开发已完成；当前不再继续新增功能或修改业务源码
+- 当前只剩整仓 `vite build` 构建级验收待通过
+- 最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`
 - 最近一次已确认落地的文件：
   - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
@@ -66,7 +70,7 @@
   - 本轮未发现这 9 个文件中仍需继续开发的业务缺口；当前阻塞点仍是构建环境 `esbuild spawn EPERM`，而不是这批文件本身缺页、缺入口或缺主题落地
 - 当前建议下一批处理的文件：无待办业务批
   - 当前继续保持验收模式，不再追加新的业务编码批次
-  - 若环境允许，下一轮继续验收并优先重新执行 `frontend` 整仓构建级校验
+  - 下一轮若继续处理，仍应优先做 `frontend` 整仓构建级验收，而不是新增业务开发批
 - 当前 git 工作区状态：非干净
   - `M CODEX_NEXT.md`
   - `M CODEX_PROGRESS.md`
@@ -82,7 +86,7 @@
 - 当前是否适合继续编码：当前不再继续追加业务编码
   - 本轮开始前 `git status --short` 虽非干净，但与上一批已确认落地状态一致，不构成中断恢复情形
   - 本轮“进度纠偏批”已确认指定 9 个文件均为已落地且已登记状态，因此当前没有需要立刻补写的管理员业务批
-  - 本轮继续保持验收模式；已于 2026-04-05 09:21 再次实际执行 `frontend` 下的 `npm.cmd run build`，但在加载 `vite.config.js` 时仍受当前环境 `esbuild spawn EPERM` 阻塞
+  - 当前继续保持验收模式；最近一次实际执行 `frontend` 下的 `npm.cmd run build` 时，仍在加载 `vite.config.js` 阶段受 `esbuild spawn EPERM` 阻塞
   - 补充静态核验已通过：`node --check frontend/src/router/index.js` 通过，`@vue/compiler-sfc` 对本轮相关 7 个 Vue 文件的解析与模板编译通过，`git diff --check` 仅保留 LF/CRLF 提示
   - 当前没有待继续编码的最小业务批；后续应等待可执行构建环境或新的明确业务需求，而不是继续扩展页面或权限逻辑
 
@@ -730,6 +734,41 @@
   - `frontend/src/layouts/AppLayout.vue` 已包含 `/console/users`、`/console/rules`、`/console/audit` 菜单入口
   - `frontend/src/styles/global.css`、`frontend/src/views/DashboardView.vue`、`frontend/src/components/ChartPlaceholder.vue`、`frontend/src/components/StatCard.vue` 的白色主题相关改动均已真实写入
   - 本轮纠偏确认：已落地但未登记的文件为无；仍需继续开发的文件为无
+
+### [批次 16] 2026-04-05 09:43
+- 任务目标：执行“最终同步收口”，仅同步进度文件当前结论，不继续开发新功能或修改业务源码
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/components/ChartPlaceholder.vue`
+  - `M frontend/src/components/StatCard.vue`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/styles/global.css`
+  - `M frontend/src/views/DashboardView.vue`
+  - `?? frontend/src/views/AuditLogView.vue`
+  - `?? frontend/src/views/RuleManageView.vue`
+  - `?? frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：明确写明“当前阶段业务开发已完成”“当前只剩整仓 `vite build` 构建级验收待通过”，并同步当前 git 工作区仍为非干净状态
+  - `CODEX_NEXT.md`：继续保持验收模式与“无待办业务批”，将下一步收口为仅做构建级验收
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 无待办业务批
+  - 若继续运行自动化，仅建议保留为低频验收线程；在构建环境恢复前，不建议再按 recurring 方式高频重复执行
+- 验收说明：
+  - 本轮未修改 `AGENTS.md`、`.codex/config.toml` 或任何 `frontend` 业务文件
+  - 当前 git 工作区并不干净，因此未将“当前 git 工作区状态”改写为干净
+  - 当前阶段业务开发已完成，当前仅剩整仓 `vite build` 构建级验收待通过
+  - 最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`
 
 ---
 

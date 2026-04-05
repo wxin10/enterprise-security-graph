@@ -21,9 +21,9 @@
 - [x] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 本轮已完成“进度纠偏批”，不需要恢复模式，也不再继续追加新的业务编码批次
-- 已按真实工作区状态重新核对 9 个重点文件，确认它们均已真实落地，且此前已经登记，不存在“已落地但未登记”的管理员相关文件
-- 当前仍保持验收模式；`frontend` 的 `npm.cmd run build` 最近一次执行仍受 `esbuild spawn EPERM` 阻塞，`node --check` 与相关 Vue SFC 编译检查通过
+- 本轮已完成“最终同步收口”，不需要恢复模式，也不再继续追加新的业务编码批次
+- 当前阶段业务开发已完成，当前仅剩整仓 `vite build` 构建级验收待通过
+- 当前仍保持验收模式；最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`，`node --check` 与相关 Vue SFC 编译检查通过
 - 下一轮继续保持验收模式；若环境允许，优先重新执行 `frontend` 构建级校验
 
 ---
@@ -33,12 +33,12 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-无待办业务批（进度已纠偏，等待可执行构建环境）
+无待办业务批（业务开发完成，仅待构建级验收）
 
 ## 当前批次目标
-- 已按“进度纠偏批”重新核对 9 个重点文件：`frontend/src/views/AuditLogView.vue`、`frontend/src/views/RuleManageView.vue`、`frontend/src/views/UserManageView.vue`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/styles/global.css`、`frontend/src/views/DashboardView.vue`、`frontend/src/components/ChartPlaceholder.vue`、`frontend/src/components/StatCard.vue`
-- 上述 9 个文件均已真实落地；其中管理员页面本体、管理员路由入口、管理员菜单入口和白色主题相关改动都已经写入工作区
-- 本轮明确结论：已落地但未登记的文件为无；仍需继续开发的文件为无；当前不生成新的业务开发批
+- 当前阶段业务开发已完成，不再继续新增功能或修改业务源码
+- 当前只剩整仓 `vite build` 构建级验收待通过
+- 最近一次构建级验收的已知阻塞点仍为 `esbuild spawn EPERM`
 - 后续默认只做整体验收、工作区状态核对与可执行的构建级校验；若后续真发现业务缺口，再据实生成新的最小业务批
 
 ## 当前批次允许修改的文件
@@ -68,13 +68,13 @@
 - 已读 `CODEX_PROGRESS.md`
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
-- 已完成 2026-04-05 09:32 的进度纠偏：指定 9 个重点文件均已核对为真实落地，且此前已经登记
+- 已完成最终同步收口：当前阶段业务开发已完成，且当前无待办业务批
 - 已确认当前没有待继续编码的最小业务批，后续应先做验收而不是扩展范围
 - 已完成多次验收尝试：最近一次构建级验收仍失败于 `esbuild spawn EPERM`，但 `node --check frontend/src/router/index.js` 与相关 Vue 文件 SFC 编译检查通过
 - 已明确下一轮继续只核验整体状态，不预先改动路由、权限、页面本体或全局样式入口
 
 ## 当前批次验收标准
-- 已在 `CODEX_PROGRESS.md` 中明确记录“进度纠偏批”结论，并写清“已落地但未登记”为无、“仍需继续开发”为无
+- 已在 `CODEX_PROGRESS.md` 中明确记录“当前阶段业务开发已完成”“当前只剩整仓 `vite build` 构建级验收待通过”
 - 本文件已标记“无待办业务批”，并继续保持验收模式
 - 下一轮如执行验收，优先重试 `frontend` 构建级校验；若环境仍阻塞，只输出真实核验结论，不强行继续编码
 
