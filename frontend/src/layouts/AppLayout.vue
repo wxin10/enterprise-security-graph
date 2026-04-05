@@ -4,7 +4,7 @@
     作用说明：
     1. 提供系统主布局，采用左侧菜单 + 顶部栏 + 内容区结构。
     2. 承载仪表盘、告警管理、封禁管理与日志监控中心等业务页面。
-    3. 在现有布局基础上接入角色菜单和用户信息展示。
+    3. 在现有布局基础上接入角色菜单、用户信息与页面实现状态说明。
   -->
   <div class="layout-page">
     <el-container class="layout-shell">
@@ -51,7 +51,7 @@
             <div class="header-title">{{ currentPageTitle }}</div>
             <div class="header-status">
               <span class="status-dot status-dot--success"></span>
-              当前版本已接入核心业务接口，控制台登录与菜单权限按当前会话状态加载
+              {{ currentPageStatusText }}
             </div>
           </div>
 
@@ -81,7 +81,7 @@
 // 作用说明：
 // 1. 管理系统主布局、菜单跳转和顶部标题。
 // 2. 根据当前登录角色筛选可见菜单，并在顶部和侧边栏展示用户信息。
-// 3. 通过定时器更新时间，展示控制台当前在线状态。
+// 3. 根据当前路由 meta 展示页面实现状态说明，避免把所有页面统一写成同一种联调口径。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Bell, DataLine, Document, DocumentAdd, Lock, Monitor, SetUp, Tickets, User, UserFilled } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
@@ -151,6 +151,11 @@ const activeMenu = computed(() => route.path);
 
 const currentPageTitle = computed(() => {
   return route.meta?.title || "控制台";
+});
+
+const currentPageStatusText = computed(() => {
+  const statusNote = String(route.meta?.statusNote || "").trim();
+  return statusNote || "当前页面访问范围按前端会话守卫生效，模块数据按页面实现分别接入";
 });
 
 const currentRoleLabel = computed(() => {

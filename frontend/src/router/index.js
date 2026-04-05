@@ -2,7 +2,7 @@
 // 作用说明：
 // 1. 统一管理前端页面路由。
 // 2. 保持登录页与业务控制台布局分离，便于后续继续扩展权限系统。
-// 3. 当前阶段在现有页面基础上接入前端模拟角色守卫，区分管理员和普通用户访问范围。
+// 3. 当前阶段的访问控制由前端会话守卫生效，并通过路由 meta 明确区分“后端接口数据页”和“本地状态页”。
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
 
@@ -22,6 +22,22 @@ import UserManageView from "@/views/UserManageView.vue";
 import { canAccessRoles, getCurrentUser, getRoleHomePath, ROLE_ADMIN, ROLE_USER } from "@/utils/auth";
 
 const CONSOLE_ROLES = [ROLE_ADMIN, ROLE_USER];
+const AUTH_MODE_FRONTEND_SESSION = "frontend-session-guard";
+const DATA_SOURCE_BACKEND = "backend-api";
+const DATA_SOURCE_LOCAL = "local-state";
+
+const ROUTE_STATUS_NOTES = {
+  [DATA_SOURCE_BACKEND]: "当前页面数据已接入后端接口，访问范围按前端会话守卫生效",
+  [DATA_SOURCE_LOCAL]: "当前页面数据仍以本地状态为主，访问范围按前端会话守卫生效"
+};
+
+function getRouteStatusNote(dataSource) {
+  return ROUTE_STATUS_NOTES[dataSource] || "当前页面访问范围按前端会话守卫生效，模块数据按页面实现分别接入";
+}
+
+function findNearestRouteRecord(to, predicate) {
+  return [...to.matched].reverse().find(predicate);
+}
 
 const router = createRouter({
   history: createWebHistory(),
@@ -43,7 +59,10 @@ const router = createRouter({
       component: AppLayout,
       meta: {
         requiresAuth: true,
-        roles: CONSOLE_ROLES
+        roles: CONSOLE_ROLES,
+        authMode: AUTH_MODE_FRONTEND_SESSION,
+        dataSource: DATA_SOURCE_LOCAL,
+        statusNote: "当前控制台访问范围按前端会话守卫生效，页面数据按模块分别接入"
       },
       children: [
         {
@@ -56,7 +75,9 @@ const router = createRouter({
           component: DashboardView,
           meta: {
             title: "工作台",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           }
         },
         {
@@ -65,7 +86,9 @@ const router = createRouter({
           component: AlertsView,
           meta: {
             title: "告警中心",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           }
         },
         {
@@ -74,7 +97,9 @@ const router = createRouter({
           component: BansView,
           meta: {
             title: "封禁审批",
-            roles: [ROLE_ADMIN]
+            roles: [ROLE_ADMIN],
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           }
         },
         {
@@ -83,7 +108,9 @@ const router = createRouter({
           component: UserManageView,
           meta: {
             title: "用户管理",
-            roles: [ROLE_ADMIN]
+            roles: [ROLE_ADMIN],
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         },
         {
@@ -92,7 +119,9 @@ const router = createRouter({
           component: RuleManageView,
           meta: {
             title: "规则管理",
-            roles: [ROLE_ADMIN]
+            roles: [ROLE_ADMIN],
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         },
         {
@@ -101,7 +130,9 @@ const router = createRouter({
           component: AuditLogView,
           meta: {
             title: "审计日志",
-            roles: [ROLE_ADMIN]
+            roles: [ROLE_ADMIN],
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         },
         {
@@ -110,7 +141,9 @@ const router = createRouter({
           component: MonitorCenterView,
           meta: {
             title: "日志监控中心",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           }
         },
         {
@@ -119,7 +152,9 @@ const router = createRouter({
           component: ForbiddenView,
           meta: {
             title: "无权限访问",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         },
         {
@@ -128,7 +163,9 @@ const router = createRouter({
           component: ProfileView,
           meta: {
             title: "个人中心",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         },
         {
@@ -137,7 +174,9 @@ const router = createRouter({
           component: MyRecordsView,
           meta: {
             title: "我的处理记录",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         },
         {
@@ -146,7 +185,9 @@ const router = createRouter({
           component: RequestActionView,
           meta: {
             title: "处置申请",
-            roles: CONSOLE_ROLES
+            roles: CONSOLE_ROLES,
+            dataSource: DATA_SOURCE_LOCAL,
+            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
           }
         }
       ]
@@ -161,14 +202,16 @@ const router = createRouter({
   ]
 });
 
-// 当前阶段采用前端模拟登录态。
-// 在不改动现有页面结构的前提下，为控制台路由补充基础鉴权和角色拦截。
+// 当前阶段的登录态和角色权限仍由前端会话驱动。
+// backend 尚未提供登录 / 用户 / 权限接口，因此这里明确采用前端守卫，而不是伪装成后端统一鉴权。
 router.beforeEach((to) => {
   const currentUser = getCurrentUser();
   const currentRoleHomePath = currentUser ? getRoleHomePath(currentUser.role) : "/login";
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth);
-  const accessMeta = [...to.matched].reverse().find((record) => Array.isArray(record.meta?.roles));
-  const accessRoles = accessMeta?.meta?.roles || [];
+  const authModeRecord = findNearestRouteRecord(to, (record) => typeof record.meta?.authMode === "string");
+  const authMode = authModeRecord?.meta?.authMode || AUTH_MODE_FRONTEND_SESSION;
+  const accessMetaRecord = findNearestRouteRecord(to, (record) => Array.isArray(record.meta?.roles));
+  const accessRoles = accessMetaRecord?.meta?.roles || [];
 
   if (to.path === "/login") {
     if (currentUser) {
@@ -178,7 +221,7 @@ router.beforeEach((to) => {
     return true;
   }
 
-  if (requiresAuth && !currentUser) {
+  if (requiresAuth && authMode === AUTH_MODE_FRONTEND_SESSION && !currentUser) {
     return "/login";
   }
 

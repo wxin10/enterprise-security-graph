@@ -42,10 +42,12 @@
 - [ ] 当前处于中断恢复模式
 
 ## 当前主结论
-- 当前业务页面和后端核心业务接口已基本落地，但系统表达口径并不一致
+- 当前业务页面和后端核心业务接口已基本落地，但“鉴权链路”和“联调范围”的系统表达仍需继续收口
 - 后端当前已开放图谱、告警、封禁、监控接口，但没有真实登录 / 用户 / 权限接口
-- 前端当前为“部分真实业务接口联调 + 本地登录与本地路由权限”并存状态
-- 因此当前不应继续保持单纯验收模式，而应切换到“系统一致性整改批 1：登录页与主布局口径收口”
+- 前端当前真实状态已可拆分为两类：
+  - 已真实调用后端接口的页面模块：`DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView`
+  - 仍以本地会话或本地存储逻辑为主的页面模块：登录、菜单、路由权限、处置申请、我的记录、审计展示、用户管理、规则管理、个人中心
+- 因此当前不应把系统表达为“完整统一鉴权”或“主要业务全面联调”，而应切换到“系统一致性整改批 2：鉴权与联调真实性收口”
 - 最近一次已确认落地的文件：
   - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
@@ -73,14 +75,14 @@
 - 当前建议下一批处理的文件：
   - `CODEX_NEXT.md`
   - `CODEX_PROGRESS.md`
-  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/router/index.js`
   - `frontend/src/layouts/AppLayout.vue`
 - 当前 git 工作区状态：干净（以本批开始前 `git status --short` 为准）
 - 当前是否适合继续编码：适合继续做小批量一致性整改
   - 本批开始前 `git status --short` 为空，当前分支为 `current-ui-sync`
-  - 已确认后端当前没有真实登录 / 用户 / 权限接口，因此登录页和主布局不能继续沿用“演示”或“联调完全正常”的表述
-  - 已确认前端业务数据接口存在部分真实联调，但登录和路由权限仍由 `frontend/src/utils/auth.js` 本地会话逻辑驱动
-  - 本轮应先收口登录页与主布局口径，再决定后续是否需要继续处理路由守卫、鉴权链路或接口接入问题
+  - 已确认后端当前没有真实登录 / 用户 / 权限接口，因此当前权限控制不能表述为后端统一鉴权
+  - 已确认 `frontend/src/api/*.js` 已服务于工作台、告警、封禁和日志监控等后端接口调用，但登录和路由权限仍由 `frontend/src/utils/auth.js` 本地会话逻辑驱动
+  - 本轮应优先收口 `router/index.js` 与 `AppLayout.vue` 的真实性表达，再决定后续是否继续细化登录入口、本地会话边界或后端鉴权方案
 
 ---
 
@@ -796,6 +798,40 @@
   - 已确认 `frontend/src/api/http.js` 和 `frontend/src/api/*.js` 已对接部分真实业务接口，但登录态与路由权限仍基于本地会话逻辑
   - 本批不修改 backend、`router/index.js`、`auth.js`、`http.js` 或任何业务页面本体，只做系统口径收口
 
+### [批次 18] 2026-04-05 11:15
+- 任务目标：执行“系统一致性整改批 2”，收口鉴权与联调真实性表达，并把路由守卫与主布局状态文案统一到当前真实实现状态
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：补录当前真实联调范围与本地鉴权范围，明确本轮进入“系统一致性整改批 2”
+  - `CODEX_NEXT.md`：将当前批次切换为“系统一致性整改批 2：鉴权与联调真实性收口”，并限制只改 4 个文件
+  - `frontend/src/router/index.js`：不改整体路由结构，只通过 meta、注释和守卫表达明确当前为前端会话守卫，并标注各页面的数据来源状态
+  - `frontend/src/layouts/AppLayout.vue`：保留菜单结构与退出逻辑，只根据当前路由 meta 展示更准确的顶部状态说明
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 后续如继续推进，优先考虑“系统一致性整改批 3：登录入口与本地会话链路边界收口”
+  - 在后端登录 / 用户 / 权限接口方案明确前，不要把当前系统表述为完整统一鉴权
+- 验收说明：
+  - 已检查 `frontend/src/api/http.js`、`frontend/src/api/` 下全部文件、`frontend/src/router/index.js`、`frontend/src/utils/auth.js`、`frontend/src/utils/mock-storage.js`、`frontend/src/views/LoginView.vue`、`frontend/src/layouts/AppLayout.vue`、`backend/app/api/`、`backend/app/services/`
+  - 已确认 `DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView` 已真实调用后端接口
+  - 已确认当前登录不是后端真实鉴权，管理员 / 普通用户权限控制也仍属于前端会话守卫
+  - 本批不修改 backend、`LoginView.vue`、`auth.js`、`http.js` 或任何业务页面本体，只做真实性表达收口
+
 ---
 
 # 6. 已验收功能汇总
@@ -825,6 +861,7 @@
 - [x] 布局壳与工作台白色主题微调已完成
 - [x] 白色主题统一完成
 - [x] 登录页与主布局系统口径收口完成
+- [x] 鉴权与联调真实性表达收口完成
 - [ ] 整仓 `vite build` 构建级验收
 
 ---
@@ -834,6 +871,7 @@
 - 风险 1：整仓 `vite build` 已多次尝试执行，但受当前环境 `esbuild spawn EPERM` 持续阻塞，暂时拿不到构建级验收结果
 - 风险 2：普通用户角色必须持续保持“一线运维 / 安全分析员”定位，后续若再扩展页面或验收权限边界，不能误改为访客或只读模式
 - 风险 3：当前登录、菜单和路由权限仍依赖前端本地会话逻辑；如果后续要做统一鉴权，必须先明确后端登录 / 用户 / 权限接口方案
+- 风险 4：当前前端已形成“部分页面走后端接口、部分页面仍走本地状态”的混合形态；后续若继续扩展页面，需要持续避免把局部联调误写成全局联调
 
 ---
 
