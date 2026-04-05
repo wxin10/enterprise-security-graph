@@ -1,11 +1,11 @@
 // 文件路径：frontend/src/utils/auth.js
 // 作用说明：
-// 1. 统一维护当前版本的控制台会话信息、角色、菜单和按钮权限配置。
+// 1. 统一维护控制台会话信息、角色、菜单和按钮权限配置。
 // 2. 为登录页、路由守卫、主布局菜单和页面权限控制提供公共方法。
-// 3. 当前阶段登录已切换为调用后端鉴权接口，前端主要负责保存 session_token 和当前用户信息。
+// 3. 统一收口当前用户读取、会话恢复与会话清理逻辑。
 
-// 继续沿用旧的用户存储键名，避免升级当前批次后已有会话立即失效。
-export const STORAGE_USER_KEY = "mock_login_user";
+export const STORAGE_USER_KEY = "console_current_user";
+export const LEGACY_STORAGE_USER_KEY = "mock_login_user";
 export const STORAGE_SESSION_TOKEN_KEY = "console_session_token";
 export const BACKEND_BASE_URL = "http://127.0.0.1:5000";
 
@@ -94,6 +94,8 @@ const LEGACY_ACCOUNT_USER_TEMPLATES = {
   }
 };
 
+let restoreSessionPromise = null;
+
 function normalizeAccountName(username) {
   return String(username || "").trim().toLowerCase();
 }
@@ -107,6 +109,23 @@ function normalizeStoredUser(user) {
     ...user,
     role: normalizeRole(user.role)
   };
+}
+
+function removeUserStorage() {
+  sessionStorage.removeItem(STORAGE_USER_KEY);
+  sessionStorage.removeItem(LEGACY_STORAGE_USER_KEY);
+}
+
+function resolveStoredUser(rawValue) {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return normalizeStoredUser(JSON.parse(rawValue));
+  } catch (error) {
+    return buildLegacyUserByAccount(rawValue);
+  }
 }
 
 function buildLegacyUserByAccount(username) {
@@ -177,11 +196,12 @@ export function saveCurrentUser(user) {
   const normalizedUser = normalizeStoredUser(user);
 
   if (!normalizedUser) {
-    sessionStorage.removeItem(STORAGE_USER_KEY);
+    removeUserStorage();
     return null;
   }
 
   sessionStorage.setItem(STORAGE_USER_KEY, JSON.stringify(normalizedUser));
+  sessionStorage.removeItem(LEGACY_STORAGE_USER_KEY);
   return normalizedUser;
 }
 
@@ -198,71 +218,109 @@ export function saveCurrentSession(sessionPayload = {}) {
   return resolvedUser;
 }
 
-export function clearCurrentUser() {
-  sessionStorage.removeItem(STORAGE_USER_KEY);
+export function clearCurrentSession() {
+  removeUserStorage();
   sessionStorage.removeItem(STORAGE_SESSION_TOKEN_KEY);
 }
 
 export function getCurrentUser() {
-  const rawValue = sessionStorage.getItem(STORAGE_USER_KEY);
-  if (!rawValue) {
-    return null;
+  const currentRawValue = sessionStorage.getItem(STORAGE_USER_KEY);
+  const currentUser = resolveStoredUser(currentRawValue);
+
+  if (currentUser) {
+    if (currentRawValue !== JSON.stringify(currentUser)) {
+      saveCurrentUser(currentUser);
+    }
+    return currentUser;
   }
 
-  try {
-    const parsedValue = JSON.parse(rawValue);
-    const normalizedUser = normalizeStoredUser(parsedValue);
-
-    if (!normalizedUser) {
-      sessionStorage.removeItem(STORAGE_USER_KEY);
-      return null;
-    }
-
-    return normalizedUser;
-  } catch (error) {
-    // 兼容旧版本可能直接把账号字符串写入 sessionStorage 的情况。
-    // 这不是当前主链路，只是避免已有浏览器会话在升级后立即失效。
-    const fallbackUser = buildLegacyUserByAccount(rawValue);
-    if (!fallbackUser) {
-      sessionStorage.removeItem(STORAGE_USER_KEY);
-      return null;
-    }
-
-    saveCurrentUser(fallbackUser);
-    return fallbackUser;
+  if (currentRawValue) {
+    sessionStorage.removeItem(STORAGE_USER_KEY);
   }
+
+  const legacyRawValue = sessionStorage.getItem(LEGACY_STORAGE_USER_KEY);
+  const legacyUser = resolveStoredUser(legacyRawValue);
+
+  if (legacyUser) {
+    saveCurrentUser(legacyUser);
+    sessionStorage.removeItem(LEGACY_STORAGE_USER_KEY);
+    return legacyUser;
+  }
+
+  if (legacyRawValue) {
+    sessionStorage.removeItem(LEGACY_STORAGE_USER_KEY);
+  }
+
+  return null;
+}
+
+export function clearCurrentUser() {
+  clearCurrentSession();
 }
 
 export async function restoreCurrentUserFromSession() {
-  // 当前函数用于“浏览器里已有 session_token，但当前 user 丢失”时的恢复场景。
-  // 这样即使页面先落回登录页，也能通过 /api/auth/me 尝试恢复当前用户。
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    return currentUser;
+  }
+
+  if (restoreSessionPromise) {
+    return restoreSessionPromise;
+  }
+
   const sessionToken = getSessionToken();
   if (!sessionToken) {
+    clearCurrentSession();
     return null;
   }
 
-  try {
-    const response = await fetch(`${BACKEND_BASE_URL}/api/auth/me`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${sessionToken}`
-      }
-    });
+  restoreSessionPromise = (async () => {
+    try {
+      const response = await fetch(`${BACKEND_BASE_URL}/api/auth/me`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${sessionToken}`
+        }
+      });
 
-    const responseData = await response.json().catch(() => null);
+      const responseData = await response.json().catch(() => null);
 
-    if (!response.ok || typeof responseData?.code !== "number" || responseData.code !== 0 || !responseData?.data?.user) {
-      if (response.status === 401) {
-        clearCurrentUser();
+      if (!response.ok || typeof responseData?.code !== "number" || responseData.code !== 0 || !responseData?.data?.user) {
+        if (response.status === 401) {
+          clearCurrentSession();
+        }
+        return null;
       }
+
+      saveCurrentSession(responseData.data);
+      return getCurrentUser();
+    } catch (error) {
       return null;
+    } finally {
+      restoreSessionPromise = null;
     }
+  })();
 
-    saveCurrentSession(responseData.data);
-    return getCurrentUser();
-  } catch (error) {
-    // 网络异常时不主动清空 token，避免临时网络问题导致用户本地会话被立刻抹掉。
+  return restoreSessionPromise;
+}
+
+export async function ensureCurrentUser() {
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    return currentUser;
+  }
+
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    clearCurrentSession();
     return null;
   }
+
+  const restoredUser = await restoreCurrentUserFromSession();
+  if (!restoredUser && !getSessionToken()) {
+    clearCurrentSession();
+  }
+
+  return restoredUser;
 }

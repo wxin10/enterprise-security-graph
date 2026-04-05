@@ -19,7 +19,7 @@ import ProfileView from "@/views/ProfileView.vue";
 import RequestActionView from "@/views/RequestActionView.vue";
 import RuleManageView from "@/views/RuleManageView.vue";
 import UserManageView from "@/views/UserManageView.vue";
-import { canAccessRoles, getCurrentUser, getRoleHomePath, ROLE_ADMIN, ROLE_USER } from "@/utils/auth";
+import { canAccessRoles, ensureCurrentUser, getCurrentUser, getRoleHomePath, ROLE_ADMIN, ROLE_USER } from "@/utils/auth";
 
 const CONSOLE_ROLES = [ROLE_ADMIN, ROLE_USER];
 const AUTH_MODE_FRONTEND_SESSION = "frontend-session-guard";
@@ -202,10 +202,12 @@ const router = createRouter({
   ]
 });
 
-// 当前阶段的登录态和角色权限仍由前端会话驱动。
-// backend 尚未提供登录 / 用户 / 权限接口，因此这里明确采用前端守卫，而不是伪装成后端统一鉴权。
-router.beforeEach((to) => {
-  const currentUser = getCurrentUser();
+router.beforeEach(async (to) => {
+  let currentUser = getCurrentUser();
+  if (!currentUser) {
+    currentUser = await ensureCurrentUser();
+  }
+
   const currentRoleHomePath = currentUser ? getRoleHomePath(currentUser.role) : "/login";
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth);
   const authModeRecord = findNearestRouteRecord(to, (record) => typeof record.meta?.authMode === "string");

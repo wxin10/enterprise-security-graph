@@ -21,10 +21,10 @@
 - [ ] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 当前继续处于登录与鉴权链路整改阶段，但整改重点已从“后端真实登录接口落地”切换到“前端调用 backend 登录接口”
-- 当前系统真实状态为：backend 已补出 `POST /api/auth/login` 与 `GET /api/auth/me`，但 frontend 登录仍主要通过本地构造用户建立会话
-- 本轮进入“前端真实登录最小闭环批 2：前端调用 backend /api/auth/login”，只允许修改 5 个强相关文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/views/LoginView.vue`、`frontend/src/utils/auth.js`、`frontend/src/api/http.js`
-- 本轮目标不是继续扩展 backend 或业务页面，而是把前端登录主链路切到真实后端接口，同时保持现有 `router` 与 `layout` 的角色判断链路兼容
+- 当前进入“完整系统收口批 1-1：鉴权闭环最小收口”
+- 本轮只处理前端鉴权闭环，不扩展业务页面，不处理图表、文案、排版或 backend
+- 本轮允许修改 7 个文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/utils/auth.js`、`frontend/src/api/http.js`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`frontend/src/views/LoginView.vue`
+- 本轮目标是补齐前端会话迁移、统一恢复、401 失效清理、路由入口恢复和退出登录收口
 
 ---
 
@@ -33,41 +33,33 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-前端真实登录最小闭环批 2：前端调用 backend /api/auth/login
+完整系统收口批 1-1：鉴权闭环最小收口
 
 ## 当前批次目标
-- 保持 backend 当前已有的 `POST /api/auth/login` 与 `GET /api/auth/me` 不变，不新增业务页面或后端能力
-- 将 `LoginView.vue` 从“本地构造用户”切换为调用 `POST /api/auth/login`
-- 将 `auth.js` 收口为前端会话读写层，统一维护 `session_token`、当前用户和恢复当前用户能力
-- 在 `http.js` 中补上 `Authorization: Bearer <session_token>` 的统一注入能力，保证后续接口调用可以直接复用
-- 继续复用现有 `router/index.js` 与 `AppLayout.vue` 对 `currentUser.role` 的依赖，不改路由和布局
-- 将进度文件同步切换到新的整改批状态，为下一轮继续做登录恢复 / 退出链路验收留出入口
+- 将 `auth.js` 中正式用户存储键从 `mock_login_user` 迁移为正式命名，并保留旧键兼容迁移
+- 为前端会话补齐统一恢复入口和统一清理入口
+- 在 `http.js` 中统一处理 `401 / 鉴权失效`，完成会话清理、重复弹窗抑制和登录页回跳
+- 在 `router/index.js` 中实现路由进入即尝试恢复当前用户，并统一处理已登录访问登录页、未登录访问受保护页
+- 在 `AppLayout.vue` 中将退出登录收口为“彻底清理会话 + 立即回到 /login”
+- 在 `LoginView.vue` 中去掉“仅依赖 mounted 做恢复”的职责，保持页面只负责登录提交和已登录跳转
 
 ## 当前批次允许修改的文件
 - `CODEX_NEXT.md`
 - `CODEX_PROGRESS.md`
-- `frontend/src/views/LoginView.vue`
 - `frontend/src/utils/auth.js`
 - `frontend/src/api/http.js`
+- `frontend/src/router/index.js`
+- `frontend/src/layouts/AppLayout.vue`
+- `frontend/src/views/LoginView.vue`
 
 ## 当前批次禁止修改的文件
-- 除本批允许修改的 5 个文件外，其余业务文件默认禁止修改
+- 除本批允许修改的 7 个文件外，其余业务文件默认禁止修改
 - 尤其不要回改：
-  - `frontend/src/layouts/AppLayout.vue`
-  - `frontend/src/router/index.js`
   - `backend/app.py`
   - `backend/app/api/`
   - `backend/app/services/`
   - `frontend/src/styles/global.css`
   - `frontend/src/utils/mock-storage.js`
-  - `frontend/src/views/AuditLogView.vue`
-  - `frontend/src/views/UserManageView.vue`
-  - `frontend/src/views/RuleManageView.vue`
-  - `frontend/src/views/DashboardView.vue`
-  - `frontend/src/views/MyRecordsView.vue`
-  - `frontend/src/views/RequestActionView.vue`
-  - `frontend/src/views/ForbiddenView.vue`
-  - `frontend/src/views/ProfileView.vue`
   - `AGENTS.md`
 
 ## 当前批次进入条件
@@ -75,26 +67,22 @@
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
 - 已确认当前分支为 `current-ui-sync`
-- 已检查 `frontend/src/views/LoginView.vue`
 - 已检查 `frontend/src/utils/auth.js`
 - 已检查 `frontend/src/api/http.js`
 - 已检查 `frontend/src/router/index.js`
 - 已检查 `frontend/src/layouts/AppLayout.vue`
-- 已检查 `backend/app/api/auth_api.py`
-- 已检查 `backend/app/services/auth_service.py`
-- 已确认 frontend 当前登录页仍通过 `buildMockUser(formModel)` 本地构造当前用户
-- 已确认 `auth.js` 当前仍保留本地账号映射与本地构造用户逻辑
-- 已确认 backend 已提供 `/api/auth/login` 与 `/api/auth/me`，返回字段与前端现有用户结构兼容
-- 已确认 `router/index.js` 与 `AppLayout.vue` 只依赖 `getCurrentUser()` 和 `currentUser.role`，因此可以继续复用
-- 已确认本轮只需改登录页、会话读写层、HTTP 注入和进度文件，不需要触碰 backend、`router`、`layout` 或业务页面本体
+- 已检查 `frontend/src/views/LoginView.vue`
+- 已确认当前工作区干净，当前分支为 `current-ui-sync`
+- 已确认本轮不是恢复模式
+- 已确认本轮只处理前端鉴权闭环，不触碰 backend 和无关页面
 
 ## 当前批次验收标准
-- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“前端真实登录最小闭环批 2”状态
-- `frontend/src/views/LoginView.vue` 已改为调用 `POST /api/auth/login`，不再以本地 `buildMockUser` 作为登录主路径
-- `frontend/src/utils/auth.js` 已改为统一维护 `session_token`、当前用户读写与可选的 `/api/auth/me` 恢复能力
-- `frontend/src/api/http.js` 已具备 `Authorization: Bearer <session_token>` 的统一注入能力，且不破坏现有业务接口调用
-- 现有 `router/index.js` 与 `AppLayout.vue` 无需改动即可继续基于 `currentUser.role` 工作
-- 本批不改 backend、`router`、`layout`、业务页面本体或任何图谱 / 告警 / 封禁 / 监控接口实现
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“完整系统收口批 1-1：鉴权闭环最小收口”状态
+- `frontend/src/utils/auth.js` 已完成正式键名迁移、旧键兼容读取迁移、统一会话恢复与统一会话清理
+- `frontend/src/api/http.js` 已统一处理 `401 / 鉴权失效`，并完成会话清理、重复弹窗抑制和 `/login` 跳转
+- `frontend/src/router/index.js` 已在路由进入时尝试恢复当前用户，且能统一处理登录页跳转和未登录拦截
+- `frontend/src/layouts/AppLayout.vue` 已将退出登录收口为彻底清理会话并立即回到 `/login`
+- `frontend/src/views/LoginView.vue` 已去掉仅依赖 mounted 恢复用户的职责
 
 ---
 
@@ -194,9 +182,9 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 已从“后端真实登录最小闭环批 1”切换为“前端真实登录最小闭环批 2”
-- 本轮仅处理 frontend 登录主链路接入 backend 鉴权接口，不改 backend、不扩展业务页面
-- 本轮完成后，下一轮优先进入“前端真实登录最小闭环批 3：登录恢复与退出链路验收”
+- 当前处于“完整系统收口批 1-1：鉴权闭环最小收口”
+- 本轮只处理前端鉴权闭环，不扩展业务页面，不处理图表、文案、排版或 backend
+- 本轮完成后，如需继续推进，再进入下一批收口任务
 
 ---
 

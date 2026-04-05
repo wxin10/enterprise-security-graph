@@ -85,7 +85,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Bell, DataLine, Document, DocumentAdd, Lock, Monitor, SetUp, Tickets, User, UserFilled } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
-import { clearCurrentUser, getCurrentUser, getMenuItemsByRole, getRoleLabel } from "@/utils/auth";
+import { clearCurrentSession, getCurrentUser, getMenuItemsByRole, getRoleLabel } from "@/utils/auth";
 
 const router = useRouter();
 const route = useRoute();
@@ -202,11 +202,9 @@ function handleMenuSelect(index) {
 }
 
 function handleLogout() {
-  // 当前阶段统一复用 auth.js 的登录态清理方法。
-  // 这样后续如果登录态字段调整，不需要再回头修改布局层逻辑。
-  clearCurrentUser();
+  clearCurrentSession();
   currentUser.value = null;
-  router.push("/login");
+  router.replace("/login");
 }
 
 onMounted(() => {

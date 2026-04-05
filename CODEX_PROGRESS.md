@@ -48,10 +48,10 @@
   - 已真实调用后端接口的页面模块 / 链路：登录、`DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView`
   - 仍以本地会话或本地存储逻辑为主的页面模块：菜单、路由权限、处置申请、我的记录、审计展示、用户管理、规则管理、个人中心
 - 当前 frontend 登录已改为调用 backend `/api/auth/login`，并保存后端返回的 `session_token` 与 `user`
-- 当前 `router/index.js` 与 `AppLayout.vue` 继续依赖 `currentUser.role` 工作，前端浏览器侧仍保留会话读写职责
-- 当前 `http.js` 已具备 `Authorization: Bearer <session_token>` 的统一注入能力，为后续业务接口统一复用后端会话打下基础
+- 当前前端鉴权闭环已完成最小收口：`auth.js` 已统一会话迁移、恢复与清理，`router/index.js` 已在路由进入时尝试恢复当前用户，`AppLayout.vue` 已统一退出登录清理逻辑
+- 当前 `http.js` 已具备 `Authorization: Bearer <session_token>` 的统一注入能力，并能在 `401 / 鉴权失效` 时统一清理会话、抑制重复弹窗并跳回 `/login`
 - 当前 backend 鉴权采用“固定账号映射 + 后端内存态会话”的轻量实现，目标是补齐真实接口闭环，而不是直接替代后续统一鉴权系统
-- 因此当前应切换到“前端真实登录最小闭环批 2：前端调用 backend /api/auth/login”，并在下一轮继续核验刷新恢复与退出链路
+- 当前已进入“完整系统收口批 1-1：鉴权闭环最小收口”完成态，本轮只处理前端鉴权闭环，未扩展到图表、文案、排版或其他页面整改
 - 最近一次已确认落地的文件：
   - `backend/app/services/auth_service.py`
   - `backend/app/api/auth_api.py`
@@ -81,10 +81,8 @@
   - 本轮未发现“已落地但未登记”的管理员相关文件；换言之，这 9 个文件此前已经在进度文件中被登记过
   - 本轮未发现这 9 个文件中仍需继续开发的业务缺口；当前阻塞点仍是构建环境 `esbuild spawn EPERM`，而不是这批文件本身缺页、缺入口或缺主题落地
 - 当前建议下一批处理的文件：
-  - `CODEX_NEXT.md`
-  - `CODEX_PROGRESS.md`
-  - `frontend/src/router/index.js`
-  - `frontend/src/layouts/AppLayout.vue`
+  - 如继续推进，再按用户新批次要求决定
+  - 本轮完成后暂不自动扩展到无关页面
 - 当前 git 工作区状态：干净（以本批开始前 `git status --short` 为准）
 - 当前是否适合继续编码：适合继续做小批量一致性整改
   - 本批开始前 `git status --short` 为空，当前分支为 `current-ui-sync`
@@ -992,6 +990,50 @@
   - 已通过前端静态校验：`node --check frontend/src/utils/auth.js`、`node --check frontend/src/api/http.js`、`@vue/compiler-sfc` 对 `frontend/src/views/LoginView.vue` 的解析与模板编译
   - 已通过 `git diff --check -- CODEX_PROGRESS.md CODEX_NEXT.md frontend/src/views/LoginView.vue frontend/src/utils/auth.js frontend/src/api/http.js`，仅有 LF/CRLF 提示
 
+### [批次 23] 2026-04-05 21:53
+- 任务目标：执行“完整系统收口批 1-1：鉴权闭环最小收口”，只收口前端会话迁移、恢复、失效清理与退出登录链路
+- 本批允许修改文件：
+  - `CODEX_NEXT.md`
+  - `CODEX_PROGRESS.md`
+  - `frontend/src/utils/auth.js`
+  - `frontend/src/api/http.js`
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/LoginView.vue`
+- 实际修改文件：
+  - `CODEX_NEXT.md`
+  - `CODEX_PROGRESS.md`
+  - `frontend/src/utils/auth.js`
+  - `frontend/src/api/http.js`
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/views/LoginView.vue`
+- `git status --short`：
+  - `M frontend/src/api/http.js`
+  - `M frontend/src/layouts/AppLayout.vue`
+  - `M frontend/src/router/index.js`
+  - `M frontend/src/utils/auth.js`
+  - `M frontend/src/views/LoginView.vue`
+- 每个文件改动摘要：
+  - `CODEX_NEXT.md`：将当前批次切换为“完整系统收口批 1-1：鉴权闭环最小收口”，并收紧允许修改范围
+  - `CODEX_PROGRESS.md`：回写本批鉴权闭环收口结果、能力清单与风险变化
+  - `frontend/src/utils/auth.js`：将正式用户存储键迁移为 `console_current_user`，补齐旧键兼容迁移、统一会话恢复和统一会话清理
+  - `frontend/src/api/http.js`：统一处理 `401 / 鉴权失效`，完成会话清理、重复错误弹窗抑制和登录页跳转
+  - `frontend/src/router/index.js`：在路由进入时尝试恢复当前用户，并统一处理已登录访问登录页和未登录访问受保护页
+  - `frontend/src/layouts/AppLayout.vue`：将退出登录收口为彻底清理会话并立即跳回 `/login`
+  - `frontend/src/views/LoginView.vue`：去掉仅依赖 mounted 恢复用户的职责，保留登录提交和已登录跳转
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 如继续推进，再由用户明确指定下一批是否处理菜单统一、页面正式化或样式收口
+- 验收说明：
+  - 已通过静态语法检查：`node --check frontend/src/utils/auth.js`
+  - 已通过静态语法检查：`node --check frontend/src/api/http.js`
+  - 已通过静态语法检查：`node --check frontend/src/router/index.js`
+  - 已通过 `@vue/compiler-sfc` 对 `frontend/src/layouts/AppLayout.vue` 和 `frontend/src/views/LoginView.vue` 的解析与模板编译
+  - 本批未修改 backend，未扫描或修改无关页面，未扩展到图表、文案或排版整改
+
 ---
 
 # 6. 已验收功能汇总
@@ -1027,6 +1069,9 @@
 - [x] backend `/api/auth/login` 接口已落地
 - [x] backend `/api/auth/me` 接口已落地
 - [x] frontend 登录已接入 backend `/api/auth/login`
+- [x] frontend 会话恢复已接入路由进入链路
+- [x] frontend 401 鉴权失效统一清理已接入
+- [x] frontend 退出登录统一清理已接入
 - [ ] 整仓 `vite build` 构建级验收
 
 ---
@@ -1035,7 +1080,7 @@
 
 - 风险 1：整仓 `vite build` 已多次尝试执行，但受当前环境 `esbuild spawn EPERM` 持续阻塞，暂时拿不到构建级验收结果
 - 风险 2：普通用户角色必须持续保持“一线运维 / 安全分析员”定位，后续若再扩展页面或验收权限边界，不能误改为访客或只读模式
-- 风险 3：当前 frontend 登录已接入 backend，但菜单与路由守卫仍依赖浏览器内保存的 `currentUser.role`；如果后续要做更完整统一鉴权，仍需补强启动恢复和会话失效处理
+- 风险 3：当前 frontend 登录已接入 backend，且最小鉴权闭环已补齐，但菜单与路由守卫仍依赖浏览器内保存的 `currentUser.role`；如果后续要做更完整统一鉴权，仍需继续推进权限来源统一
 - 风险 4：当前前端已形成“部分页面走后端接口、部分页面仍走本地状态”的混合形态；后续若继续扩展页面，需要持续避免把局部联调误写成全局联调
 - 风险 5：当前 backend 登录会话采用进程内存态实现，服务重启后 `session_token` 会失效；后续若进入更完整鉴权阶段，需要补上持久化或标准令牌方案
 

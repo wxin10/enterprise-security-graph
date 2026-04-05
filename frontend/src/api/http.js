@@ -7,7 +7,7 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 
-import { BACKEND_BASE_URL, getSessionToken } from "@/utils/auth";
+import { BACKEND_BASE_URL, clearCurrentSession, getSessionToken } from "@/utils/auth";
 
 const http = axios.create({
   // 当前前端继续直连已运行的 Flask 后端服务。
@@ -20,6 +20,51 @@ const http = axios.create({
 
 function shouldShowErrorMessage(config) {
   return !config?.skipErrorMessage && !config?.silentError;
+}
+
+let isHandlingAuthFailure = false;
+
+function isLoginRequest(config) {
+  const requestUrl = String(config?.url || "");
+  return requestUrl.includes("/api/auth/login");
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (window.location.pathname === "/login") {
+    return;
+  }
+
+  window.location.replace("/login");
+}
+
+function handleAuthFailure(error) {
+  const requestConfig = error?.config;
+
+  if (isLoginRequest(requestConfig)) {
+    return false;
+  }
+
+  clearCurrentSession();
+
+  if (!isHandlingAuthFailure) {
+    isHandlingAuthFailure = true;
+
+    if (!requestConfig?.silentAuthFailure) {
+      ElMessage.error("登录状态已失效，请重新登录");
+    }
+
+    redirectToLogin();
+
+    window.setTimeout(() => {
+      isHandlingAuthFailure = false;
+    }, 300);
+  }
+
+  return true;
 }
 
 http.interceptors.request.use((config) => {
@@ -39,6 +84,17 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => {
     const responseData = response.data;
+
+    if (response.status === 401 || responseData?.code === 401) {
+      const authError = new Error(responseData?.message || "登录状态已失效");
+      authError.response = {
+        data: responseData,
+        status: 401
+      };
+      authError.config = response.config;
+      handleAuthFailure(authError);
+      return Promise.reject(authError);
+    }
 
     // 当前后端统一返回结构为：
     // { code, message, data, timestamp }
@@ -62,6 +118,12 @@ http.interceptors.response.use(
   },
   (error) => {
     const requestConfig = error?.config;
+    const responseStatus = error?.response?.status;
+
+    if (responseStatus === 401 && handleAuthFailure(error)) {
+      return Promise.reject(error);
+    }
+
     const errorMessage =
       error?.response?.data?.message ||
       error?.message ||

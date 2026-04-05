@@ -77,13 +77,13 @@
 // 作用说明：
 // 1. 提供当前版本的安全控制台统一登录入口。
 // 2. 登录成功后调用后端鉴权接口，保存会话令牌与当前用户。
-// 3. 在浏览器已有 token 且 user 缺失时，尝试通过 /api/auth/me 恢复当前登录用户。
+// 3. 已登录用户进入登录页时，直接跳转到对应首页。
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 
 import http from "@/api/http";
-import { getCurrentUser, getRoleHomePath, getRoleLabel, restoreCurrentUserFromSession, saveCurrentSession } from "@/utils/auth";
+import { getCurrentUser, getRoleHomePath, getRoleLabel, saveCurrentSession } from "@/utils/auth";
 import { listDisposalRequests } from "@/utils/mock-storage";
 
 const router = useRouter();
@@ -147,16 +147,10 @@ async function handleLogin() {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   const currentUser = getCurrentUser();
   if (currentUser) {
     router.replace(getRoleHomePath(currentUser.role));
-    return;
-  }
-
-  const restoredUser = await restoreCurrentUserFromSession();
-  if (restoredUser) {
-    router.replace(getRoleHomePath(restoredUser.role));
   }
 });
 </script>
