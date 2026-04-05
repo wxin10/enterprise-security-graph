@@ -42,18 +42,21 @@
 - [ ] 当前处于中断恢复模式
 
 ## 当前主结论
-- 当前业务页面和后端核心业务接口已基本落地，backend 侧最小真实登录接口闭环也已补出
+- 当前业务页面和后端核心业务接口已基本落地，backend 侧最小真实登录接口闭环也已补出，frontend 登录主链路也已切到真实后端接口
 - 后端当前已开放图谱、告警、封禁、监控接口，并新增了真实登录 / 当前用户接口：`POST /api/auth/login`、`GET /api/auth/me`
 - 前端当前真实状态已可拆分为两类：
-  - 已真实调用后端接口的页面模块：`DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView`
-  - 仍以本地会话或本地存储逻辑为主的页面模块：登录、菜单、路由权限、处置申请、我的记录、审计展示、用户管理、规则管理、个人中心
-- 当前登录角色已改为由账号决定，但前端登录态建立、菜单过滤和路由权限控制仍属于前端本地会话链路
+  - 已真实调用后端接口的页面模块 / 链路：登录、`DashboardView`、`AlertsView`、`BansView`、`MonitorCenterView`
+  - 仍以本地会话或本地存储逻辑为主的页面模块：菜单、路由权限、处置申请、我的记录、审计展示、用户管理、规则管理、个人中心
+- 当前 frontend 登录已改为调用 backend `/api/auth/login`，并保存后端返回的 `session_token` 与 `user`
+- 当前 `router/index.js` 与 `AppLayout.vue` 继续依赖 `currentUser.role` 工作，前端浏览器侧仍保留会话读写职责
+- 当前 `http.js` 已具备 `Authorization: Bearer <session_token>` 的统一注入能力，为后续业务接口统一复用后端会话打下基础
 - 当前 backend 鉴权采用“固定账号映射 + 后端内存态会话”的轻量实现，目标是补齐真实接口闭环，而不是直接替代后续统一鉴权系统
-- 因此当前应切换到“后端真实登录最小闭环批 1：后端鉴权接口落地”，并在下一轮推进前端改为调用 backend 登录接口
+- 因此当前应切换到“前端真实登录最小闭环批 2：前端调用 backend /api/auth/login”，并在下一轮继续核验刷新恢复与退出链路
 - 最近一次已确认落地的文件：
   - `backend/app/services/auth_service.py`
   - `backend/app/api/auth_api.py`
   - `backend/app/api/routes.py`
+  - `frontend/src/api/http.js`
   - `frontend/src/utils/auth.js`
   - `frontend/src/utils/mock-storage.js`
   - `frontend/src/views/LoginView.vue`
@@ -80,15 +83,14 @@
 - 当前建议下一批处理的文件：
   - `CODEX_NEXT.md`
   - `CODEX_PROGRESS.md`
-  - `backend/app/services/auth_service.py`
-  - `backend/app/api/auth_api.py`
-  - `backend/app/api/routes.py`
+  - `frontend/src/router/index.js`
+  - `frontend/src/layouts/AppLayout.vue`
 - 当前 git 工作区状态：干净（以本批开始前 `git status --short` 为准）
 - 当前是否适合继续编码：适合继续做小批量一致性整改
   - 本批开始前 `git status --short` 为空，当前分支为 `current-ui-sync`
-  - 已确认 backend 当前统一通过 `routes.py` 注册 API，且现有响应格式与错误处理机制可直接复用
-  - 已确认 backend 之前没有可复用的用户 / 权限 / 会话服务，因此本轮新增独立鉴权服务与鉴权接口文件
-  - 本轮应优先补出后端最小真实登录闭环，再在下一轮让 `frontend` 改为调用 `/api/auth/login` 与 `/api/auth/me`
+  - 已确认 backend 当前登录接口与当前用户接口已经可用，且返回结构与前端现有用户结构兼容
+  - 已确认 `LoginView.vue`、`auth.js`、`http.js` 已能承担前端接入后端登录的最小闭环，不需要改动 `router` 与 `layout`
+  - 下一轮若继续推进，应优先补强启动恢复或路由入口处的后端会话校验，而不是继续扩展业务页面
 
 ---
 
@@ -100,6 +102,7 @@
 > 3. 修改已经真实写入工作区
 
 ## 已确认清单
+- [x] frontend/src/api/http.js
 - [x] backend/app/services/auth_service.py
 - [x] backend/app/api/auth_api.py
 - [x] backend/app/api/routes.py
@@ -950,6 +953,45 @@
   - 已通过 Flask `test_client` 完成接口烟测：`POST /api/auth/login` 返回 `session_token` 与用户信息，`GET /api/auth/me` 能根据 Bearer Token 正常返回当前用户
   - 当前阶段后端会话采用进程内存态，服务重启后令牌会失效；该边界符合本轮“最小真实闭环”目标
 
+### [批次 22] 2026-04-05 16:07
+- 任务目标：执行“前端真实登录最小闭环批 2”，将登录页从本地构造用户切到 backend `/api/auth/login`，并接入浏览器侧会话保存与 Bearer Token 注入
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/utils/auth.js`
+  - `frontend/src/api/http.js`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/LoginView.vue`
+  - `frontend/src/utils/auth.js`
+  - `frontend/src/api/http.js`
+- `git status --short`：
+  - `M CODEX_NEXT.md`
+  - `M CODEX_PROGRESS.md`
+  - `M frontend/src/api/http.js`
+  - `M frontend/src/utils/auth.js`
+  - `M frontend/src/views/LoginView.vue`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：将当前主结论切换到“前端真实登录最小闭环批 2”，明确 frontend 登录已接到 backend 鉴权接口，并补录本批历史
+  - `CODEX_NEXT.md`：将当前批次切换为“前端真实登录最小闭环批 2：前端调用 backend /api/auth/login”，并限制本轮只改 5 个文件
+  - `frontend/src/views/LoginView.vue`：登录时不再本地构造用户，改为调用 backend `/api/auth/login`，成功后保存 `session_token` 与 `user` 并按角色跳转，失败时直接展示后端返回的错误消息
+  - `frontend/src/utils/auth.js`：从“本地账号映射生成用户”为主切换为“前端会话读写层”为主，统一维护 `session_token`、当前用户与 `/api/auth/me` 恢复能力，并保留旧会话兼容读取
+  - `frontend/src/api/http.js`：新增 Bearer Token 自动注入与统一错误处理，保持现有图谱、告警、封禁、监控接口调用方式不变
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 后续如继续推进，优先考虑“前端真实登录最小闭环批 3：登录恢复与退出链路验收”
+  - 在 `router` 与 `layout` 完成更完整的会话恢复联调前，不要把当前系统表述为“前后端统一鉴权已全部完成”
+- 验收说明：
+  - 已检查 `frontend/src/views/LoginView.vue`、`frontend/src/utils/auth.js`、`frontend/src/api/http.js`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`、`backend/app/api/auth_api.py`、`backend/app/services/auth_service.py`、`CODEX_NEXT.md`、`CODEX_PROGRESS.md`
+  - 已确认 frontend 原先仍通过 `buildMockUser(formModel)` 本地构造当前用户，而 backend 已提供 `/api/auth/login` 与 `/api/auth/me`
+  - 已确认 `router/index.js` 与 `AppLayout.vue` 只依赖 `getCurrentUser()` 和 `currentUser.role`，因此本轮无需改动这两个文件
+  - 已通过前端静态校验：`node --check frontend/src/utils/auth.js`、`node --check frontend/src/api/http.js`、`@vue/compiler-sfc` 对 `frontend/src/views/LoginView.vue` 的解析与模板编译
+  - 已通过 `git diff --check -- CODEX_PROGRESS.md CODEX_NEXT.md frontend/src/views/LoginView.vue frontend/src/utils/auth.js frontend/src/api/http.js`，仅有 LF/CRLF 提示
+
 ---
 
 # 6. 已验收功能汇总
@@ -984,6 +1026,7 @@
 - [x] 登录提示与本地会话边界说明收口完成
 - [x] backend `/api/auth/login` 接口已落地
 - [x] backend `/api/auth/me` 接口已落地
+- [x] frontend 登录已接入 backend `/api/auth/login`
 - [ ] 整仓 `vite build` 构建级验收
 
 ---
@@ -992,7 +1035,7 @@
 
 - 风险 1：整仓 `vite build` 已多次尝试执行，但受当前环境 `esbuild spawn EPERM` 持续阻塞，暂时拿不到构建级验收结果
 - 风险 2：普通用户角色必须持续保持“一线运维 / 安全分析员”定位，后续若再扩展页面或验收权限边界，不能误改为访客或只读模式
-- 风险 3：当前登录、菜单和路由权限仍依赖前端本地会话逻辑；如果后续要做统一鉴权，必须先明确后端登录 / 用户 / 权限接口方案
+- 风险 3：当前 frontend 登录已接入 backend，但菜单与路由守卫仍依赖浏览器内保存的 `currentUser.role`；如果后续要做更完整统一鉴权，仍需补强启动恢复和会话失效处理
 - 风险 4：当前前端已形成“部分页面走后端接口、部分页面仍走本地状态”的混合形态；后续若继续扩展页面，需要持续避免把局部联调误写成全局联调
 - 风险 5：当前 backend 登录会话采用进程内存态实现，服务重启后 `session_token` 会失效；后续若进入更完整鉴权阶段，需要补上持久化或标准令牌方案
 

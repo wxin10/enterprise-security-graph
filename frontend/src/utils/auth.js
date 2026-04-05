@@ -1,9 +1,13 @@
 // 文件路径：frontend/src/utils/auth.js
 // 作用说明：
-// 1. 统一维护当前版本的本地登录会话用户、角色、菜单和按钮权限配置。
-// 2. 为登录页、路由守卫、主布局菜单和后续页面权限控制提供公共方法。
-// 3. 当前阶段不接入后端登录 / 用户 / 权限接口，账号身份仍由前端本地映射解析。
+// 1. 统一维护当前版本的控制台会话信息、角色、菜单和按钮权限配置。
+// 2. 为登录页、路由守卫、主布局菜单和页面权限控制提供公共方法。
+// 3. 当前阶段登录已切换为调用后端鉴权接口，前端主要负责保存 session_token 和当前用户信息。
+
+// 继续沿用旧的用户存储键名，避免升级当前批次后已有会话立即失效。
 export const STORAGE_USER_KEY = "mock_login_user";
+export const STORAGE_SESSION_TOKEN_KEY = "console_session_token";
+export const BACKEND_BASE_URL = "http://127.0.0.1:5000";
 
 export const ROLE_ADMIN = "admin";
 export const ROLE_USER = "user";
@@ -63,7 +67,7 @@ export const MENU_ITEMS = [
   { path: "/console/profile", label: "个人中心", icon: "User", roles: [ROLE_ADMIN, ROLE_USER] }
 ];
 
-const ACCOUNT_USER_TEMPLATES = {
+const LEGACY_ACCOUNT_USER_TEMPLATES = {
   admin: {
     user_id: "ADMIN-001",
     username: "admin",
@@ -90,27 +94,38 @@ const ACCOUNT_USER_TEMPLATES = {
   }
 };
 
-const ACCOUNT_ROLE_MAP = Object.keys(ACCOUNT_USER_TEMPLATES).reduce((result, accountKey) => {
-  result[accountKey] = ACCOUNT_USER_TEMPLATES[accountKey].role;
-  return result;
-}, {});
-
 function normalizeAccountName(username) {
   return String(username || "").trim().toLowerCase();
 }
 
-function getAccountTemplate(username) {
+function normalizeStoredUser(user) {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+
+  return {
+    ...user,
+    role: normalizeRole(user.role)
+  };
+}
+
+function buildLegacyUserByAccount(username) {
+  // 这个兼容分支只用于读取旧版本浏览器里已经存在的本地会话数据。
+  // 当前正式登录链路已经切到后端鉴权接口，不再依赖这里生成用户。
   const normalizedAccount = normalizeAccountName(username);
-  return normalizedAccount ? ACCOUNT_USER_TEMPLATES[normalizedAccount] || null : null;
+  const template = LEGACY_ACCOUNT_USER_TEMPLATES[normalizedAccount];
+  if (!template) {
+    return null;
+  }
+
+  return {
+    ...template,
+    login_at: new Date().toISOString()
+  };
 }
 
 export function normalizeRole(role) {
   return role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER;
-}
-
-export function resolveRoleByAccount(username) {
-  const normalizedAccount = normalizeAccountName(username);
-  return normalizedAccount ? ACCOUNT_ROLE_MAP[normalizedAccount] || null : null;
 }
 
 export function getRoleLabel(role) {
@@ -142,27 +157,50 @@ export function canAccessRoles(user, roles = []) {
   return Boolean(user) && roles.includes(normalizeRole(user.role));
 }
 
-export function buildMockUser(formModel = {}) {
-  const template = getAccountTemplate(formModel.username);
-  if (!template) {
-    return null;
+export function saveSessionToken(sessionToken) {
+  const normalizedToken = String(sessionToken || "").trim();
+
+  if (!normalizedToken) {
+    sessionStorage.removeItem(STORAGE_SESSION_TOKEN_KEY);
+    return "";
   }
 
-  return {
-    ...template,
-    username: template.username,
-    display_name: template.display_name,
-    role: normalizeRole(template.role),
-    login_at: new Date().toISOString()
-  };
+  sessionStorage.setItem(STORAGE_SESSION_TOKEN_KEY, normalizedToken);
+  return normalizedToken;
+}
+
+export function getSessionToken() {
+  return String(sessionStorage.getItem(STORAGE_SESSION_TOKEN_KEY) || "").trim();
 }
 
 export function saveCurrentUser(user) {
-  sessionStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+  const normalizedUser = normalizeStoredUser(user);
+
+  if (!normalizedUser) {
+    sessionStorage.removeItem(STORAGE_USER_KEY);
+    return null;
+  }
+
+  sessionStorage.setItem(STORAGE_USER_KEY, JSON.stringify(normalizedUser));
+  return normalizedUser;
+}
+
+export function saveCurrentSession(sessionPayload = {}) {
+  // 登录成功后统一在这里保存后端返回的会话令牌和当前用户。
+  // 这样 router、layout 和各页面继续只读 auth.js，就不需要感知后端接口细节。
+  const resolvedToken = saveSessionToken(sessionPayload.session_token || sessionPayload.token || "");
+  const resolvedUser = saveCurrentUser(sessionPayload.user);
+
+  if (!resolvedToken || !resolvedUser) {
+    return null;
+  }
+
+  return resolvedUser;
 }
 
 export function clearCurrentUser() {
   sessionStorage.removeItem(STORAGE_USER_KEY);
+  sessionStorage.removeItem(STORAGE_SESSION_TOKEN_KEY);
 }
 
 export function getCurrentUser() {
@@ -173,23 +211,58 @@ export function getCurrentUser() {
 
   try {
     const parsedValue = JSON.parse(rawValue);
-    return parsedValue ? { ...parsedValue, role: normalizeRole(parsedValue.role) } : null;
-  } catch (error) {
-    // 兼容旧版本仅保存账号字符串的情况，避免已有演示数据失效。
-    const fallbackUser = buildMockUser({ username: rawValue });
-    if (fallbackUser) {
-      saveCurrentUser(fallbackUser);
-      return fallbackUser;
+    const normalizedUser = normalizeStoredUser(parsedValue);
+
+    if (!normalizedUser) {
+      sessionStorage.removeItem(STORAGE_USER_KEY);
+      return null;
     }
 
-    const fallbackRole = String(rawValue).toLowerCase().includes("admin") ? ROLE_ADMIN : ROLE_USER;
-    const fallbackTemplate = fallbackRole === ROLE_ADMIN ? ACCOUNT_USER_TEMPLATES.admin : ACCOUNT_USER_TEMPLATES.analyst;
-    const legacyUser = {
-      ...fallbackTemplate,
-      role: fallbackRole,
-      login_at: new Date().toISOString()
-    };
-    saveCurrentUser(legacyUser);
-    return legacyUser;
+    return normalizedUser;
+  } catch (error) {
+    // 兼容旧版本可能直接把账号字符串写入 sessionStorage 的情况。
+    // 这不是当前主链路，只是避免已有浏览器会话在升级后立即失效。
+    const fallbackUser = buildLegacyUserByAccount(rawValue);
+    if (!fallbackUser) {
+      sessionStorage.removeItem(STORAGE_USER_KEY);
+      return null;
+    }
+
+    saveCurrentUser(fallbackUser);
+    return fallbackUser;
+  }
+}
+
+export async function restoreCurrentUserFromSession() {
+  // 当前函数用于“浏览器里已有 session_token，但当前 user 丢失”时的恢复场景。
+  // 这样即使页面先落回登录页，也能通过 /api/auth/me 尝试恢复当前用户。
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/api/auth/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${sessionToken}`
+      }
+    });
+
+    const responseData = await response.json().catch(() => null);
+
+    if (!response.ok || typeof responseData?.code !== "number" || responseData.code !== 0 || !responseData?.data?.user) {
+      if (response.status === 401) {
+        clearCurrentUser();
+      }
+      return null;
+    }
+
+    saveCurrentSession(responseData.data);
+    return getCurrentUser();
+  } catch (error) {
+    // 网络异常时不主动清空 token，避免临时网络问题导致用户本地会话被立刻抹掉。
+    return null;
   }
 }
