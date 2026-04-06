@@ -8,13 +8,7 @@
         <div>
           <div class="profile-hero__role">{{ currentRoleLabel }}</div>
           <h1 class="page-title">{{ currentUser.display_name }}</h1>
-          <p class="page-subtitle">
-            {{
-              [currentUser.title, currentUser.department, "负责当前岗位的安全运营、告警研判与处置跟踪工作。"]
-                .filter(Boolean)
-                .join("，")
-            }}
-          </p>
+          <p class="page-subtitle">{{ [currentUser.title, currentUser.department, "负责当前岗位的安全运营、告警研判与处置跟踪工作。"].filter(Boolean).join("，") }}</p>
         </div>
       </div>
 

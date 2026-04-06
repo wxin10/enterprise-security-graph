@@ -1417,3 +1417,37 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 ProfileView 文本修复终补录
+- 本轮业务改动文件：
+  - `frontend/src/views/ProfileView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `ProfileView.vue` 顶部副标题已按指定目标文案直接落到代码中。
+  - `ProfileView.vue` 未登录头像继续保持为正常中文字符“登”。
+  - 本轮仅修复剩余文本异常，未改动页面结构、功能逻辑、权限边界、数据结构与现有白色后台风格。
+- 语法检查：
+  - `frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 33] 2026-04-06
+- 任务目标：完成 `ProfileView.vue` 剩余文本异常修复收口，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/ProfileView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/ProfileView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/ProfileView.vue`：将顶部副标题收口为用户指定的目标中文文案表达。
+  - `CODEX_PROGRESS.md`：补录本轮 ProfileView 文本修复终补次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。

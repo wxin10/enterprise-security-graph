@@ -366,3 +366,19 @@
 - 本轮业务落地文件：`frontend/src/views/ProfileView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 语法检查。
+
+## 2026-04-06 ProfileView 文本修复终收尾
+### 当前状态
+- `frontend/src/views/ProfileView.vue` 顶部副标题已收口为指定的正式中文句子。
+- `frontend/src/views/ProfileView.vue` 未登录头像显示继续保持为正常中文字符“登”。
+- 当前收尾仅同步进度文件并准备提交推送。
+- 当前分支：`current-ui-sync`。
+
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端增量开发，继续遵守单批最小范围原则。
+
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/views/ProfileView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 语法检查。
