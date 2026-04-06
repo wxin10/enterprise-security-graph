@@ -1486,3 +1486,37 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 UserManageView 去演示化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/UserManageView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `UserManageView.vue` 已将“待审批事项”区块下方说明文案改为正式系统表达。
+  - 已移除用户可见文案中的“演示”表述。
+  - 本轮未改动样式、逻辑、权限边界、数据结构与页面结构。
+- 语法检查：
+  - `frontend/src/views/UserManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 35] 2026-04-06
+- 任务目标：移除 UserManageView 待审批事项区块中的演示化表述，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/UserManageView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/UserManageView.vue`：将待审批事项说明文案改为正式系统表达，去除“演示”字样。
+  - `CODEX_PROGRESS.md`：补录本轮 UserManageView 去演示化批次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/UserManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
