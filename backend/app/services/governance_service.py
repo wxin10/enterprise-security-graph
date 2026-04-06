@@ -437,6 +437,45 @@ class GovernanceService:
             },
         }
 
+    def get_ban_approval_linkage_lookup(self) -> dict[str, dict[str, dict[str, str]]]:
+        state = self._read_state()
+        by_action_id: dict[str, dict[str, str]] = {}
+        by_target_ip: dict[str, dict[str, str]] = {}
+        items = sorted(
+            [deepcopy(item) for item in state.get("disposals", [])],
+            key=lambda item: str(item.get("reviewed_at") or item.get("updated_at") or ""),
+            reverse=True,
+        )
+
+        for item in items:
+            if item.get("status") != self.DISPOSAL_STATUS_APPROVED:
+                continue
+
+            if not self._is_ban_related_disposal(item.get("disposal_type")):
+                continue
+
+            linkage_item = {
+                "approval_source_label": "处置申请审批",
+                "approval_request_id": str(item.get("request_id") or "").strip(),
+                "approval_reviewer_name": str(item.get("reviewer_name") or "").strip(),
+                "approval_reviewed_at": str(item.get("reviewed_at") or item.get("updated_at") or "").strip(),
+                "approval_review_comment": str(item.get("review_comment") or "").strip(),
+                "approval_execution_status": str(item.get("execution_status") or "").strip(),
+            }
+
+            linked_ban_action_id = str(item.get("linked_ban_action_id") or "").strip()
+            if linked_ban_action_id and linked_ban_action_id not in by_action_id:
+                by_action_id[linked_ban_action_id] = linkage_item
+
+            target_ip = self._normalize_optional_ip(item.get("execution_target") or item.get("source_ip"))
+            if target_ip and target_ip not in by_target_ip:
+                by_target_ip[target_ip] = linkage_item
+
+        return {
+            "by_action_id": by_action_id,
+            "by_target_ip": by_target_ip,
+        }
+
     def get_dashboard_approval_overview(self, current_user: dict[str, Any]) -> dict[str, Any]:
         if self._normalize_role(current_user.get("role")) != "admin":
             return {

@@ -539,3 +539,16 @@
 - 如继续做运营收口，优先补首页更多管理统计卡片与封禁执行统计的联动展示。
 - 如继续做质量保障，优先补前端联调测试或端到端测试，覆盖首页审批动作和封禁联动展示。
 - 如继续做产品化闭环，可评估把联动封禁详情进一步沉淀到封禁接口返回，减少前端组合字段的耦合。
+
+## 2026-04-06 当前最小下一批
+### 当前状态
+- `/api/bans` 已正式返回审批联动字段，`BansView.vue` 已切换为直接消费后端结果。
+- Playwright 最小前端联调测试已落地并通过，当前分支继续保持 `current-ui-sync`。
+
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续推进，优先处理首页更深层运营统计联动，或继续补充更多前端端到端回归测试。
+
+### 当前批次收尾说明
+- 本轮业务落地文件：`backend/app/services/governance_service.py`、`backend/app/services/ban_service.py`、`frontend/src/views/BansView.vue`、`tests/test_governance_workflow.py`、`frontend/package.json`、`frontend/package-lock.json`、`frontend/playwright.config.js`、`frontend/tests/e2e/approval-closure.spec.js`
+- 本轮校验：`npm.cmd run build`、`python -m py_compile ...`、`pytest -q`、`npx.cmd playwright install chromium`、`npm.cmd run test:e2e` 均已执行成功。

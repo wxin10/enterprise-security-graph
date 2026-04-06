@@ -1818,3 +1818,30 @@
 
 ### 下一批建议
 - 如继续收口，优先将首页审批概览与封禁联动结果同步到更多管理统计卡片，并补前端级联调或端到端测试。
+
+## 2026-04-06 /api/bans 审批联动字段下沉与前端联调测试
+### 当前状态
+- `backend/app/services/governance_service.py` 已新增封禁审批联动映射查询，按 `linked_ban_action_id` 与目标 IP 为 `/api/bans` 提供审批来源字段。
+- `backend/app/services/ban_service.py` 已在封禁列表与封禁详情中正式返回 `approval_source_label`、`approval_request_id`、`approval_reviewer_name`、`approval_reviewed_at`、`approval_review_comment`、`approval_execution_status`。
+- `frontend/src/views/BansView.vue` 已删除基于 `linkedApprovalMap` 与 `banTableItems` 的前端二次拼装逻辑，封禁表格直接消费 `/api/bans` 返回字段。
+- `tests/test_governance_workflow.py` 已补 `/api/bans` 字段断言；`frontend/tests/e2e/approval-closure.spec.js` 已补最小 Playwright 页面闭环验证。
+
+### 本轮业务落地文件
+- `backend/app/services/governance_service.py`
+- `backend/app/services/ban_service.py`
+- `frontend/src/views/BansView.vue`
+- `tests/test_governance_workflow.py`
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/playwright.config.js`
+- `frontend/tests/e2e/approval-closure.spec.js`
+
+### 本轮校验
+- `frontend` 目录执行 `npm.cmd run build` 成功，仅保留 Vite 大包体积告警。
+- `python -m py_compile backend/app/services/governance_service.py backend/app/services/ban_service.py tests/test_governance_workflow.py` 成功。
+- `pytest -q` 成功，结果为 `2 passed`。
+- `frontend` 目录执行 `npx.cmd playwright install chromium` 成功。
+- `frontend` 目录执行 `npm.cmd run test:e2e` 成功，结果为 `2 passed`。
+
+### 是否完成
+- 是

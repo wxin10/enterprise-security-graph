@@ -128,7 +128,8 @@ LIMIT $limit
         raw_items = self.client.execute_read(list_query, params)
         total = total_records[0]["total"] if total_records else 0
 
-        items = [self._build_ban_item(item) for item in raw_items]
+        approval_linkage_lookup = self._build_approval_linkage_lookup()
+        items = [self._build_ban_item(item, approval_linkage_lookup=approval_linkage_lookup) for item in raw_items]
 
         return {
             "items": items,
@@ -152,7 +153,8 @@ LIMIT $limit
         if not record:
             raise NotFoundError(f"未找到封禁记录 {ban_id}")
 
-        return self._build_ban_item(record)
+        approval_linkage_lookup = self._build_approval_linkage_lookup()
+        return self._build_ban_item(record, approval_linkage_lookup=approval_linkage_lookup)
 
     def unban(self, ban_id: str, release_reason: str, released_by: str) -> Dict[str, Any]:
         """
@@ -735,7 +737,12 @@ SET a.enforcement_mode = $enforcement_mode,
 RETURN b.action_id AS action_id
 """
 
-    def _build_ban_item(self, record: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_ban_item(
+        self,
+        record: Dict[str, Any],
+        *,
+        approval_linkage_lookup: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None,
+    ) -> Dict[str, Any]:
         """
         将 Neo4j 查询结果转换为前端可直接消费的封禁记录对象。
         """
@@ -748,6 +755,7 @@ RETURN b.action_id AS action_id
         ip_address = self._normalize_text(ip.get("ip_address"))
         current_status = self._resolve_current_status(ban=ban, ip=ip)
         history_actions = self._normalize_history_actions(self._build_history_actions(ban=ban))
+        source_type = self._normalize_text(ban.get("source_type")) or self._normalize_text(alert.get("source_type"))
 
         stored_mode = self._normalize_text(ban.get("enforcement_mode")).upper()
         enforcement_mode = stored_mode if stored_mode in {"REAL", "MOCK", self.MODE_WEB_BLOCKLIST} else profile["mode"]
@@ -795,6 +803,13 @@ RETURN b.action_id AS action_id
         if release_count == 0:
             release_count = self._count_status_transitions(history_actions, self.RELEASED_STATUS)
 
+        approval_linkage = self._resolve_approval_linkage(
+            action_id=action_id,
+            target_ip=ip_address,
+            source_type=source_type,
+            approval_linkage_lookup=approval_linkage_lookup,
+        )
+
         item = {
             "action_id": action_id,
             "action_type": self._normalize_text(ban.get("action_type")) or "BLOCK_IP",
@@ -824,7 +839,7 @@ RETURN b.action_id AS action_id
             "risk_score": self._safe_int(ban.get("risk_score"), self._safe_int(alert.get("score"))),
             "confidence": self._safe_float(ban.get("confidence")),
             "event_count": self._safe_int(ban.get("event_count"), self._safe_int(alert.get("event_count"))),
-            "source_type": self._normalize_text(ban.get("source_type")) or self._normalize_text(alert.get("source_type")),
+            "source_type": source_type,
             "released_at": self._normalize_text(ban.get("released_at")),
             "released_by": self._normalize_text(ban.get("released_by")),
             "release_reason": self._normalize_text(ban.get("release_reason")),
@@ -859,8 +874,47 @@ RETURN b.action_id AS action_id
             "truly_blocked": block_effective,
             "enforcement_scope_ports": self._normalize_text(ban.get("enforcement_scope_ports")) or ",".join(profile.get("local_ports", [])),
             "enforcement_scope_description": profile.get("scope_description"),
+            "approval_source_label": approval_linkage["approval_source_label"],
+            "approval_request_id": approval_linkage["approval_request_id"],
+            "approval_reviewer_name": approval_linkage["approval_reviewer_name"],
+            "approval_reviewed_at": approval_linkage["approval_reviewed_at"],
+            "approval_review_comment": approval_linkage["approval_review_comment"],
+            "approval_execution_status": approval_linkage["approval_execution_status"],
         }
         return item
+
+    def _build_approval_linkage_lookup(self) -> Dict[str, Dict[str, Dict[str, str]]]:
+        from app.services.governance_service import governance_service
+
+        return governance_service.get_ban_approval_linkage_lookup()
+
+    def _resolve_approval_linkage(
+        self,
+        *,
+        action_id: str,
+        target_ip: str,
+        source_type: str,
+        approval_linkage_lookup: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None,
+    ) -> Dict[str, str]:
+        empty_linkage = {
+            "approval_source_label": "",
+            "approval_request_id": "",
+            "approval_reviewer_name": "",
+            "approval_reviewed_at": "",
+            "approval_review_comment": "",
+            "approval_execution_status": "",
+        }
+        lookup = approval_linkage_lookup or self._build_approval_linkage_lookup()
+        by_action_id = lookup.get("by_action_id") or {}
+        by_target_ip = lookup.get("by_target_ip") or {}
+
+        if action_id and action_id in by_action_id:
+            return dict(by_action_id[action_id])
+
+        if self._normalize_text(source_type).lower() == "disposal_approval" and target_ip and target_ip in by_target_ip:
+            return dict(by_target_ip[target_ip])
+
+        return empty_linkage
 
     def _resolve_current_status(self, ban: Dict[str, Any], ip: Dict[str, Any]) -> str:
         """

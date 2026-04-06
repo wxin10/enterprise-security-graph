@@ -178,7 +178,7 @@
         <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
       </div>
 
-      <el-table :data="banTableItems" v-loading="loading" stripe>
+      <el-table :data="banItems" v-loading="loading" stripe>
         <el-table-column prop="action_id" label="记录编号" min-width="120" />
         <el-table-column prop="ip_address" label="目标 IP" min-width="140" />
 
@@ -224,6 +224,7 @@
               <div>审批人：{{ row.approval_reviewer_name || "-" }}</div>
               <div>审批时间：{{ row.approval_reviewed_at || "-" }}</div>
               <div>审批备注：{{ row.approval_review_comment || "-" }}</div>
+              <div>联动结果：{{ row.approval_execution_status || "-" }}</div>
             </div>
             <span v-else>-</span>
           </template>
@@ -517,54 +518,6 @@ const verifiedCount = computed(() => {
 
 const pendingApprovalItems = computed(() => {
   return approvalRecords.value.filter((item) => item.status === "待审批");
-});
-
-const linkedApprovalMap = computed(() => {
-  const map = new Map();
-
-  approvalRecords.value.forEach((item) => {
-    if (item.status !== "已通过" || !item.linked_ban_action_id) {
-      return;
-    }
-
-    map.set(item.linked_ban_action_id, item);
-  });
-
-  return map;
-});
-
-const banTableItems = computed(() => {
-  return banItems.value.map((item) => {
-    const linkedApproval =
-      linkedApprovalMap.value.get(item.action_id) ||
-      approvalRecords.value.find(
-        (record) =>
-          record.status === "已通过" &&
-          record.source_ip &&
-          item.ip_address &&
-          record.source_ip === item.ip_address
-      );
-
-    if (!linkedApproval) {
-      return {
-        ...item,
-        approval_source_label: "",
-        approval_request_id: "",
-        approval_reviewer_name: "",
-        approval_reviewed_at: "",
-        approval_review_comment: ""
-      };
-    }
-
-    return {
-      ...item,
-      approval_source_label: "处置申请审批",
-      approval_request_id: linkedApproval.request_id || "",
-      approval_reviewer_name: linkedApproval.reviewer_name || "",
-      approval_reviewed_at: linkedApproval.reviewed_at || "",
-      approval_review_comment: linkedApproval.review_comment || ""
-    };
-  });
 });
 
 const activeFilterText = computed(() => {

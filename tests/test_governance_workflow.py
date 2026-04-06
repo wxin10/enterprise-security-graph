@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.auth_service import auth_service
+from app.services.ban_service import ban_service
 
 
 def login(client, username: str, password: str = "123456") -> dict:
@@ -33,7 +34,7 @@ def test_login_and_session_restore(app_client):
     assert me_payload["data"]["user"]["username"] == "analyst"
 
 
-def test_disposal_workflow_and_audit_linkage(app_client):
+def test_disposal_workflow_and_audit_linkage(app_client, monkeypatch):
     analyst_session = login(app_client, "analyst")
     admin_session = login(app_client, "admin")
 
@@ -143,3 +144,68 @@ def test_disposal_workflow_and_audit_linkage(app_client):
         and approve_request["request_id"] in item["detail"]
         for item in audit_items
     )
+
+    linked_ban_record = {
+        "ban": {
+            "action_id": approved_payload["linked_ban_action_id"],
+            "action_type": "BLOCK_IP",
+            "block_source": "manual",
+            "latest_action_type": "MANUAL_BLOCK_IP",
+            "target_type": "IP",
+            "status": "BLOCKED",
+            "current_ban_status": "BLOCKED",
+            "blocked_at": approved_payload["reviewed_at"],
+            "blocked_by": approved_payload["reviewer_name"],
+            "block_reason": approved_payload["review_comment"],
+            "latest_action_at": approved_payload["reviewed_at"],
+            "latest_action_by": approved_payload["reviewer_name"],
+            "latest_action_reason": approved_payload["review_comment"],
+            "source_type": "disposal_approval",
+            "enforcement_mode": "MOCK",
+            "enforcement_backend": "MOCK",
+            "enforcement_status": "SIMULATED",
+            "verification_status": "NOT_VERIFIED",
+        },
+        "alert": {
+            "alert_id": approve_request["alert_id"],
+            "alert_name": approve_request["alert_name"],
+            "severity": approve_request["severity"],
+        },
+        "ip": {
+            "ip_id": "AUTO-IP-10_10_10_25",
+            "ip_address": approve_request["source_ip"],
+            "ip_block_status": "BLOCKED",
+            "is_blocked": True,
+        },
+    }
+
+    def fake_execute_read(query: str, params: dict[str, str]) -> list[dict]:
+        if "RETURN count(DISTINCT b) AS total" in query:
+            return [{"total": 1}]
+        if "MATCH (b:BlockAction {action_id: $action_id})" in query:
+            return [linked_ban_record]
+        if "RETURN properties(b) AS ban," in query:
+            return [linked_ban_record]
+        return []
+
+    monkeypatch.setattr(ban_service.client, "execute_read", fake_execute_read)
+
+    bans_response = app_client.get("/api/bans", headers=admin_headers)
+    assert bans_response.status_code == 200
+    ban_item = bans_response.get_json()["data"]["items"][0]
+
+    assert ban_item["approval_source_label"] == "处置申请审批"
+    assert ban_item["approval_request_id"] == approve_request["request_id"]
+    assert ban_item["approval_reviewer_name"] == "平台管理员"
+    assert ban_item["approval_review_comment"] == "同意封禁来源 IP，按审批结果执行"
+    assert ban_item["approval_execution_status"] == "已封禁"
+
+    ban_detail_response = app_client.get(
+        f"/api/bans/{approved_payload['linked_ban_action_id']}",
+        headers=admin_headers,
+    )
+    assert ban_detail_response.status_code == 200
+    ban_detail = ban_detail_response.get_json()["data"]
+
+    assert ban_detail["approval_request_id"] == approve_request["request_id"]
+    assert ban_detail["approval_execution_status"] == "已封禁"
