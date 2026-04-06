@@ -227,6 +227,8 @@ Get-NetFirewallRule | Where-Object { $_.DisplayName -like "ESG-BAN-*" }
 - [当前状态说明](docs/current_status.md)
 - [数据字典](docs/data_dictionary.md)
 - [系统设计说明](docs)
+- [图集建模设计与分析](docs/graph_model.md)
+- [数据导入与清洗链路方案](docs/data_ingestion.md)
 
 ## 许可证
 
