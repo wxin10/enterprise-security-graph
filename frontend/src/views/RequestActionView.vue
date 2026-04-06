@@ -4,7 +4,7 @@
       <div>
         <h1 class="page-title">处置申请</h1>
         <p class="page-subtitle">
-          当前页面用于一线运维 / 安全分析员填写处置意见并发起封禁申请。普通用户可以提交申请和跟踪状态，
+          当前页面用于一线运维和安全分析员填写处置意见并发起封禁申请。普通用户可以提交申请和跟踪状态，
           但最终审批、封禁执行和规则调整仍由管理员负责。
         </p>
       </div>
@@ -21,7 +21,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前角色</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "未登录" }}</div>
-          <div class="summary-card__hint">普通用户可发起申请，管理员也可查看并提交自己的业务处置申请</div>
+          <div class="summary-card__hint">普通用户可发起申请，管理员也可提交并跟踪本人的业务处置申请</div>
         </div>
       </el-col>
 
@@ -37,7 +37,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">我的申请数</div>
           <div class="summary-card__value summary-card__value--warning">{{ myRecords.length }}</div>
-          <div class="summary-card__hint">可与“我的处理记录”页面形成个人闭环演示</div>
+          <div class="summary-card__hint">可与“我的处理记录”页面联动查看个人申请流转情况</div>
         </div>
       </el-col>
 
@@ -56,7 +56,7 @@
           <div class="section-header">
             <div>
               <h3>申请表单</h3>
-              <p>表单字段与本地模拟存储结构保持一致，后续可直接替换为真实接口提交。</p>
+              <p>表单字段与当前申请记录保持一致，提交后可直接进入个人申请流转记录。</p>
             </div>
           </div>
 
@@ -145,7 +145,7 @@
           <div class="section-header">
             <div>
               <h3>当前申请人</h3>
-              <p>展示当前登录人的身份信息，便于确认申请主体属于哪一类运维角色。</p>
+              <p>用于确认当前登录人的身份信息，便于核对申请主体所属的运维角色和部门信息。</p>
             </div>
           </div>
 
@@ -175,7 +175,7 @@
           <div class="section-header">
             <div>
               <h3>提交流程说明</h3>
-              <p>这一步强调“普通用户可申请、管理员做审批与执行”的业务边界。</p>
+              <p>用于说明“普通用户发起申请、管理员负责审批与执行”的业务边界。</p>
             </div>
           </div>
 
@@ -199,7 +199,7 @@
           <div class="section-header">
             <div>
               <h3>最近提交</h3>
-              <p>快速回看最近提交的申请，方便答辩时演示提交流程已形成闭环。</p>
+              <p>便于快速回看最近提交的申请及其流转状态。</p>
             </div>
           </div>
 
@@ -229,7 +229,7 @@
 // 作用说明：
 // 1. 为普通用户提供处置申请表单，承接“填写意见并发起申请”的业务动作。
 // 2. 保持最终审批与执行留给管理员，避免把普通用户做成高风险操作角色。
-// 3. 复用 mock-storage.js 完成前端联调前的最小可演示流程。
+// 3. 复用本地申请记录能力，保持处置申请提交流程可用。
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
@@ -398,31 +398,31 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
-  color: #67a8ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--warning {
-  color: #ffbf5a;
+  color: var(--text-primary);
 }
 
 .summary-card__value--danger {
-  color: #ff6f7d;
+  color: var(--text-primary);
 }
 
 .summary-card__hint {
   margin-top: 10px;
-  color: #7f98be;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -438,12 +438,12 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -475,15 +475,15 @@ onMounted(() => {
 .record-card {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(10, 26, 48, 0.72);
-  border: 1px solid rgba(101, 146, 219, 0.12);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .user-card__row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: #eef5ff;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -491,7 +491,7 @@ onMounted(() => {
 .record-card__title {
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .tip-item__desc,
@@ -499,7 +499,7 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .record-card__header {
