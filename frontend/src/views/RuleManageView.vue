@@ -96,16 +96,16 @@
         </section>
 
         <section class="security-panel table-panel">
-          <div class="section-header">
+          <div class="section-header" style="margin-bottom: 12px;">
             <div>
               <h3>规则列表</h3>
               <p>集中维护规则阈值、命中效果和状态治理，确保识别链路稳定可控。</p>
             </div>
+          </div>
 
-            <div class="section-header__actions">
-              <div class="table-header-tip">当前命中 {{ filteredRules.length }} 条规则</div>
-              <el-button v-if="canManageRules" type="primary" @click="openCreateDialog">新增规则</el-button>
-            </div>
+          <div class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+            <div class="table-header-tip">当前命中 {{ filteredRules.length }} 条规则</div>
+            <el-button v-if="canManageRules" type="primary" @click="openCreateDialog">新增规则</el-button>
           </div>
 
           <el-table v-loading="loading" :data="filteredRules" empty-text="暂无匹配规则">

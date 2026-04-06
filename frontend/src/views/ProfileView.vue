@@ -64,15 +64,16 @@
     <el-row :gutter="18">
       <el-col :xs="24" :lg="10">
         <section class="security-panel detail-panel">
-          <div class="section-header">
+          <div class="section-header" style="margin-bottom: 12px;">
             <div>
               <h3>基本信息</h3>
               <p>集中维护当前登录账号的基础资料、岗位信息和最近登录时间。</p>
             </div>
-            <div v-if="profile" class="section-actions">
-              <el-button type="primary" plain @click="startEditing">编辑资料</el-button>
-              <el-button type="primary" @click="startChangingPassword">修改密码</el-button>
-            </div>
+          </div>
+
+          <div v-if="profile" class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+            <el-button type="primary" plain @click="startEditing">编辑资料</el-button>
+            <el-button type="primary" @click="startChangingPassword">修改密码</el-button>
           </div>
 
           <div v-if="profile" class="info-list">

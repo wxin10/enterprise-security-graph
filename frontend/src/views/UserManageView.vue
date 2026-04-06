@@ -96,16 +96,16 @@
         </section>
 
         <section class="security-panel table-panel">
-          <div class="section-header">
+          <div class="section-header" style="margin-bottom: 12px;">
             <div>
               <h3>账号列表</h3>
               <p>集中处理账号资料维护、角色边界调整与状态治理。</p>
             </div>
+          </div>
 
-            <div class="section-header__actions">
-              <div class="table-header-tip">当前筛选结果：{{ filteredUsers.length }} 个账号</div>
-              <el-button v-if="canManageUsers" type="primary" @click="openCreateDialog">新增账号</el-button>
-            </div>
+          <div class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+            <div class="table-header-tip">当前筛选结果：{{ filteredUsers.length }} 个账号</div>
+            <el-button v-if="canManageUsers" type="primary" @click="openCreateDialog">新增账号</el-button>
           </div>
 
           <el-table v-loading="loading" :data="filteredUsers" empty-text="暂无匹配账号">

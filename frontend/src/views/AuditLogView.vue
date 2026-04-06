@@ -101,11 +101,13 @@
         </section>
 
         <section class="security-panel table-panel">
-          <div class="section-header">
+          <div class="section-header" style="margin-bottom: 12px;">
             <div>
               <h3>审计记录</h3>
               <p>表格集中呈现“谁在什么时间对什么对象执行了什么动作以及结果如何”，便于统一核查关键操作留痕。</p>
             </div>
+          </div>
+          <div class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
             <div class="table-header-tip">当前命中 {{ filteredAuditRecords.length }} 条记录</div>
           </div>
 

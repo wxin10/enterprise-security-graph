@@ -54,15 +54,15 @@
     <el-row v-if="canViewApprovalOverview" :gutter="18" class="approval-section">
       <el-col :xs="24" :lg="14">
         <div class="security-panel section-panel approval-panel">
-          <div class="section-header">
+          <div class="section-header" style="margin-bottom: 12px;">
             <div>
               <h3>待审批申请</h3>
               <p>首页汇总最近待审批的处置申请，支持直接执行审批动作或进入封禁审批页面继续处理。</p>
             </div>
-            <div class="section-actions">
-              <div class="table-header-tip">最近审批时间：{{ latestApprovalActionText }}</div>
-              <el-button plain @click="handleOpenApprovalPage">进入审批页</el-button>
-            </div>
+          </div>
+          <div class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+            <div class="table-header-tip">最近审批时间：{{ latestApprovalActionText }}</div>
+            <el-button plain @click="handleOpenApprovalPage">进入审批页</el-button>
           </div>
 
           <el-table :data="pendingDisposals" v-loading="loading" empty-text="当前没有待审批申请" stripe>

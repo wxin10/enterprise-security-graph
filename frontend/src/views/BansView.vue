@@ -77,16 +77,15 @@
     </el-row>
 
     <section class="security-panel approval-panel">
-      <div class="section-header">
+      <div class="section-header" style="margin-bottom: 12px;">
         <div>
           <h3>待审批申请</h3>
           <p>管理员在本页直接处理处置申请，审批结果会同步写入处置记录与审计日志。</p>
         </div>
-
-        <div class="page-banner__actions">
-          <div class="table-header-tip">待审批 {{ approvalSummary.pending }} 条</div>
-          <el-button plain :loading="approvalLoading" @click="loadApprovalQueue">刷新审批列表</el-button>
-        </div>
+      </div>
+      <div class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+        <div class="table-header-tip">待审批 {{ approvalSummary.pending }} 条</div>
+        <el-button plain :loading="approvalLoading" @click="loadApprovalQueue">刷新审批列表</el-button>
       </div>
 
       <el-table v-loading="approvalLoading" :data="pendingApprovalItems" empty-text="当前没有待审批申请" stripe>
@@ -169,12 +168,13 @@
     </section>
 
     <section class="security-panel table-panel">
-      <div class="section-header">
+      <div class="section-header" style="margin-bottom: 12px;">
         <div>
           <h3>当前状态列表</h3>
           <p>列表集中呈现当前状态、最近动作、目标 IP 以及关键执行结果。</p>
         </div>
-
+      </div>
+      <div class="section-toolbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
         <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
       </div>
 
