@@ -1255,3 +1255,35 @@
 ### 本轮校验结果补录
 - `frontend/src/layouts/AppLayout.vue` 已通过 `@vue/compiler-sfc` 语法检查。
 - `frontend/src/router/index.js` 已通过 `node --check` 语法检查。
+
+## 2026-04-06 Dashboard 残留清理补录
+- 本轮业务改动文件：
+  - `frontend/src/views/DashboardView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - 删除了失效的旧 `summaryCards` 注释代码块。
+  - 删除了与 `ChartPlaceholder` 相关但已失效的残留样式。
+  - 保持现有两张图表、表格与排行区的数据逻辑和页面结构不变。
+- 语法检查：
+  - `frontend/src/views/DashboardView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 28] 2026-04-06
+- 任务目标：完成 DashboardView 无效残留清理，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `frontend/src/views/DashboardView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `frontend/src/views/DashboardView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `frontend/src/views/DashboardView.vue`：删除失效旧注释块与 `ChartPlaceholder` 残留样式，并补齐历史遗留的模板与字符串闭合问题以通过语法检查。
+  - `CODEX_PROGRESS.md`：补录本轮 Dashboard 残留清理批次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。

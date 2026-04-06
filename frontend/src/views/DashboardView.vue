@@ -1,22 +1,22 @@
-<template>
+﻿<template>
   <!--
-    文件路径：frontend/src/views/DashboardView.vue
-    作用说明：
-    1. 展示仪表盘首页。
-    2. 对接后端 /api/graph/overview 接口。
-    3. 展示 summary、latest_alerts、top_risk_users、top_risk_ips、top_risk_hosts。
+    鏂囦欢璺緞锛歠rontend/src/views/DashboardView.vue
+    浣滅敤璇存槑锛?
+    1. 灞曠ず浠〃鐩橀椤点€?
+    2. 瀵规帴鍚庣 /api/graph/overview 鎺ュ彛銆?
+    3. 灞曠ず summary銆乴atest_alerts銆乼op_risk_users銆乼op_risk_ips銆乼op_risk_hosts銆?
   -->
   <div class="dashboard-page app-page">
     <section class="dashboard-hero security-panel">
       <div>
-        <h1 class="page-title">企业网络安全态势总览</h1>
+        <h1 class="page-title">浼佷笟缃戠粶瀹夊叏鎬佸娍鎬昏</h1>
         <p class="page-subtitle">
-          当前页面已对接图谱总览接口，用于展示图数据库中安全实体、告警、封禁与高风险对象的整体态势。
+          褰撳墠椤甸潰宸插鎺ュ浘璋辨€昏鎺ュ彛锛岀敤浜庡睍绀哄浘鏁版嵁搴撲腑瀹夊叏瀹炰綋銆佸憡璀︺€佸皝绂佷笌楂橀闄╁璞＄殑鏁翠綋鎬佸娍銆?
         </p>
       </div>
 
       <el-button type="primary" :loading="loading" @click="loadOverview">
-        刷新总览数据
+        鍒锋柊鎬昏鏁版嵁
       </el-button>
     </section>
 
@@ -41,9 +41,9 @@
           </div>
 
           <el-table :data="overviewData.latest_alerts" v-loading="loading" stripe>
-            <el-table-column prop="alert_id" label="告警编号" min-width="100" />
-            <el-table-column prop="alert_name" label="告警名称" min-width="150" />
-            <el-table-column label="严重等级" min-width="110">
+            <el-table-column prop="alert_id" label="鍛婅缂栧彿" min-width="100" />
+            <el-table-column prop="alert_name" label="鍛婅鍚嶇О" min-width="150" />
+            <el-table-column label="涓ラ噸绛夌骇" min-width="110">
               <template #default="{ row }">
                 <el-tag :type="severityTagType(row.severity)" effect="light">
                   {{ row.severity || "-" }}
@@ -51,9 +51,9 @@
               </template>
             </el-table-column>
             <el-table-column prop="status" label="状态" min-width="100" />
-            <el-table-column prop="score" label="得分" min-width="80" />
-            <el-table-column prop="event_type" label="事件类型" min-width="120" />
-            <el-table-column prop="rule_name" label="命中规则" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="score" label="寰楀垎" min-width="80" />
+            <el-table-column prop="event_type" label="浜嬩欢绫诲瀷" min-width="120" />
+            <el-table-column prop="rule_name" label="鍛戒腑瑙勫垯" min-width="180" show-overflow-tooltip />
           </el-table>
         </div>
       </el-col>
@@ -63,7 +63,7 @@
           <div class="section-header">
             <div>
               <h3>高风险对象排行</h3>
-              <p>面向论文展示高风险用户、IP 和主机的重点对象。</p>
+              <p>面向首页展示高风险用户、IP 和主机的重点对象。</p>
             </div>
           </div>
 
@@ -81,12 +81,12 @@
           </div>
 
           <div class="risk-block">
-            <div class="risk-block__title">高风险 IP</div>
+            <div class="risk-block__title">楂橀闄?IP</div>
             <div class="risk-list">
               <div v-for="item in overviewData.top_risk_ips" :key="item.ip_id" class="risk-list__item">
                 <div>
                   <div class="risk-list__name">{{ item.ip_address }}</div>
-                  <div class="risk-list__meta">{{ item.ip_type || "未知类型" }}</div>
+                  <div class="risk-list__meta">{{ item.ip_type || "鏈煡绫诲瀷" }}</div>
                 </div>
                 <el-tag :type="item.is_blocked ? 'danger' : 'warning'" effect="light">
                   {{ item.risk_score ?? "-" }}
@@ -101,7 +101,7 @@
               <div v-for="item in overviewData.top_risk_hosts" :key="item.host_id" class="risk-list__item">
                 <div>
                   <div class="risk-list__name">{{ item.hostname }}</div>
-                  <div class="risk-list__meta">{{ item.asset_type || "未知资产" }}</div>
+                  <div class="risk-list__meta">{{ item.asset_type || "鏈煡璧勪骇" }}</div>
                 </div>
                 <el-tag type="warning" effect="light">{{ item.risk_score ?? "-" }}</el-tag>
               </div>
@@ -116,7 +116,7 @@
         <div class="security-panel section-panel chart-panel">
           <div class="section-header">
             <div>
-              <h3>告警等级分布</h3>
+              <h3>鍛婅绛夌骇鍒嗗竷</h3>
               <p>基于 latest_alerts 聚合展示当前首页告警等级结构。</p>
             </div>
           </div>
@@ -136,7 +136,7 @@
               <span class="chart-row__percent">{{ item.percentText }}</span>
             </div>
           </div>
-          <el-empty v-else description="暂无告警等级分布数据" />
+          <el-empty v-else description="鏆傛棤鍛婅绛夌骇鍒嗗竷鏁版嵁" />
         </div>
       </el-col>
       <el-col :xs="24" :lg="12">
@@ -171,10 +171,10 @@
 </template>
 
 <script setup>
-// 文件路径：frontend/src/views/DashboardView.vue
-// 作用说明：
-// 1. 通过 fetchGraphOverview 读取后端图谱总览接口。
-// 2. 将接口结果拆分为概览卡片、最新告警表和高风险排行三部分展示。
+// 鏂囦欢璺緞锛歠rontend/src/views/DashboardView.vue
+// 浣滅敤璇存槑锛?
+// 1. 閫氳繃 fetchGraphOverview 璇诲彇鍚庣鍥捐氨鎬昏鎺ュ彛銆?
+// 2. 灏嗘帴鍙ｇ粨鏋滄媶鍒嗕负姒傝鍗＄墖銆佹渶鏂板憡璀﹁〃鍜岄珮椋庨櫓鎺掕涓夐儴鍒嗗睍绀恒€?
 
 import { computed, onMounted, reactive, ref } from "vue";
 
@@ -301,88 +301,44 @@ const riskEntityChartData = computed(() => {
     .filter((item) => item.value > 0);
 });
 
-/*
-const summaryCards = computed(() => [
-  {
-    key: "node_total",
-    title: "图谱节点总量",
-    hint: "当前 Neo4j 中所有业务实体节点数量",
-    value: overviewData.summary.node_total,
-    tone: "primary",
-    icon: "Connection"
-  },
-  {
-    key: "relation_total",
-    title: "图谱关系总量",
-    hint: "当前图谱中的访问、告警与处置关系数量",
-    value: overviewData.summary.relation_total,
-    tone: "success",
-    icon: "Share"
-  },
-  {
-    key: "alert_total",
-    title: "告警总量",
-    hint: "当前图数据库中的告警节点总数",
-    value: overviewData.summary.alert_total,
-    tone: "danger",
-    icon: "Bell"
-  },
-  {
-    key: "blocked_ip_total",
-    title: "封禁 IP 数量",
-    hint: "已被联动封禁或标记为封禁状态的 IP 数量",
-    value: overviewData.summary.blocked_ip_total,
-    tone: "warning",
-    icon: "Lock"
-  },
-  {
-    key: "high_risk_event_total",
-    title: "高风险事件数",
-    hint: "风险分值大于等于 80 的事件总数",
-    value: overviewData.summary.high_risk_event_total,
-    tone: "danger",
-    icon: "Warning"
-  }
-]);
-*/
 
 const summaryCards = computed(() => [
   {
     key: "node_total",
-    title: "图谱节点总量",
-    hint: "当前 Neo4j 中所有业务实体节点的数量统计",
+    title: "鍥捐氨鑺傜偣鎬婚噺",
+    hint: "褰撳墠 Neo4j 涓墍鏈変笟鍔″疄浣撹妭鐐圭殑鏁伴噺缁熻",
     value: overviewData.summary.node_total,
     tone: "primary",
     icon: "Connection"
   },
   {
     key: "relation_total",
-    title: "图谱关系总量",
-    hint: "当前图谱中的访问、告警与处置关系数量",
+    title: "鍥捐氨鍏崇郴鎬婚噺",
+    hint: "褰撳墠鍥捐氨涓殑璁块棶銆佸憡璀︿笌澶勭疆鍏崇郴鏁伴噺",
     value: overviewData.summary.relation_total,
     tone: "success",
     icon: "Share"
   },
   {
     key: "alert_total",
-    title: "告警总量",
-    hint: "当前图数据库中的告警节点总数",
+    title: "鍛婅鎬婚噺",
+    hint: "褰撳墠鍥炬暟鎹簱涓殑鍛婅鑺傜偣鎬绘暟",
     value: overviewData.summary.alert_total,
     tone: "danger",
     icon: "Bell"
   },
   {
     key: "blocked_ip_total",
-    title: "封禁 IP 数量",
-    hint: "当前已被封禁或标记为封禁状态的 IP 数量",
+    title: "灏佺 IP 鏁伴噺",
+    hint: "褰撳墠宸茶灏佺鎴栨爣璁颁负灏佺鐘舵€佺殑 IP 鏁伴噺",
     value: overviewData.summary.blocked_ip_total,
     tone: "warning",
     icon: "Lock"
   },
   {
     key: "high_risk_event_total",
-    title: "高风险事件数",
-    hint: "风险分值大于等于 80 的事件总数",
+    title: "楂橀闄╀簨浠舵暟",
+    hint: "椋庨櫓鍒嗗€煎ぇ浜庣瓑浜?80 鐨勪簨浠舵€绘暟",
     value: overviewData.summary.high_risk_event_total,
     tone: "danger",
     icon: "Warning"
@@ -551,33 +507,6 @@ onMounted(() => {
   min-width: 10px;
   border-radius: inherit;
   box-shadow: 0 8px 18px rgba(59, 130, 246, 0.16);
-}
-
-:deep(.chart-placeholder__header h3) {
-  color: var(--text-primary) !important;
-}
-
-:deep(.chart-placeholder__header span) {
-  color: var(--text-secondary) !important;
-}
-
-:deep(.chart-placeholder__body) {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(237, 244, 255, 0.94)) !important;
-  border: 1px dashed rgba(148, 163, 184, 0.24);
-}
-
-:deep(.chart-placeholder__grid) {
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px) !important;
-}
-
-:deep(.chart-placeholder__main) {
-  color: var(--text-primary) !important;
-}
-
-:deep(.chart-placeholder__sub) {
-  color: var(--text-secondary) !important;
 }
 
 @media (max-width: 992px) {

@@ -292,3 +292,16 @@
 ### 校验结果补录
 - `frontend/src/layouts/AppLayout.vue` 已通过 `@vue/compiler-sfc` 语法检查。
 - `frontend/src/router/index.js` 已通过 `node --check` 语法检查。
+
+## 2026-04-06 Dashboard 残留清理收尾
+### 当前状态
+- `frontend/src/views/DashboardView.vue` 已清理失效的旧 `summaryCards` 注释块。
+- `frontend/src/views/DashboardView.vue` 已删除与 `ChartPlaceholder` 相关的无效残留样式。
+- 当前分支仍为 `current-ui-sync`。
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端收口，继续遵守单文件最小范围原则。
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/views/DashboardView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/views/DashboardView.vue` 已执行语法检查。
