@@ -233,8 +233,45 @@ function buildNodeDetailLines(node) {
   if (node?.type) {
     fallbackLines.push(`节点类型：${nodeTypeLabel(node.type)}`);
   }
+
+  // 增强对实体的业务属性解释 (聚焦 "为什么判定危险、为什么封禁、什么规则识别")
+  if (node?.properties) {
+    const p = node.properties;
+    const label = node.label || node.type;
+    
+    if (label === "Alert" || label === "alert") {
+      if (p.alert_name) fallbackLines.push(`⚠️ 告警名称：${p.alert_name}`);
+      if (p.severity) fallbackLines.push(`⛔ 风险等级：${p.severity}`);
+      if (p.score) fallbackLines.push(`📈 风险分值：${p.score}`);
+      if (p.description) fallbackLines.push(`📝 判定描述：${p.description}`);
+      if (p.suggestion) fallbackLines.push(`💡 防御建议：${p.suggestion}`);
+    } else if (label === "BlockAction" || label === "ban_action") {
+      if (p.action_type) fallbackLines.push(`🔨 处置动作：${p.action_type}`);
+      if (p.target_ip) fallbackLines.push(`🎯 封禁对象：${p.target_ip}`);
+      if (p.remark) fallbackLines.push(`📋 联动依据：${p.remark}`);
+    } else if (label === "Rule" || label === "rule") {
+      if (p.rule_name) fallbackLines.push(`🛡️ 命中规则：${p.rule_name}`);
+      if (p.rule_category) fallbackLines.push(`🏷️ 判定类别：${p.rule_category}`);
+      if (p.threshold_desc) fallbackLines.push(`⚖️ 触发条件：${p.threshold_desc}`);
+    } else if (label === "Event" || label === "security_event") {
+      if (p.action) fallbackLines.push(`⚡ 动作类型：${p.action}`);
+      if (p.result) fallbackLines.push(`🏷️ 动作结果：${p.result}`);
+      if (p.message) fallbackLines.push(`📝 日志语义：${p.message}`);
+    } else if (label === "Session") {
+      if (p.protocol) fallbackLines.push(`🔌 利用协议：${p.protocol}`);
+      if (p.auth_method) fallbackLines.push(`🔑 认证方式：${p.auth_method}`);
+    } else if (label === "Host" || label === "target_asset") {
+      if (p.hostname) fallbackLines.push(`💻 目标资产：${p.hostname}`);
+      if (p.asset_type) fallbackLines.push(`🏢 资产性质：${p.asset_type}`);
+      if (p.critical_level) fallbackLines.push(`⚠️ 重要星级：${p.critical_level}`);
+    } else if (label === "IP" || label === "source_ip") {
+      if (p.ip_type) fallbackLines.push(`🌐 来源分类：${p.ip_type}`);
+      if (p.is_blocked !== undefined) fallbackLines.push(`⛔ 封禁状态：${p.is_blocked ? "已被墙" : "通行中"}`);
+    }
+  }
+
   if (node?.status) {
-    fallbackLines.push(`当前状态：${node.status}`);
+    fallbackLines.push(`系统状态：${node.status}`);
   }
 
   return fallbackLines;

@@ -24,6 +24,23 @@
       </el-col>
     </el-row>
 
+    <!-- 新增：实验评估专属大屏指标栏 (重点贴合毕业设计答辩) -->
+    <div class="section-header" style="margin-bottom: 12px; margin-top: 24px;">
+      <div>
+        <h3>防御系统效能评估 (实验演示指标)</h3>
+        <p>用于在实战场景或答辩演示中，直观评估系统的告警拦截准确度与联动效率。</p>
+      </div>
+    </div>
+    <el-row :gutter="18" class="summary-grid">
+      <el-col :xs="24" :sm="12" :lg="8" :xl="8" v-for="item in evaluationCards" :key="item.key">
+        <StatCard :title="item.title" :hint="item.hint" :value="item.value" :tone="item.tone">
+          <template #icon>
+            <component :is="item.icon" />
+          </template>
+        </StatCard>
+      </el-col>
+    </el-row>
+
     <el-row v-if="canViewApprovalOverview" :gutter="18" class="summary-grid">
       <el-col :xs="24" :sm="12" :lg="8" :xl="6" v-for="item in approvalCards" :key="item.key">
         <StatCard :title="item.title" :hint="item.hint" :value="item.value" :tone="item.tone">
@@ -468,6 +485,33 @@ const summaryCards = computed(() => [
     value: overviewData.summary.high_risk_event_total,
     tone: "danger",
     icon: "Warning"
+  }
+]);
+
+const evaluationCards = computed(() => [
+  {
+    key: "rule_hit_total",
+    title: "命中图谱规则数",
+    hint: "统计引发预警并产生图谱推演的策略命中总次数",
+    value: overviewData.summary.rule_hit_total || 0,
+    tone: "danger",
+    icon: "Filter"
+  },
+  {
+    key: "block_exec_total",
+    title: "确证拦截数 (阻断执行)",
+    hint: "评价系统全自动研判或经审批后，成功拦截的动作总计",
+    value: overviewData.summary.block_exec_total || 0,
+    tone: "success",
+    icon: "Lock"
+  },
+  {
+    key: "avg_chain_nodes",
+    title: "攻击链平均推演深度",
+    hint: "图谱中每个主链路提取的平均推演证据数（反映溯源解释力）",
+    value: overviewData.summary.avg_chain_nodes || 0,
+    tone: "primary",
+    icon: "Share"
   }
 ]);
 

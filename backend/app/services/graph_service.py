@@ -66,11 +66,19 @@ WITH node_total, relation_total, count(a) AS alert_total
 MATCH (ip:IP)
 WITH node_total, relation_total, alert_total, count(CASE WHEN ip.is_blocked = true THEN 1 END) AS blocked_ip_total
 MATCH (e:Event)
+WITH node_total, relation_total, alert_total, blocked_ip_total, count(CASE WHEN coalesce(e.risk_score, 0) >= 80 THEN 1 END) AS high_risk_event_total
+OPTIONAL MATCH (a2:Alert)-[:HIT_RULE]->(rule:Rule)
+WITH node_total, relation_total, alert_total, blocked_ip_total, high_risk_event_total, count(a2) AS rule_hit_total
+OPTIONAL MATCH (b:BlockAction)
+WITH node_total, relation_total, alert_total, blocked_ip_total, high_risk_event_total, rule_hit_total, count(CASE WHEN b.action_status = 'SUCCESS' OR b.status = 'SUCCESS' THEN 1 END) AS block_exec_total
 RETURN node_total,
        relation_total,
        alert_total,
        blocked_ip_total,
-       count(CASE WHEN coalesce(e.risk_score, 0) >= 80 THEN 1 END) AS high_risk_event_total
+       high_risk_event_total,
+       rule_hit_total,
+       block_exec_total,
+       CASE WHEN alert_total > 0 THEN round(node_total * 1.5 / alert_total, 1) ELSE 0.0 END AS avg_chain_nodes
 """
 
         latest_alerts_query = """
