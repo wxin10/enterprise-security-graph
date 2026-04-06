@@ -1,7 +1,5 @@
 ﻿<template>
-  <!--
-    鏂囦欢璺緞锛歠rontend/src/layouts/AppLayout.vue
-    浣滅敤璇存槑锛?    1. 鎻愪緵绯荤粺涓诲竷灞€锛岄噰鐢ㄥ乏渚ц彍鍗?+ 椤堕儴鏍?+ 鍐呭鍖虹粨鏋勩€?    2. 鎵胯浇浠〃鐩樸€佸憡璀︾鐞嗐€佸皝绂佺鐞嗕笌鏃ュ織鐩戞帶涓績绛変笟鍔￠〉闈€?    3. 鍦ㄧ幇鏈夊竷灞€鍩虹涓婃帴鍏ヨ鑹茶彍鍗曘€佺敤鎴蜂俊鎭笌椤甸潰瀹炵幇鐘舵€佽鏄庛€?  -->
+  <!-- 控制台主布局：提供侧边菜单、顶部状态栏和页面内容区。 -->
   <div class="layout-page">
     <el-container class="layout-shell">
       <el-aside class="layout-aside" width="240px">
@@ -10,7 +8,7 @@
             <el-icon><Monitor /></el-icon>
           </div>
           <div class="brand-text">
-            <div class="brand-title">浼佷笟瀹夊叏鍥捐氨骞冲彴</div>
+            <div class="brand-title">企业安全图谱平台</div>
             <div class="brand-subtitle">Enterprise Security Console</div>
           </div>
         </div>

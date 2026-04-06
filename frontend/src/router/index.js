@@ -105,8 +105,8 @@ const router = createRouter({
           name: "users",
           component: UserManageView,
           meta: buildMenuRouteMeta("/console/users", {
-            dataSource: DATA_SOURCE_LOCAL,
-            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           })
         },
         {
@@ -114,8 +114,8 @@ const router = createRouter({
           name: "rules",
           component: RuleManageView,
           meta: buildMenuRouteMeta("/console/rules", {
-            dataSource: DATA_SOURCE_LOCAL,
-            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           })
         },
         {
@@ -123,8 +123,8 @@ const router = createRouter({
           name: "audit",
           component: AuditLogView,
           meta: buildMenuRouteMeta("/console/audit", {
-            dataSource: DATA_SOURCE_LOCAL,
-            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           })
         },
         {
@@ -152,8 +152,8 @@ const router = createRouter({
           name: "profile",
           component: ProfileView,
           meta: buildMenuRouteMeta("/console/profile", {
-            dataSource: DATA_SOURCE_LOCAL,
-            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           })
         },
         {
@@ -161,8 +161,8 @@ const router = createRouter({
           name: "my-records",
           component: MyRecordsView,
           meta: buildMenuRouteMeta("/console/my-records", {
-            dataSource: DATA_SOURCE_LOCAL,
-            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           })
         },
         {
@@ -170,8 +170,8 @@ const router = createRouter({
           name: "disposals",
           component: RequestActionView,
           meta: buildMenuRouteMeta("/console/disposals", {
-            dataSource: DATA_SOURCE_LOCAL,
-            statusNote: getRouteStatusNote(DATA_SOURCE_LOCAL)
+            dataSource: DATA_SOURCE_BACKEND,
+            statusNote: getRouteStatusNote(DATA_SOURCE_BACKEND)
           })
         }
       ]

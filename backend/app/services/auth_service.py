@@ -1,119 +1,59 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-文件路径：backend/app/services/auth_service.py
-
-文件作用：
-1. 提供控制台登录与当前会话查询的后端服务能力。
-2. 维护当前阶段的后端内存态会话，为前端切换到真实登录接口提供最小闭环。
-3. 统一复用当前前端既有账号口径和用户结构，避免前后端账号模型再次分叉。
-
-当前阶段说明：
-1. 本服务不接数据库，也不引入完整权限中心。
-2. 当前阶段采用“固定账号映射 + 后端内存态会话”的轻量实现。
-3. 该实现的目标是补齐真实后端登录接口闭环，而不是直接替代未来的生产级统一鉴权系统。
-"""
 
 from __future__ import annotations
 
+import json
 import secrets
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from pathlib import Path
+from threading import RLock
+from typing import Any
 
 from app.core.errors import APIError, ValidationError
+from app.services.governance_service import governance_service
 
 
 class AuthenticationError(APIError):
-    """
-    登录鉴权异常。
-
-    设计原因：
-    1. 登录失败、令牌缺失、令牌过期都属于鉴权失败场景。
-    2. 继续复用全局异常处理器，保证返回结构与现有接口风格一致。
-    """
-
     def __init__(self, message: str = "登录状态无效或已过期", code: int = 4010, data=None, http_status: int = 401):
         super().__init__(message=message, code=code, http_status=http_status, data=data)
 
 
 class AuthService:
-    """
-    控制台登录服务。
-
-    当前阶段支持的最小能力：
-    1. 账号密码登录。
-    2. 生成后端会话令牌。
-    3. 根据会话令牌查询当前登录用户。
-    """
-
     SESSION_TTL_SECONDS = 8 * 60 * 60
+    SESSION_FILE_PATH = Path(__file__).resolve().parents[1] / "data" / "session_state.json"
 
-    # 账号模板严格复用当前前端 auth.js 的用户结构口径。
-    # 这样下一轮前端切换到后端登录时，不需要再额外改用户字段映射。
-    ACCOUNT_TEMPLATES = {
-        "admin": {
-            "password": "123456",
-            "user": {
-                "user_id": "ADMIN-001",
-                "username": "admin",
-                "display_name": "平台管理员",
-                "department": "安全运营中心",
-                "title": "高权限运维负责人",
-                "role": "admin",
-            },
-        },
-        "analyst": {
-            "password": "123456",
-            "user": {
-                "user_id": "OPS-001",
-                "username": "analyst",
-                "display_name": "值班分析员",
-                "department": "安全运营中心",
-                "title": "一线运维 / 安全分析员",
-                "role": "user",
-            },
-        },
-        "user": {
-            "password": "123456",
-            "user": {
-                "user_id": "OPS-002",
-                "username": "user",
-                "display_name": "一线运维人员",
-                "department": "安全运营中心",
-                "title": "一线运维 / 安全分析员",
-                "role": "user",
-            },
-        },
-    }
+    def __init__(self) -> None:
+        self._lock = RLock()
+        self._ensure_session_file()
+        self._session_store: dict[str, dict[str, Any]] = self._load_session_store()
 
-    def __init__(self):
-        # 当前阶段会话仅保存在后端进程内存中。
-        # 这意味着服务重启后令牌会失效，这是当前“最小真实闭环”允许接受的边界。
-        self._session_store: Dict[str, Dict[str, Any]] = {}
-
-    def login(self, username: str, password: str) -> Dict[str, Any]:
-        """
-        执行登录并生成后端会话。
-        """
+    def login(self, username: str, password: str) -> dict[str, Any]:
         normalized_username = self._normalize_username(username)
         normalized_password = self._normalize_password(password)
 
         if not normalized_username:
             raise ValidationError("username 不能为空", data={"field": "username"})
-
         if not normalized_password:
             raise ValidationError("password 不能为空", data={"field": "password"})
 
-        account_profile = self.ACCOUNT_TEMPLATES.get(normalized_username)
+        account_profile = governance_service.get_login_user(normalized_username)
         if not account_profile:
             raise AuthenticationError(
-                message="账号不存在或当前账号无权限进入系统",
+                message="账号不存在或当前账号无权进入系统",
                 code=4011,
                 data={"field": "username"},
             )
 
-        if normalized_password != account_profile["password"]:
+        if account_profile.get("status") != "启用":
+            raise AuthenticationError(
+                message="当前账号未启用，暂时无法登录",
+                code=4015,
+                data={"field": "username"},
+            )
+
+        if normalized_password != str(account_profile.get("password") or "").strip():
             raise AuthenticationError(
                 message="账号或密码错误",
                 code=4012,
@@ -125,118 +65,158 @@ class AuthService:
         issued_at = self._now()
         expires_at = issued_at + timedelta(seconds=self.SESSION_TTL_SECONDS)
         session_token = self._build_session_token()
-        current_user = self._build_login_user(account_profile["user"], issued_at)
+        current_user = governance_service.mark_user_login(
+            account_profile["user_id"],
+            self._serialize_local_datetime(issued_at),
+        )
+        auth_user = governance_service.get_auth_user_by_id(current_user["user_id"]) or account_profile
 
-        self._session_store[session_token] = {
+        session_payload = {
             "session_token": session_token,
+            "user_id": current_user["user_id"],
+            "username": auth_user.get("username") or normalized_username,
+            "password_updated_at": self._resolve_password_version(auth_user),
             "user": deepcopy(current_user),
             "issued_at": self._serialize_datetime(issued_at),
             "expires_at": self._serialize_datetime(expires_at),
         }
+
+        with self._lock:
+            self._session_store[session_token] = session_payload
+            self._save_session_store()
 
         return {
             "session_token": session_token,
             "token_type": "Bearer",
             "expires_in": self.SESSION_TTL_SECONDS,
-            "issued_at": self._serialize_datetime(issued_at),
-            "expires_at": self._serialize_datetime(expires_at),
+            "issued_at": session_payload["issued_at"],
+            "expires_at": session_payload["expires_at"],
             "user": deepcopy(current_user),
         }
 
-    def get_current_session(self, session_token: str) -> Dict[str, Any]:
-        """
-        根据令牌返回当前登录会话。
-        """
+    def get_current_session(self, session_token: str) -> dict[str, Any]:
         normalized_token = self._normalize_token(session_token)
         if not normalized_token:
             raise AuthenticationError(message="未提供登录令牌", code=4013)
 
         self._cleanup_expired_sessions()
 
-        session_payload = self._session_store.get(normalized_token)
+        with self._lock:
+            session_payload = deepcopy(self._session_store.get(normalized_token))
+
         if not session_payload:
             raise AuthenticationError(message="登录状态无效或已过期", code=4014)
+
+        auth_user = governance_service.get_auth_user_by_id(session_payload["user_id"])
+        if not auth_user or auth_user.get("status") != "启用":
+            self._invalidate_session(normalized_token)
+            raise AuthenticationError(message="当前账号已停用或不存在", code=4016)
+
+        current_password_version = self._resolve_password_version(auth_user)
+        if session_payload.get("password_updated_at") != current_password_version:
+            self._invalidate_session(normalized_token)
+            raise AuthenticationError(message="登录状态已失效，请重新登录", code=4017)
+
+        current_user = governance_service.get_public_user_by_id(session_payload["user_id"])
+        if not current_user:
+            self._invalidate_session(normalized_token)
+            raise AuthenticationError(message="当前账号已停用或不存在", code=4016)
 
         return {
             "session_token": session_payload["session_token"],
             "token_type": "Bearer",
             "issued_at": session_payload["issued_at"],
             "expires_at": session_payload["expires_at"],
-            "user": deepcopy(session_payload["user"]),
+            "user": deepcopy(current_user),
         }
 
     def _cleanup_expired_sessions(self) -> None:
-        """
-        清理已过期的内存态会话。
-
-        设计说明：
-        1. 当前阶段不用单独引入定时任务。
-        2. 在登录和查询当前用户时顺带清理即可，足以满足最小闭环需求。
-        """
         now = self._now()
-        expired_tokens = []
+        expired_tokens: list[str] = []
 
-        for token, session_payload in self._session_store.items():
-            expires_at = self._parse_datetime(session_payload.get("expires_at"))
-            if expires_at <= now:
-                expired_tokens.append(token)
+        with self._lock:
+            for token, session_payload in self._session_store.items():
+                expires_at = self._parse_datetime(session_payload.get("expires_at"))
+                if expires_at <= now:
+                    expired_tokens.append(token)
 
-        for token in expired_tokens:
-            self._session_store.pop(token, None)
+            if not expired_tokens:
+                return
 
-    def _build_login_user(self, account_user: Dict[str, Any], issued_at: datetime) -> Dict[str, Any]:
-        """
-        构造登录成功后的用户对象。
+            for token in expired_tokens:
+                self._session_store.pop(token, None)
 
-        说明：
-        1. 返回字段与前端现有会话结构保持兼容。
-        2. 额外补充 login_at，便于前端后续直接复用当前展示逻辑。
-        """
-        return {
-            **deepcopy(account_user),
-            "login_at": self._serialize_datetime(issued_at),
+            self._save_session_store()
+
+    def _invalidate_session(self, session_token: str) -> None:
+        with self._lock:
+            if session_token not in self._session_store:
+                return
+
+            self._session_store.pop(session_token, None)
+            self._save_session_store()
+
+    def _ensure_session_file(self) -> None:
+        with self._lock:
+            self.SESSION_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            if self.SESSION_FILE_PATH.exists():
+                return
+
+            self.SESSION_FILE_PATH.write_text(
+                json.dumps({"sessions": []}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
+    def _load_session_store(self) -> dict[str, dict[str, Any]]:
+        with self._lock:
+            self._ensure_session_file()
+            raw_text = self.SESSION_FILE_PATH.read_text(encoding="utf-8").strip() or '{"sessions": []}'
+            payload = json.loads(raw_text)
+            sessions = payload.get("sessions") or []
+
+            return {
+                str(item.get("session_token") or "").strip(): deepcopy(item)
+                for item in sessions
+                if str(item.get("session_token") or "").strip()
+            }
+
+    def _save_session_store(self) -> None:
+        data = {
+            "sessions": sorted(
+                [deepcopy(item) for item in self._session_store.values()],
+                key=lambda item: str(item.get("issued_at") or ""),
+                reverse=True,
+            )
         }
+        temp_path = self.SESSION_FILE_PATH.with_suffix(".tmp")
+        temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        temp_path.replace(self.SESSION_FILE_PATH)
+
+    def _resolve_password_version(self, user: dict[str, Any]) -> str:
+        return str(user.get("password_updated_at") or user.get("updated_at") or user.get("created_at") or "").strip()
 
     def _build_session_token(self) -> str:
-        """
-        生成当前阶段的轻量会话令牌。
-        """
         return f"esg_{secrets.token_urlsafe(24)}"
 
     def _normalize_username(self, username: Any) -> str:
-        """
-        统一规范化账号名。
-        """
         return str(username or "").strip().lower()
 
     def _normalize_password(self, password: Any) -> str:
-        """
-        统一规范化密码字符串。
-        """
         return str(password or "").strip()
 
     def _normalize_token(self, session_token: Any) -> str:
-        """
-        统一规范化会话令牌。
-        """
         return str(session_token or "").strip()
 
     def _now(self) -> datetime:
-        """
-        返回当前 UTC 时间。
-        """
         return datetime.now(timezone.utc)
 
     def _serialize_datetime(self, value: datetime) -> str:
-        """
-        序列化时间，统一使用 ISO 8601 字符串。
-        """
         return value.isoformat(timespec="seconds")
 
+    def _serialize_local_datetime(self, value: datetime) -> str:
+        return value.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
     def _parse_datetime(self, value: Any) -> datetime:
-        """
-        解析已序列化的时间字符串。
-        """
         try:
             return datetime.fromisoformat(str(value))
         except (TypeError, ValueError) as exc:

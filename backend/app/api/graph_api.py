@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from flask import Blueprint
 
+from app.api.auth_guard import require_current_user
 from app.core.errors import ValidationError
 from app.core.response import success_response
 from app.services import graph_service
@@ -33,7 +34,8 @@ def get_graph_overview():
     2. 适合首页概览、论文答辩首页、仪表盘卡片展示。
     3. 包括节点总量、关系总量、告警总量、封禁数量及高风险排行。
     """
-    overview_data = graph_service.get_graph_overview()
+    current_user = require_current_user()
+    overview_data = graph_service.get_graph_overview(current_user)
     return success_response(data=overview_data, message="图谱总览数据获取成功")
 
 

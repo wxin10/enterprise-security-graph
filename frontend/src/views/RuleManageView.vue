@@ -4,13 +4,12 @@
       <div>
         <h1 class="page-title">规则管理</h1>
         <p class="page-subtitle">
-          当前页面用于管理员统一维护识别规则、封禁策略和变更流程，保证普通用户保留研判与申请能力，
-          但不直接修改系统关键规则或执行最终高风险动作。
+          用于管理员统一维护识别规则、封禁策略和变更流程，保障识别链路稳定、可控、可追踪。
         </p>
       </div>
 
       <div class="page-banner__actions">
-        <el-button v-if="canManageRules" type="primary" plain @click="loadPageData">刷新规则</el-button>
+        <el-button v-if="canManageRules" type="primary" plain :loading="loading" @click="loadPageData">刷新规则</el-button>
         <el-button v-if="currentUser" type="primary" @click="handleBackHome">返回工作台</el-button>
         <el-button v-else type="primary" @click="handleGoLogin">前往登录</el-button>
       </div>
@@ -18,7 +17,7 @@
 
     <el-alert
       v-if="currentUser && !canManageRules"
-      title="当前账号不具备规则管理权限，本页只用于说明管理员侧的规则职责边界。"
+      title="当前账号不具备规则管理权限，本页仅用于说明管理员侧的规则治理职责边界。"
       type="warning"
       :closable="false"
       show-icon
@@ -30,7 +29,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前身份</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "未登录" }}</div>
-          <div class="summary-card__hint">只有管理员可进入规则层，普通用户继续聚焦告警分析与申请提交</div>
+          <div class="summary-card__hint">只有管理员可维护规则体系，普通用户继续聚焦告警分析与申请提交。</div>
         </div>
       </el-col>
 
@@ -46,7 +45,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">识别规则</div>
           <div class="summary-card__value summary-card__value--warning">{{ detectionRuleCount }}</div>
-          <div class="summary-card__hint">负责恶意行为识别、异常登录检出和攻击链分析支撑</div>
+          <div class="summary-card__hint">负责恶意行为识别、异常登录检测和攻击链分析支撑。</div>
         </div>
       </el-col>
 
@@ -54,7 +53,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">待评估变更</div>
           <div class="summary-card__value summary-card__value--danger">{{ changeQueue.length }}</div>
-          <div class="summary-card__hint">突出管理员在规则修改前仍需复核业务影响范围</div>
+          <div class="summary-card__hint">聚焦规则调整前仍需复核业务影响范围的治理事项。</div>
         </div>
       </el-col>
     </el-row>
@@ -65,7 +64,7 @@
           <div class="section-header">
             <div>
               <h3>规则筛选</h3>
-              <p>支持按规则类型、状态和关键字快速定位，便于高效筛选和核对目标规则。</p>
+              <p>支持按规则类型、状态和关键字快速定位，便于高效核对目标规则。</p>
             </div>
           </div>
 
@@ -100,12 +99,16 @@
           <div class="section-header">
             <div>
               <h3>规则列表</h3>
-              <p>列表聚焦管理员真正能做的事：维护规则阈值、观察命中效果并控制封禁执行条件。</p>
+              <p>集中维护规则阈值、命中效果和状态治理，确保识别链路稳定可控。</p>
             </div>
-            <div class="table-header-tip">当前命中 {{ filteredRules.length }} 条规则</div>
+
+            <div class="section-header__actions">
+              <div class="table-header-tip">当前命中 {{ filteredRules.length }} 条规则</div>
+              <el-button v-if="canManageRules" type="primary" @click="openCreateDialog">新增规则</el-button>
+            </div>
           </div>
 
-          <el-table :data="filteredRules" empty-text="暂无匹配规则">
+          <el-table v-loading="loading" :data="filteredRules" empty-text="暂无匹配规则">
             <el-table-column prop="rule_code" label="规则编号" min-width="150" />
             <el-table-column prop="rule_name" label="规则名称" min-width="220" show-overflow-tooltip />
             <el-table-column label="类型" min-width="110">
@@ -122,16 +125,15 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="threshold" label="触发阈值" min-width="140" />
-            <el-table-column prop="hit_count" label="近24小时命中" min-width="130" />
+            <el-table-column prop="threshold" label="触发阈值" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="hit_count" label="近 24 小时命中" min-width="130" />
             <el-table-column prop="updated_at" label="最近更新时间" min-width="170" />
-            <el-table-column label="操作" min-width="220" fixed="right">
+            <el-table-column label="操作" min-width="260" fixed="right">
               <template #default="{ row }">
                 <div class="table-actions">
                   <el-button link type="primary" @click="handlePreviewRule(row)">查看说明</el-button>
-                  <el-button link type="primary" :disabled="!canManageRules" @click="handleGrayRelease(row)">
-                    灰度发布
-                  </el-button>
+                  <el-button link type="primary" :disabled="!canManageRules" @click="openEditDialog(row)">编辑</el-button>
+                  <el-button link type="primary" :disabled="!canManageRules" @click="handleGrayRelease(row)">灰度发布</el-button>
                   <el-button link type="danger" :disabled="!canManageRules" @click="handleToggleRule(row)">
                     {{ row.status === "停用" ? "启用规则" : "停用规则" }}
                   </el-button>
@@ -147,7 +149,7 @@
           <div class="section-header">
             <div>
               <h3>规则变更流程</h3>
-              <p>说明管理员页面的核心价值在于规则治理，而不是替代普通用户的日常安全研判工作。</p>
+              <p>说明管理员页面的核心职责在于规则治理，而不是替代一线用户的日常研判工作。</p>
             </div>
           </div>
 
@@ -158,7 +160,7 @@
             </div>
             <div class="tip-item">
               <div class="tip-item__title">2. 管理员评估影响范围</div>
-              <div class="tip-item__desc">结合近 24 小时命中量、误报率和业务影响决定是否灰度发布。</div>
+              <div class="tip-item__desc">结合命中量、误报率和业务影响决定是否执行灰度发布。</div>
             </div>
             <div class="tip-item">
               <div class="tip-item__title">3. 再执行最终策略</div>
@@ -171,7 +173,7 @@
           <div class="section-header">
             <div>
               <h3>待评估变更</h3>
-              <p>用于汇总规则调整待办，便于管理员统一跟踪待评估的规则变更事项。</p>
+              <p>用于汇总规则调整待办，便于管理员统一跟踪规则变更事项。</p>
             </div>
           </div>
 
@@ -179,7 +181,7 @@
             <div v-for="item in changeQueue" :key="item.id" class="change-card">
               <div class="change-card__header">
                 <div class="change-card__title">{{ item.rule_name }}</div>
-                <el-tag size="small" :type="statusTagType(item.status)" effect="dark">
+                <el-tag size="small" :type="statusTagType(item.status === '待评估' ? '灰度' : '启用')" effect="dark">
                   {{ item.status }}
                 </el-tag>
               </div>
@@ -193,98 +195,111 @@
         </section>
       </el-col>
     </el-row>
+
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogMode === 'create' ? '新增规则' : '编辑规则'"
+      width="680px"
+      destroy-on-close
+    >
+      <el-form ref="dialogFormRef" :model="dialogForm" :rules="dialogRules" label-width="96px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="规则编号" prop="rule_code">
+              <el-input v-model="dialogForm.rule_code" :disabled="dialogMode === 'edit'" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="规则名称" prop="rule_name">
+              <el-input v-model="dialogForm.rule_name" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="规则类型" prop="category">
+              <el-select v-model="dialogForm.category" style="width: 100%">
+                <el-option label="识别规则" value="识别规则" />
+                <el-option label="封禁规则" value="封禁规则" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态" prop="status">
+              <el-select v-model="dialogForm.status" style="width: 100%">
+                <el-option label="启用" value="启用" />
+                <el-option label="灰度" value="灰度" />
+                <el-option label="停用" value="停用" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="触发阈值" prop="threshold">
+              <el-input v-model="dialogForm.threshold" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="命中次数" prop="hit_count">
+              <el-input-number v-model="dialogForm.hit_count" :min="0" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="责任人">
+              <el-input v-model="dialogForm.owner" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="规则说明" prop="description">
+              <el-input v-model="dialogForm.description" type="textarea" :rows="4" maxlength="200" show-word-limit />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSubmitDialog">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-// 文件路径：frontend/src/views/RuleManageView.vue
-// 作用说明：
-// 1. 补齐管理员端“规则管理”页面本体，承接识别规则和封禁策略治理入口。
-// 2. 强调普通用户可以做分析与申请，但不能越权修改关键识别规则与封禁策略。
-// 3. 当前以页面内置规则数据支撑交互，不额外改动仓库中的全局数据结构。
 import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
 
+import { createRule, fetchRules, grayReleaseRule, toggleRuleStatus, updateRule } from "@/api/rules";
 import { PERMISSION_KEYS, getCurrentUser, getRoleHomePath, getRoleLabel, hasPermission } from "@/utils/auth";
-
-const RULE_ITEMS = [
-  {
-    id: "RULE-001",
-    rule_code: "DET-LOGIN-01",
-    rule_name: "异常登录失败激增识别",
-    category: "识别规则",
-    status: "启用",
-    threshold: "10 分钟内失败次数 >= 15",
-    hit_count: 38,
-    updated_at: "2026-04-05 00:16:00",
-    description: "识别短时间内登录失败次数急剧上升的账号与源 IP 组合。"
-  },
-  {
-    id: "RULE-002",
-    rule_code: "DET-LATERAL-02",
-    rule_name: "横向移动链路异常扩散识别",
-    category: "识别规则",
-    status: "灰度",
-    threshold: "图谱扩散层级 >= 3 且高危节点数 >= 5",
-    hit_count: 12,
-    updated_at: "2026-04-04 21:48:00",
-    description: "结合 Neo4j 图谱分析结果识别横向移动路径扩散风险。"
-  },
-  {
-    id: "RULE-003",
-    rule_code: "BAN-IP-03",
-    rule_name: "高危源 IP 自动封禁策略",
-    category: "封禁规则",
-    status: "启用",
-    threshold: "命中 CRITICAL 告警并经管理员审批",
-    hit_count: 6,
-    updated_at: "2026-04-04 23:36:00",
-    description: "管理员审批通过后执行源 IP 封禁，并同步写入封禁台账。"
-  },
-  {
-    id: "RULE-004",
-    rule_code: "BAN-ACCOUNT-04",
-    rule_name: "异常账号临时冻结策略",
-    category: "封禁规则",
-    status: "停用",
-    threshold: "连续命中 3 次高风险行为",
-    hit_count: 0,
-    updated_at: "2026-04-03 17:22:00",
-    description: "用于冻结高风险账号，当前因误报风险处于停用状态。"
-  }
-];
-
-const CHANGE_QUEUE_ITEMS = [
-  {
-    id: "CHG-001",
-    rule_name: "横向移动链路异常扩散识别",
-    source: "值班分析员处置建议",
-    change_summary: "建议提高节点扩散阈值，降低误报率",
-    status: "待评估",
-    created_at: "2026-04-05 00:05:00"
-  },
-  {
-    id: "CHG-002",
-    rule_name: "异常账号临时冻结策略",
-    source: "封禁审批复盘",
-    change_summary: "建议恢复灰度发布并增加人工确认步骤",
-    status: "待评估",
-    created_at: "2026-04-04 22:40:00"
-  }
-];
 
 const router = useRouter();
 
 const currentUser = ref(null);
+const loading = ref(false);
+const submitting = ref(false);
 const ruleItems = ref([]);
 const changeQueue = ref([]);
+const dialogVisible = ref(false);
+const dialogMode = ref("create");
+const editingRuleId = ref("");
+const dialogFormRef = ref(null);
 
 const filterForm = reactive({
   category: "",
   status: "",
   keyword: ""
 });
+
+const dialogForm = reactive(createDefaultDialogForm());
+
+const dialogRules = {
+  rule_code: [{ required: true, message: "请输入规则编号", trigger: "blur" }],
+  rule_name: [{ required: true, message: "请输入规则名称", trigger: "blur" }],
+  category: [{ required: true, message: "请选择规则类型", trigger: "change" }],
+  status: [{ required: true, message: "请选择状态", trigger: "change" }],
+  threshold: [{ required: true, message: "请输入触发阈值", trigger: "blur" }],
+  description: [{ required: true, message: "请输入规则说明", trigger: "blur" }]
+};
 
 const currentRoleLabel = computed(() => {
   return currentUser.value ? getRoleLabel(currentUser.value.role) : "未登录";
@@ -327,10 +342,37 @@ const filteredRules = computed(() => {
   });
 });
 
-function loadPageData() {
+function createDefaultDialogForm() {
+  return {
+    rule_code: "",
+    rule_name: "",
+    category: "识别规则",
+    status: "停用",
+    threshold: "",
+    hit_count: 0,
+    owner: "",
+    description: ""
+  };
+}
+
+async function loadPageData() {
   currentUser.value = getCurrentUser();
-  ruleItems.value = RULE_ITEMS.map((item) => ({ ...item }));
-  changeQueue.value = CHANGE_QUEUE_ITEMS.map((item) => ({ ...item }));
+
+  if (!canManageRules.value) {
+    ruleItems.value = [];
+    changeQueue.value = [];
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const response = await fetchRules();
+    ruleItems.value = response.data?.items || [];
+    changeQueue.value = response.data?.change_queue || [];
+  } finally {
+    loading.value = false;
+  }
 }
 
 function categoryTagType(category) {
@@ -346,35 +388,84 @@ function statusTagType(status) {
     return "info";
   }
 
-  if (status === "灰度") {
-    return "warning";
-  }
-
-  return "danger";
+  return "warning";
 }
 
 function handlePreviewRule(row) {
   ElMessage.info(`${row.rule_name}：${row.description}`);
 }
 
-function handleGrayRelease(row) {
-  if (!canManageRules.value) {
-    ElMessage.warning("当前账号不具备规则管理权限");
-    return;
-  }
-
-  row.status = "灰度";
-  ElMessage.success(`${row.rule_name} 已切换为灰度发布状态`);
+function openCreateDialog() {
+  dialogMode.value = "create";
+  editingRuleId.value = "";
+  Object.assign(dialogForm, createDefaultDialogForm());
+  dialogVisible.value = true;
 }
 
-function handleToggleRule(row) {
-  if (!canManageRules.value) {
-    ElMessage.warning("当前账号不具备规则管理权限");
+function openEditDialog(row) {
+  dialogMode.value = "edit";
+  editingRuleId.value = row.id;
+  Object.assign(dialogForm, {
+    rule_code: row.rule_code,
+    rule_name: row.rule_name,
+    category: row.category,
+    status: row.status,
+    threshold: row.threshold,
+    hit_count: Number(row.hit_count || 0),
+    owner: row.owner || "",
+    description: row.description
+  });
+  dialogVisible.value = true;
+}
+
+async function handleSubmitDialog() {
+  await dialogFormRef.value?.validate();
+  submitting.value = true;
+
+  try {
+    if (dialogMode.value === "create") {
+      const response = await createRule(dialogForm);
+      ElMessage.success(response.message || "规则创建成功");
+    } else {
+      const response = await updateRule(editingRuleId.value, dialogForm);
+      ElMessage.success(response.message || "规则更新成功");
+    }
+
+    dialogVisible.value = false;
+    await loadPageData();
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function handleGrayRelease(row) {
+  try {
+    await ElMessageBox.confirm(`确认将 ${row.rule_name} 调整为灰度发布吗？`, "灰度发布确认", {
+      type: "warning"
+    });
+  } catch (error) {
     return;
   }
 
-  row.status = row.status === "停用" ? "启用" : "停用";
-  ElMessage.success(`${row.rule_name} 当前状态已切换为“${row.status}”`);
+  const response = await grayReleaseRule(row.id, {
+    note: `管理员已对 ${row.rule_name} 执行灰度发布，等待命中效果复核。`
+  });
+  ElMessage.success(response.message || "规则已进入灰度发布");
+  await loadPageData();
+}
+
+async function handleToggleRule(row) {
+  try {
+    await ElMessageBox.confirm(`确认处理规则 ${row.rule_name} 的状态变更吗？`, "状态确认", {
+      type: "warning"
+    });
+  } catch (error) {
+    return;
+  }
+
+  const response = await toggleRuleStatus(row.id);
+  ElMessage.success(response.message || "规则状态已更新");
+  await loadPageData();
 }
 
 function handleBackHome() {
@@ -417,7 +508,9 @@ onMounted(() => {
   gap: 18px;
 }
 
-.page-banner__actions {
+.page-banner__actions,
+.section-header__actions,
+.dialog-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -445,15 +538,15 @@ onMounted(() => {
 }
 
 .summary-card__value--primary {
-  color: #67a8ff;
+  color: #2563eb;
 }
 
 .summary-card__value--warning {
-  color: #ffbf5a;
+  color: #d97706;
 }
 
 .summary-card__value--danger {
-  color: #ff6f7d;
+  color: #dc2626;
 }
 
 .summary-card__hint {

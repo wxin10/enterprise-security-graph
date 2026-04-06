@@ -1,11 +1,5 @@
 <template>
-  <!--
-    文件路径：frontend/src/components/AttackChainGraph.vue
-    作用说明：
-    1. 作为告警页“攻击链图谱”展示组件，围绕单条告警展示真实攻击链关系。
-    2. 使用 ECharts graph + force 力导向布局，提供可拖拽、可缩放、可点击高亮的探索式交互。
-    3. 在图谱下方展示当前选中节点的详情卡片，方便答辩时解释攻击链语义。
-  -->
+  <!-- 攻击链图谱组件：展示告警关联节点、链路与节点详情。 -->
   <div class="attack-chain-graph">
     <div class="attack-chain-graph__header">
       <div class="attack-chain-graph__legend">
@@ -27,7 +21,7 @@
       </div>
 
       <div class="attack-chain-graph__toolbar">
-        <el-tag size="small" effect="dark" :type="layoutMode === 'force' ? 'warning' : 'success'">
+        <el-tag size="small" effect="light" :type="layoutMode === 'force' ? 'warning' : 'success'">
           {{ layoutMode === "force" ? "自动排布中" : "自由拖动模式" }}
         </el-tag>
         <el-button type="primary" plain size="small" @click="handleRelayout">
@@ -54,7 +48,7 @@
             <div class="detail-card__title">{{ selectedNodeMeta.name }}</div>
             <div class="detail-card__subtitle">{{ selectedNodeMeta.typeLabel }}</div>
           </div>
-          <el-tag effect="dark" :type="selectedNodeMeta.tagType">
+          <el-tag effect="light" :type="selectedNodeMeta.tagType">
             {{ selectedNodeMeta.statusText }}
           </el-tag>
         </div>
@@ -84,7 +78,7 @@
 
       <template v-else>
         <div class="detail-card__placeholder">
-          点击图谱中的任意节点后，这里会展示节点名称、类型、关键属性和关联关系说明。
+          选中图谱节点后，可查看节点名称、类型、关键属性和关联关系说明。
         </div>
       </template>
     </div>
@@ -92,11 +86,7 @@
 </template>
 
 <script setup>
-// 文件路径：frontend/src/components/AttackChainGraph.vue
-// 作用说明：
-// 1. 将后端返回的攻击链 nodes / links 转换为 ECharts graph 所需结构。
-// 2. 通过 force 力导向布局增强图谱的自然分布效果，并保留当前深色安全平台风格。
-// 3. 支持节点拖拽、邻接高亮、非相关节点弱化、节点详情卡片和拖拽后位置保留。
+// 攻击链图谱组件逻辑：负责关系图渲染、节点交互和详情联动。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import * as echarts from "echarts";
 
@@ -224,11 +214,11 @@ function shortenText(text, maxLength = 14) {
 
 function buildTooltipHtml(title, detailLines) {
   const lines = Array.isArray(detailLines) ? detailLines.filter(Boolean) : [];
-  const detailHtml = lines.length ? `<div style="margin-top:6px;">${lines.join("<br/>")}</div>` : "";
+  const detailHtml = lines.length ? `<div style="margin-top:6px;line-height:1.7;">${lines.join("<br/>")}</div>` : "";
 
   return `
-    <div style="min-width:220px; max-width:360px;">
-      <div style="font-size:14px;font-weight:700;color:#eef5ff;">${title}</div>
+    <div style="min-width:220px; max-width:360px; color:#5b6b80;">
+      <div style="font-size:14px;font-weight:700;color:#243247;">${title}</div>
       ${detailHtml}
     </div>
   `;
@@ -430,14 +420,14 @@ function buildChartOption() {
         borderColor,
         borderWidth: isSelected ? 4 : isImportant ? 3 : 2,
         shadowBlur: isSelected ? 34 : isImportant ? 26 : 14,
-        shadowColor: `${borderColor}66`,
-        opacity: related ? 1 : 0.2
+        shadowColor: `${borderColor}33`,
+        opacity: related ? 1 : 0.28
       },
       label: {
         show: true,
         position: "bottom",
         distance: 8,
-        color: related ? "#e8f1ff" : "rgba(232, 241, 255, 0.32)",
+        color: related ? "#243247" : "rgba(36, 50, 71, 0.38)",
         fontSize: isSelected ? 13 : 12,
         formatter: shortenText(item.name, isImportant ? 16 : 12)
       }
@@ -459,7 +449,7 @@ function buildChartOption() {
       },
       label: {
         show: Boolean(selectedId && directEdge),
-        color: "#8aa3c8",
+        color: "#6b7a90",
         fontSize: 11,
         formatter: item.relation
       }
@@ -472,11 +462,11 @@ function buildChartOption() {
     animationEasingUpdate: "quinticInOut",
     tooltip: {
       trigger: "item",
-      backgroundColor: "rgba(7, 18, 33, 0.96)",
-      borderColor: "rgba(89, 137, 214, 0.2)",
+      backgroundColor: "rgba(255, 255, 255, 0.98)",
+      borderColor: "rgba(15, 23, 42, 0.08)",
       borderWidth: 1,
       textStyle: {
-        color: "#dfe9ff"
+        color: "#5b6b80"
       },
       formatter(params) {
         if (params.dataType === "edge") {
@@ -680,7 +670,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
-  color: #a6badb;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -698,7 +688,7 @@ onBeforeUnmount(() => {
 }
 
 .legend-item--tip {
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .legend-dot {
@@ -725,10 +715,8 @@ onBeforeUnmount(() => {
   min-height: 500px;
   border-radius: 18px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(43, 124, 255, 0.12), transparent 28%),
-    linear-gradient(180deg, rgba(8, 20, 35, 0.82), rgba(6, 14, 27, 0.95));
-  border: 1px solid rgba(84, 129, 194, 0.14);
+  background: linear-gradient(180deg, rgba(43, 124, 255, 0.06), rgba(248, 250, 252, 0.92));
+  border: 1px solid var(--panel-border);
 }
 
 .attack-chain-graph__chart {
@@ -743,7 +731,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.8;
   text-align: center;
@@ -764,13 +752,13 @@ onBeforeUnmount(() => {
 .detail-card__title {
   font-size: 18px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .detail-card__subtitle {
   margin-top: 6px;
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .detail-card__grid {
@@ -782,8 +770,8 @@ onBeforeUnmount(() => {
 .detail-card__item {
   padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(8, 20, 35, 0.74);
-  border: 1px solid rgba(84, 129, 194, 0.12);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .detail-card__item--wide {
@@ -792,12 +780,12 @@ onBeforeUnmount(() => {
 
 .detail-card__label {
   font-size: 12px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .detail-card__value {
   margin-top: 8px;
-  color: #eef5ff;
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.7;
   word-break: break-word;
@@ -810,7 +798,7 @@ onBeforeUnmount(() => {
 }
 
 .detail-card__placeholder {
-  color: #8aa3c8;
+  color: var(--text-secondary);
   line-height: 1.8;
   font-size: 14px;
 }

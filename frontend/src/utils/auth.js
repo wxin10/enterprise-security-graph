@@ -66,38 +66,7 @@ export const MENU_ITEMS = [
   { path: "/console/profile", label: "个人中心", icon: "User", roles: [ROLE_ADMIN, ROLE_USER] }
 ];
 
-const LEGACY_ACCOUNT_USER_TEMPLATES = {
-  admin: {
-    user_id: "ADMIN-001",
-    username: "admin",
-    display_name: "平台管理员",
-    department: "安全运营中心",
-    title: "高权限运维负责人",
-    role: ROLE_ADMIN
-  },
-  analyst: {
-    user_id: "OPS-001",
-    username: "analyst",
-    display_name: "值班分析员",
-    department: "安全运营中心",
-    title: "一线运维 / 安全分析员",
-    role: ROLE_USER
-  },
-  user: {
-    user_id: "OPS-002",
-    username: "user",
-    display_name: "一线运维人员",
-    department: "安全运营中心",
-    title: "一线运维 / 安全分析员",
-    role: ROLE_USER
-  }
-};
-
 let restoreSessionPromise = null;
-
-function normalizeAccountName(username) {
-  return String(username || "").trim().toLowerCase();
-}
 
 function normalizeStoredUser(user) {
   if (!user || typeof user !== "object") {
@@ -123,23 +92,8 @@ function resolveStoredUser(rawValue) {
   try {
     return normalizeStoredUser(JSON.parse(rawValue));
   } catch (error) {
-    return buildLegacyUserByAccount(rawValue);
-  }
-}
-
-function buildLegacyUserByAccount(username) {
-  // 这个兼容分支只用于读取旧版本浏览器里已经存在的本地会话数据。
-  // 当前正式登录链路已经切到后端鉴权接口，不再依赖这里生成用户。
-  const normalizedAccount = normalizeAccountName(username);
-  const template = LEGACY_ACCOUNT_USER_TEMPLATES[normalizedAccount];
-  if (!template) {
     return null;
   }
-
-  return {
-    ...template,
-    login_at: new Date().toISOString()
-  };
 }
 
 export function normalizeRole(role) {

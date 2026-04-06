@@ -1,11 +1,4 @@
 <template>
-  <!--
-    文件路径：frontend/src/views/LoginView.vue
-    作用说明：
-    1. 提供系统登录页。
-    2. 提供当前版本的安全控制台统一登录入口。
-    3. 登录后调用后端鉴权接口建立控制台会话，并跳转到对应首页。
-  -->
   <div class="login-page">
     <div class="login-page__background"></div>
 
@@ -16,28 +9,19 @@
         </div>
         <div>
           <div class="login-brand__title">企业安全图谱平台</div>
-          <div class="login-brand__subtitle">
-            基于 Neo4j 的企业网络恶意行为识别与封禁系统
-          </div>
+          <div class="login-brand__subtitle">基于 Neo4j 的企业网络恶意行为识别与封禁系统</div>
         </div>
       </div>
 
       <div class="login-panel security-panel">
         <div class="login-panel__header">
           <h1>安全控制台登录</h1>
-          <p>
-            请输入系统账号和密码。当前版本通过后端登录接口校验账号，并根据返回的用户角色加载对应的菜单与页面访问范围。
-          </p>
+          <p>请输入系统账号和密码。登录成功后，系统会根据后端返回的账号身份加载对应菜单与页面访问范围。</p>
         </div>
 
         <el-form :model="formModel" label-position="top" class="login-form">
           <el-form-item label="账号">
-            <el-input
-              v-model="formModel.username"
-              placeholder="请输入系统账号"
-              size="large"
-              clearable
-            >
+            <el-input v-model="formModel.username" placeholder="请输入系统账号" size="large" clearable>
               <template #prefix>
                 <el-icon><User /></el-icon>
               </template>
@@ -64,27 +48,19 @@
           </el-button>
         </el-form>
 
-        <div class="login-hint">
-          登录成功后会保存后端返回的会话令牌和当前用户信息；业务数据按页面实现分别接入后端接口或本地状态。
-        </div>
+        <div class="login-hint">登录成功后会保存后端返回的会话令牌和当前用户信息，治理页与业务页均直接读取后端接口数据。</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// 文件路径：frontend/src/views/LoginView.vue
-// 作用说明：
-// 1. 提供当前版本的安全控制台统一登录入口。
-// 2. 登录成功后调用后端鉴权接口，保存会话令牌与当前用户。
-// 3. 已登录用户进入登录页时，直接跳转到对应首页。
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 
 import http from "@/api/http";
 import { getCurrentUser, getRoleHomePath, getRoleLabel, saveCurrentSession } from "@/utils/auth";
-import { listDisposalRequests } from "@/utils/mock-storage";
 
 const router = useRouter();
 
@@ -96,8 +72,6 @@ const formModel = reactive({
 const isSubmitting = ref(false);
 
 async function handleLogin() {
-  // 当前阶段前端不再本地构造用户，而是直接调用后端 /api/auth/login。
-  // 登录成功后仍继续复用 auth.js 保存 user.role，以兼容现有 router 和 layout 依赖。
   const normalizedUsername = String(formModel.username || "").trim();
   const normalizedPassword = String(formModel.password || "").trim();
 
@@ -125,7 +99,6 @@ async function handleLogin() {
         password: normalizedPassword
       },
       {
-        // 登录页需要自己显示后端返回的错误信息，避免与全局拦截器重复弹出提示。
         skipErrorMessage: true
       }
     );
@@ -134,8 +107,6 @@ async function handleLogin() {
     if (!currentUser) {
       throw new Error("登录成功，但当前用户信息写入失败");
     }
-
-    listDisposalRequests();
 
     ElMessage.success(loginResponse.message || `${getRoleLabel(currentUser.role)}登录成功，正在进入系统`);
     router.replace(getRoleHomePath(currentUser.role));

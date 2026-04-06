@@ -258,7 +258,7 @@ function formatBatchEnforcementMode(mode) {
   const normalizedMode = String(mode || "").toUpperCase();
   if (normalizedMode === "WEB_BLOCKLIST") return "Web 阻断";
   if (normalizedMode === "REAL") return "真实执行";
-  if (normalizedMode === "MOCK") return "模拟执行";
+  if (normalizedMode === "MOCK") return "策略校验";
   return normalizedMode || "-";
 }
 function topologyStatusColor(status) { return status === "FAILED" ? "#ff7285" : status === "PARTIAL" || status === "WARNING" ? "#ffbf5a" : status === "SUCCESS" ? "#5dd598" : status === "ACTIVE" || status === "READY" ? "#67a8ff" : "#7086a8"; }

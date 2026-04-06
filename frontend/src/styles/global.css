@@ -1,6 +1,6 @@
 :root {
   /* 全局颜色变量：
-     当前批次统一切到白色主题基线，便于后续页面做局部微调。 */
+     统一定义控制台白色主题基线。 */
   --page-bg: #f5f7fb;
   --page-bg-accent: #edf4ff;
   --panel-bg: rgba(255, 255, 255, 0.96);
@@ -157,8 +157,8 @@ a {
   background-color: var(--overlay-mask) !important;
 }
 
-/* 表单组件白色化：
-   统一输入框、下拉框和文本域边框与聚焦态，避免局部仍残留深色底。 */
+  /* 表单组件白色化：
+   统一输入框、下拉框和文本域边框与聚焦态，避免局部残留深色底。 */
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {

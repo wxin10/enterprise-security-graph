@@ -500,3 +500,42 @@
 - 本轮业务落地文件：`frontend/src/views/MonitorCenterView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/MonitorCenterView.vue` 已再次通过 `@vue/compiler-sfc` 语法检查。
+
+## 2026-04-06 审批流页面闭环与会话持久化收尾
+### 当前状态
+- `frontend/src/views/BansView.vue` 已接入真实待审批申请列表、通过/驳回动作与审批备注录入。
+- `frontend/src/views/AuditLogView.vue`、`frontend/src/views/MyRecordsView.vue`、`frontend/src/views/RequestActionView.vue` 已联动展示审批结果与审批备注。
+- `backend/app/services/auth_service.py` 已改为基于 `backend/app/data/session_state.json` 的持久化会话实现。
+- 当前分支仍为 `current-ui-sync`。
+
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续系统收口，优先补管理员处置结果与封禁执行记录的进一步联动展示。
+
+### 收尾批次说明
+- 本轮业务落地文件：
+  - `backend/app/services/governance_service.py`
+  - `backend/app/services/auth_service.py`
+  - `backend/app/api/auth_api.py`
+  - `backend/app/data/governance_state.json`
+  - `backend/app/data/session_state.json`
+  - `frontend/src/views/BansView.vue`
+  - `frontend/src/views/AuditLogView.vue`
+  - `frontend/src/views/MyRecordsView.vue`
+  - `frontend/src/views/RequestActionView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：
+  - `npm.cmd run build` 已执行成功。
+  - `python -m py_compile backend/app/services/governance_service.py backend/app/services/auth_service.py backend/app/api/auth_api.py` 已执行成功。
+  - 审批流与会话持久化联调均已完成。
+## 2026-04-06 下一批建议
+### 当前状态
+- 首页已接入审批概览卡片、待审批申请区块和最近审批记录区块，管理员可在工作台直接处理审批。
+- 封禁申请审批通过后已写入联动封禁结果，`BansView.vue`、`MyRecordsView.vue`、`RequestActionView.vue`、`AuditLogView.vue` 已同步展示来源说明、审批备注和联动状态。
+- 基础后端回归测试已落地到 `tests/`，本轮已完成 `py_compile`、`pytest`、前端构建和脚本联调验证。
+- 当前分支仍为 `current-ui-sync`，工作区继续保持连续收口状态。
+
+### 下一批建议
+- 如继续做运营收口，优先补首页更多管理统计卡片与封禁执行统计的联动展示。
+- 如继续做质量保障，优先补前端联调测试或端到端测试，覆盖首页审批动作和封禁联动展示。
+- 如继续做产品化闭环，可评估把联动封禁详情进一步沉淀到封禁接口返回，减少前端组合字段的耦合。

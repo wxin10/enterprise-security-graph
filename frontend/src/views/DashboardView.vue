@@ -1,22 +1,16 @@
-﻿<template>
-  <!--
-    鏂囦欢璺緞锛歠rontend/src/views/DashboardView.vue
-    浣滅敤璇存槑锛?
-    1. 灞曠ず浠〃鐩橀椤点€?
-    2. 瀵规帴鍚庣 /api/graph/overview 鎺ュ彛銆?
-    3. 灞曠ず summary銆乴atest_alerts銆乼op_risk_users銆乼op_risk_ips銆乼op_risk_hosts銆?
-  -->
+<template>
+  <!-- 工作台总览页面：展示图谱概况、最新告警与高风险对象。 -->
   <div class="dashboard-page app-page">
     <section class="dashboard-hero security-panel">
       <div>
-        <h1 class="page-title">浼佷笟缃戠粶瀹夊叏鎬佸娍鎬昏</h1>
+        <h1 class="page-title">企业网络安全态势总览</h1>
         <p class="page-subtitle">
-          褰撳墠椤甸潰宸插鎺ュ浘璋辨€昏鎺ュ彛锛岀敤浜庡睍绀哄浘鏁版嵁搴撲腑瀹夊叏瀹炰綋銆佸憡璀︺€佸皝绂佷笌楂橀闄╁璞＄殑鏁翠綋鎬佸娍銆?
+          汇总图谱规模、最新告警、高风险对象和关键指标，支撑安全运营人员进行快速研判。
         </p>
       </div>
 
       <el-button type="primary" :loading="loading" @click="loadOverview">
-        鍒锋柊鎬昏鏁版嵁
+        刷新总览数据
       </el-button>
     </section>
 
@@ -30,20 +24,114 @@
       </el-col>
     </el-row>
 
+    <el-row v-if="canViewApprovalOverview" :gutter="18" class="summary-grid">
+      <el-col :xs="24" :sm="12" :lg="8" :xl="6" v-for="item in approvalCards" :key="item.key">
+        <StatCard :title="item.title" :hint="item.hint" :value="item.value" :tone="item.tone">
+          <template #icon>
+            <component :is="item.icon" />
+          </template>
+        </StatCard>
+      </el-col>
+    </el-row>
+
+    <el-row v-if="canViewApprovalOverview" :gutter="18" class="approval-section">
+      <el-col :xs="24" :lg="14">
+        <div class="security-panel section-panel approval-panel">
+          <div class="section-header">
+            <div>
+              <h3>待审批申请</h3>
+              <p>首页汇总最近待审批的处置申请，支持直接执行审批动作或进入封禁审批页面继续处理。</p>
+            </div>
+            <div class="section-actions">
+              <div class="table-header-tip">最近审批时间：{{ latestApprovalActionText }}</div>
+              <el-button plain @click="handleOpenApprovalPage">进入审批页</el-button>
+            </div>
+          </div>
+
+          <el-table :data="pendingDisposals" v-loading="loading" empty-text="当前没有待审批申请" stripe>
+            <el-table-column prop="request_id" label="申请编号" min-width="170" />
+            <el-table-column prop="disposal_type" label="申请类型" min-width="120" />
+            <el-table-column prop="applicant_name" label="申请人" min-width="120" />
+            <el-table-column prop="source_ip" label="处置目标 IP" min-width="140" />
+            <el-table-column prop="created_at" label="提交时间" min-width="170" />
+            <el-table-column label="当前状态" min-width="110">
+              <template #default="{ row }">
+                <el-tag :type="approvalStatusTagType(row.status)" effect="plain">
+                  {{ row.status || "-" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="200" fixed="right">
+              <template #default="{ row }">
+                <div class="action-buttons">
+                  <el-button
+                    type="primary"
+                    link
+                    :loading="isApprovalActionLoading(row.request_id)"
+                    @click="handleApproval(row, '已通过')"
+                  >
+                    通过
+                  </el-button>
+                  <el-button
+                    type="danger"
+                    link
+                    :loading="isApprovalActionLoading(row.request_id)"
+                    @click="handleApproval(row, '已驳回')"
+                  >
+                    驳回
+                  </el-button>
+                  <el-button type="primary" link @click="handleOpenApprovalPage">审批页</el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-col>
+
+      <el-col :xs="24" :lg="10">
+        <div class="security-panel section-panel review-panel">
+          <div class="section-header">
+            <div>
+              <h3>最近审批记录</h3>
+              <p>集中呈现最近已通过、已驳回和联动执行结果，便于首页快速回看审批闭环。</p>
+            </div>
+          </div>
+
+          <div v-if="recentReviews.length" class="review-card-list">
+            <div v-for="item in recentReviews" :key="`${item.request_id}-${item.reviewed_at || item.updated_at}`" class="review-card">
+              <div class="review-card__header">
+                <div class="review-card__title">{{ item.alert_name }}</div>
+                <el-tag size="small" :type="approvalStatusTagType(item.status)" effect="dark">
+                  {{ item.status }}
+                </el-tag>
+              </div>
+              <div class="review-card__meta">申请编号：{{ item.request_id }}</div>
+              <div class="review-card__meta">申请类型：{{ item.disposal_type }}</div>
+              <div class="review-card__meta">审批人：{{ item.reviewer_name || "-" }}</div>
+              <div class="review-card__meta">审批时间：{{ item.reviewed_at || item.updated_at || "-" }}</div>
+              <div class="review-card__meta">审批备注：{{ item.review_comment || "-" }}</div>
+              <div class="review-card__meta" v-if="item.execution_status">联动结果：{{ item.execution_status }}</div>
+            </div>
+          </div>
+          <el-empty v-else description="当前没有最近审批记录" />
+        </div>
+      </el-col>
+    </el-row>
+
     <el-row :gutter="18" class="overview-section">
       <el-col :xs="24" :lg="14">
         <div class="security-panel section-panel">
           <div class="section-header">
             <div>
               <h3>最新告警动态</h3>
-              <p>展示 overview 接口中的 latest_alerts 数据，用于首页快速研判。</p>
+              <p>展示最新告警记录，便于首页快速识别当前高风险事件。</p>
             </div>
           </div>
 
           <el-table :data="overviewData.latest_alerts" v-loading="loading" stripe>
-            <el-table-column prop="alert_id" label="鍛婅缂栧彿" min-width="100" />
-            <el-table-column prop="alert_name" label="鍛婅鍚嶇О" min-width="150" />
-            <el-table-column label="涓ラ噸绛夌骇" min-width="110">
+            <el-table-column prop="alert_id" label="告警编号" min-width="100" />
+            <el-table-column prop="alert_name" label="告警名称" min-width="150" />
+            <el-table-column label="严重等级" min-width="110">
               <template #default="{ row }">
                 <el-tag :type="severityTagType(row.severity)" effect="light">
                   {{ row.severity || "-" }}
@@ -51,9 +139,9 @@
               </template>
             </el-table-column>
             <el-table-column prop="status" label="状态" min-width="100" />
-            <el-table-column prop="score" label="寰楀垎" min-width="80" />
-            <el-table-column prop="event_type" label="浜嬩欢绫诲瀷" min-width="120" />
-            <el-table-column prop="rule_name" label="鍛戒腑瑙勫垯" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="score" label="得分" min-width="80" />
+            <el-table-column prop="event_type" label="事件类型" min-width="120" />
+            <el-table-column prop="rule_name" label="命中规则" min-width="180" show-overflow-tooltip />
           </el-table>
         </div>
       </el-col>
@@ -63,7 +151,7 @@
           <div class="section-header">
             <div>
               <h3>高风险对象排行</h3>
-              <p>面向首页展示高风险用户、IP 和主机的重点对象。</p>
+              <p>聚合展示高风险用户、IP 和主机，便于快速锁定重点处置对象。</p>
             </div>
           </div>
 
@@ -81,12 +169,12 @@
           </div>
 
           <div class="risk-block">
-            <div class="risk-block__title">楂橀闄?IP</div>
+            <div class="risk-block__title">高风险 IP</div>
             <div class="risk-list">
               <div v-for="item in overviewData.top_risk_ips" :key="item.ip_id" class="risk-list__item">
                 <div>
                   <div class="risk-list__name">{{ item.ip_address }}</div>
-                  <div class="risk-list__meta">{{ item.ip_type || "鏈煡绫诲瀷" }}</div>
+                  <div class="risk-list__meta">{{ item.ip_type || "未知类型" }}</div>
                 </div>
                 <el-tag :type="item.is_blocked ? 'danger' : 'warning'" effect="light">
                   {{ item.risk_score ?? "-" }}
@@ -101,7 +189,7 @@
               <div v-for="item in overviewData.top_risk_hosts" :key="item.host_id" class="risk-list__item">
                 <div>
                   <div class="risk-list__name">{{ item.hostname }}</div>
-                  <div class="risk-list__meta">{{ item.asset_type || "鏈煡璧勪骇" }}</div>
+                  <div class="risk-list__meta">{{ item.asset_type || "未知资产" }}</div>
                 </div>
                 <el-tag type="warning" effect="light">{{ item.risk_score ?? "-" }}</el-tag>
               </div>
@@ -116,8 +204,8 @@
         <div class="security-panel section-panel chart-panel">
           <div class="section-header">
             <div>
-              <h3>鍛婅绛夌骇鍒嗗竷</h3>
-              <p>基于 latest_alerts 聚合展示当前首页告警等级结构。</p>
+              <h3>告警等级分布</h3>
+              <p>基于最新告警记录聚合当前等级结构，便于查看风险集中区间。</p>
             </div>
           </div>
 
@@ -136,15 +224,16 @@
               <span class="chart-row__percent">{{ item.percentText }}</span>
             </div>
           </div>
-          <el-empty v-else description="鏆傛棤鍛婅绛夌骇鍒嗗竷鏁版嵁" />
+          <el-empty v-else description="暂无告警等级分布数据" />
         </div>
       </el-col>
+
       <el-col :xs="24" :lg="12">
         <div class="security-panel section-panel chart-panel">
           <div class="section-header">
             <div>
               <h3>高风险对象分布</h3>
-              <p>基于高风险用户、IP 与主机列表聚合展示重点对象占比。</p>
+              <p>聚合高风险用户、IP 与主机数量，辅助判断风险暴露重点。</p>
             </div>
           </div>
 
@@ -171,24 +260,28 @@
 </template>
 
 <script setup>
-// 鏂囦欢璺緞锛歠rontend/src/views/DashboardView.vue
-// 浣滅敤璇存槑锛?
-// 1. 閫氳繃 fetchGraphOverview 璇诲彇鍚庣鍥捐氨鎬昏鎺ュ彛銆?
-// 2. 灏嗘帴鍙ｇ粨鏋滄媶鍒嗕负姒傝鍗＄墖銆佹渶鏂板憡璀﹁〃鍜岄珮椋庨櫓鎺掕涓夐儴鍒嗗睍绀恒€?
-
+// 工作台总览页面逻辑：读取图谱概况并组织首页展示数据。
 import { computed, onMounted, reactive, ref } from "vue";
 
 import { fetchGraphOverview } from "@/api/dashboard";
+import { updateDisposal } from "@/api/disposals";
 import StatCard from "@/components/StatCard.vue";
+import { PERMISSION_KEYS, getCurrentUser, hasPermission } from "@/utils/auth";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 const loading = ref(false);
+const currentUser = ref(null);
+const approvalActionLoadingMap = reactive({});
 
 const overviewData = reactive({
   summary: {},
   latest_alerts: [],
   top_risk_users: [],
   top_risk_ips: [],
-  top_risk_hosts: []
+  top_risk_hosts: [],
+  approval_overview: {}
 });
 
 function severityTagType(severity) {
@@ -201,7 +294,24 @@ function severityTagType(severity) {
   return "info";
 }
 
+function approvalStatusTagType(status) {
+  if (status === "已通过") {
+    return "success";
+  }
+
+  if (status === "已驳回") {
+    return "danger";
+  }
+
+  return "warning";
+}
+
+function isApprovalActionLoading(requestId) {
+  return Boolean(approvalActionLoadingMap[requestId]);
+}
+
 async function loadOverview() {
+  currentUser.value = getCurrentUser();
   loading.value = true;
 
   try {
@@ -213,6 +323,7 @@ async function loadOverview() {
     overviewData.top_risk_users = data.top_risk_users || [];
     overviewData.top_risk_ips = data.top_risk_ips || [];
     overviewData.top_risk_hosts = data.top_risk_hosts || [];
+    overviewData.approval_overview = data.approval_overview || {};
   } finally {
     loading.value = false;
   }
@@ -301,49 +412,142 @@ const riskEntityChartData = computed(() => {
     .filter((item) => item.value > 0);
 });
 
+const canViewApprovalOverview = computed(() => {
+  return hasPermission(currentUser.value, PERMISSION_KEYS.BAN_EXECUTE);
+});
+
+const pendingDisposals = computed(() => {
+  return overviewData.approval_overview?.recent_disposals || [];
+});
+
+const recentReviews = computed(() => {
+  return overviewData.approval_overview?.recent_reviews || [];
+});
+
+const latestApprovalActionText = computed(() => {
+  return overviewData.approval_overview?.recent_action_time || "暂无审批动作";
+});
 
 const summaryCards = computed(() => [
   {
     key: "node_total",
-    title: "鍥捐氨鑺傜偣鎬婚噺",
-    hint: "褰撳墠 Neo4j 涓墍鏈変笟鍔″疄浣撹妭鐐圭殑鏁伴噺缁熻",
+    title: "图谱节点总量",
+    hint: "统计当前图谱中的业务实体与安全对象节点数量",
     value: overviewData.summary.node_total,
     tone: "primary",
     icon: "Connection"
   },
   {
     key: "relation_total",
-    title: "鍥捐氨鍏崇郴鎬婚噺",
-    hint: "褰撳墠鍥捐氨涓殑璁块棶銆佸憡璀︿笌澶勭疆鍏崇郴鏁伴噺",
+    title: "图谱关系总量",
+    hint: "展示访问、告警、处置等关联关系规模",
     value: overviewData.summary.relation_total,
     tone: "success",
     icon: "Share"
   },
   {
     key: "alert_total",
-    title: "鍛婅鎬婚噺",
-    hint: "褰撳墠鍥炬暟鎹簱涓殑鍛婅鑺傜偣鎬绘暟",
+    title: "告警总量",
+    hint: "展示当前图谱中的告警记录数量",
     value: overviewData.summary.alert_total,
     tone: "danger",
     icon: "Bell"
   },
   {
     key: "blocked_ip_total",
-    title: "灏佺 IP 鏁伴噺",
-    hint: "褰撳墠宸茶灏佺鎴栨爣璁颁负灏佺鐘舵€佺殑 IP 鏁伴噺",
+    title: "封禁 IP 数量",
+    hint: "统计当前处于封禁状态的风险源 IP 数量",
     value: overviewData.summary.blocked_ip_total,
     tone: "warning",
     icon: "Lock"
   },
   {
     key: "high_risk_event_total",
-    title: "楂橀闄╀簨浠舵暟",
-    hint: "椋庨櫓鍒嗗€煎ぇ浜庣瓑浜?80 鐨勪簨浠舵€绘暟",
+    title: "高风险事件数",
+    hint: "统计风险分值达到高危阈值的事件数量",
     value: overviewData.summary.high_risk_event_total,
     tone: "danger",
     icon: "Warning"
   }
 ]);
+
+const approvalCards = computed(() => [
+  {
+    key: "pending_disposal_count",
+    title: "待审批申请数",
+    hint: "汇总当前仍待管理员处理的处置申请数量。",
+    value: overviewData.approval_overview?.pending_disposal_count,
+    tone: "warning",
+    icon: "DocumentCopy"
+  },
+  {
+    key: "approved_today_count",
+    title: "今日已通过数",
+    hint: "统计今日已完成审批通过的处置申请数量。",
+    value: overviewData.approval_overview?.approved_today_count,
+    tone: "success",
+    icon: "CircleCheck"
+  },
+  {
+    key: "rejected_today_count",
+    title: "今日已驳回数",
+    hint: "统计今日已驳回的处置申请数量。",
+    value: overviewData.approval_overview?.rejected_today_count,
+    tone: "danger",
+    icon: "CircleClose"
+  },
+  {
+    key: "recent_action_time",
+    title: "最近审批时间",
+    hint: "用于确认审批链路是否保持实时更新。",
+    value: latestApprovalActionText.value,
+    tone: "primary",
+    icon: "Timer"
+  }
+]);
+
+async function handleApproval(row, status) {
+  const isApprove = status === "已通过";
+  const defaultComment = isApprove ? "同意按申请意见执行处置动作" : "驳回当前申请，请补充完整研判依据";
+
+  try {
+    const promptResult = await ElMessageBox.prompt(
+      `请填写申请 ${row.request_id} 的审批备注。`,
+      isApprove ? "审批通过" : "审批驳回",
+      {
+        confirmButtonText: isApprove ? "确认通过" : "确认驳回",
+        cancelButtonText: "取消",
+        inputType: "textarea",
+        inputValue: defaultComment,
+        inputPlaceholder: "请输入审批备注"
+      }
+    );
+
+    approvalActionLoadingMap[row.request_id] = true;
+    const response = await updateDisposal(row.request_id, {
+      status,
+      review_comment: promptResult.value || defaultComment
+    });
+
+    ElMessage.success(response?.message || (isApprove ? "审批通过成功" : "审批驳回成功"));
+    await loadOverview();
+  } catch (error) {
+    if (
+      error === "cancel" ||
+      error === "close" ||
+      error?.action === "cancel" ||
+      error?.action === "close"
+    ) {
+      return;
+    }
+  } finally {
+    approvalActionLoadingMap[row.request_id] = false;
+  }
+}
+
+function handleOpenApprovalPage() {
+  router.push("/console/bans");
+}
 
 onMounted(() => {
   loadOverview();
@@ -375,7 +579,8 @@ onMounted(() => {
 }
 
 .overview-section,
-.charts-section {
+.charts-section,
+.approval-section {
   margin-top: 0;
 }
 
@@ -403,6 +608,13 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .top-list-panel {
@@ -507,6 +719,52 @@ onMounted(() => {
   min-width: 10px;
   border-radius: inherit;
   box-shadow: 0 8px 18px rgba(59, 130, 246, 0.16);
+}
+
+.approval-panel,
+.review-panel {
+  min-height: 100%;
+}
+
+.review-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
+}
+
+.review-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.review-card__meta,
+.table-header-tip {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 992px) {

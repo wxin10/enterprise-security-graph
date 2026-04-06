@@ -1,14 +1,14 @@
 <template>
   <div class="profile-page app-page">
     <section class="security-panel profile-hero">
-      <div v-if="currentUser" class="profile-hero__content">
+      <div v-if="profile" class="profile-hero__content">
         <div class="profile-hero__avatar">
           {{ userInitial }}
         </div>
         <div>
           <div class="profile-hero__role">{{ currentRoleLabel }}</div>
-          <h1 class="page-title">{{ currentUser.display_name }}</h1>
-          <p class="page-subtitle">{{ [currentUser.title, currentUser.department, "负责当前岗位的安全运营、告警研判与处置跟踪工作。"].filter(Boolean).join("，") }}</p>
+          <h1 class="page-title">{{ profile.display_name }}</h1>
+          <p class="page-subtitle">{{ [profile.title, profile.department, profile.bio].filter(Boolean).join("，") }}</p>
         </div>
       </div>
 
@@ -21,12 +21,9 @@
       </div>
 
       <div class="profile-hero__actions">
-        <el-button v-if="currentUser" type="primary" @click="handleBackHome">
-          返回工作台
-        </el-button>
-        <el-button v-else type="primary" @click="handleGoLogin">
-          前往登录
-        </el-button>
+        <el-button v-if="profile" type="primary" plain :loading="loading" @click="loadPageData">刷新资料</el-button>
+        <el-button v-if="profile" type="primary" @click="handleBackHome">返回工作台</el-button>
+        <el-button v-else type="primary" @click="handleGoLogin">前往登录</el-button>
       </div>
     </section>
 
@@ -34,8 +31,8 @@
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
           <div class="summary-card__label">角色身份</div>
-          <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "-" }}</div>
-          <div class="summary-card__hint">角色身份决定账号可执行的审批、规则管理和审计查看范围</div>
+          <div class="summary-card__value">{{ profile ? currentRoleLabel : "-" }}</div>
+          <div class="summary-card__hint">角色身份决定账号可执行的审批、规则管理和审计查看范围。</div>
         </div>
       </el-col>
 
@@ -43,7 +40,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">权限项目</div>
           <div class="summary-card__value summary-card__value--primary">{{ availablePermissionItems.length }}</div>
-          <div class="summary-card__hint">汇总当前账号已开通的业务能力与管理权限范围</div>
+          <div class="summary-card__hint">汇总当前账号已开通的业务能力与管理权限范围。</div>
         </div>
       </el-col>
 
@@ -51,7 +48,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">我的处置记录</div>
           <div class="summary-card__value summary-card__value--warning">{{ myRequestRecords.length }}</div>
-          <div class="summary-card__hint">统计当前账号已发起的处置申请与近期跟踪记录</div>
+          <div class="summary-card__hint">统计当前账号已发起的处置申请与近期跟踪记录。</div>
         </div>
       </el-col>
 
@@ -59,7 +56,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">待办事项</div>
           <div class="summary-card__value summary-card__value--danger">{{ pendingRequestCount }}</div>
-          <div class="summary-card__hint">用于提示当前账号仍需关注的审批流转与后续处理事项</div>
+          <div class="summary-card__hint">用于提示当前账号仍需关注的审批流转与待处理事项。</div>
         </div>
       </el-col>
     </el-row>
@@ -70,30 +67,39 @@
           <div class="section-header">
             <div>
               <h3>基本信息</h3>
-              <p>展示当前登录账号的基础资料、岗位信息与最近登录时间。</p>
+              <p>集中维护当前登录账号的基础资料、岗位信息和最近登录时间。</p>
             </div>
+            <el-button v-if="profile" type="primary" plain @click="startEditing">编辑资料</el-button>
           </div>
 
-          <div v-if="currentUser" class="info-list">
+          <div v-if="profile" class="info-list">
             <div class="info-row">
               <span class="info-row__label">用户编号</span>
-              <span class="info-row__value">{{ currentUser.user_id }}</span>
+              <span class="info-row__value">{{ profile.user_id }}</span>
             </div>
             <div class="info-row">
               <span class="info-row__label">登录账号</span>
-              <span class="info-row__value">{{ currentUser.username }}</span>
+              <span class="info-row__value">{{ profile.username }}</span>
             </div>
             <div class="info-row">
               <span class="info-row__label">姓名</span>
-              <span class="info-row__value">{{ currentUser.display_name }}</span>
+              <span class="info-row__value">{{ profile.display_name }}</span>
             </div>
             <div class="info-row">
               <span class="info-row__label">所属部门</span>
-              <span class="info-row__value">{{ currentUser.department }}</span>
+              <span class="info-row__value">{{ profile.department }}</span>
             </div>
             <div class="info-row">
               <span class="info-row__label">岗位职责</span>
-              <span class="info-row__value">{{ currentUser.title }}</span>
+              <span class="info-row__value">{{ profile.title }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row__label">邮箱</span>
+              <span class="info-row__value">{{ profile.email || "-" }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row__label">手机号</span>
+              <span class="info-row__value">{{ profile.phone || "-" }}</span>
             </div>
             <div class="info-row">
               <span class="info-row__label">最近登录时间</span>
@@ -147,11 +153,11 @@
       <div class="section-header">
         <div>
           <h3>最近处置记录</h3>
-            <p>展示当前账号最近参与的处置记录，便于跟踪个人处理进度与结果。</p>
+          <p>展示当前账号最近参与的处置记录，便于跟踪个人处理进度与结果。</p>
         </div>
       </div>
 
-      <el-table :data="recentRecords" empty-text="当前暂无个人处置记录">
+      <el-table v-loading="loading" :data="recentRecords" empty-text="当前暂无个人处置记录">
         <el-table-column prop="request_id" label="申请编号" min-width="170" />
         <el-table-column prop="alert_name" label="关联告警" min-width="180" show-overflow-tooltip />
         <el-table-column prop="disposal_type" label="处置类型" min-width="120" />
@@ -166,26 +172,68 @@
         <el-table-column prop="updated_at" label="最近更新时间" min-width="170" />
       </el-table>
     </section>
+
+    <el-dialog v-model="editDialogVisible" title="编辑个人资料" width="640px" destroy-on-close>
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="96px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="姓名" prop="display_name">
+              <el-input v-model="editForm.display_name" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="所属部门" prop="department">
+              <el-input v-model="editForm.department" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="岗位职责" prop="title">
+              <el-input v-model="editForm.title" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="邮箱">
+              <el-input v-model="editForm.email" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="手机号">
+              <el-input v-model="editForm.phone" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="资料说明">
+              <el-input v-model="editForm.bio" type="textarea" :rows="4" maxlength="160" show-word-limit />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSaveProfile">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-// 文件路径：frontend/src/views/ProfileView.vue
-// 作用说明：
-// 1. 展示当前登录用户的基础资料、角色身份与最近登录时间。
-// 2. 基于 auth.js 的权限映射直观区分“可执行”和“受限”能力。
-// 3. 复用 mock-storage.js 的本地数据，为后续“我的处理记录”页面铺垫数据来源。
-import { computed } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
+import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 
+import { fetchMyDisposals } from "@/api/disposals";
+import { fetchProfile, updateProfile } from "@/api/profile";
 import {
   PERMISSION_KEYS,
   getCurrentUser,
   getPermissionList,
   getRoleHomePath,
-  getRoleLabel
+  getRoleLabel,
+  saveCurrentUser
 } from "@/utils/auth";
-import { listMyDisposalRequests } from "@/utils/mock-storage";
 
 const router = useRouter();
 
@@ -237,22 +285,42 @@ const PERMISSION_META = [
   }
 ];
 
-const currentUser = computed(() => getCurrentUser());
+const loading = ref(false);
+const submitting = ref(false);
+const profile = ref(null);
+const myRequestRecords = ref([]);
+const editDialogVisible = ref(false);
+const editFormRef = ref(null);
+
+const editForm = reactive({
+  display_name: "",
+  department: "",
+  title: "",
+  email: "",
+  phone: "",
+  bio: ""
+});
+
+const editRules = {
+  display_name: [{ required: true, message: "请输入姓名", trigger: "blur" }],
+  department: [{ required: true, message: "请输入所属部门", trigger: "blur" }],
+  title: [{ required: true, message: "请输入岗位职责", trigger: "blur" }]
+};
 
 const currentRoleLabel = computed(() => {
-  return currentUser.value ? getRoleLabel(currentUser.value.role) : "未登录";
+  return profile.value ? getRoleLabel(profile.value.role) : "未登录";
 });
 
 const userInitial = computed(() => {
-  if (!currentUser.value?.display_name) {
+  if (!profile.value?.display_name) {
     return "登";
   }
 
-  return String(currentUser.value.display_name).trim().slice(0, 1).toUpperCase();
+  return String(profile.value.display_name).trim().slice(0, 1).toUpperCase();
 });
 
 const permissionKeys = computed(() => {
-  return currentUser.value ? getPermissionList(currentUser.value.role) : [];
+  return profile.value ? getPermissionList(profile.value.role) : [];
 });
 
 const availablePermissionItems = computed(() => {
@@ -261,10 +329,6 @@ const availablePermissionItems = computed(() => {
 
 const restrictedPermissionItems = computed(() => {
   return PERMISSION_META.filter((item) => !permissionKeys.value.includes(item.key));
-});
-
-const myRequestRecords = computed(() => {
-  return currentUser.value ? listMyDisposalRequests(currentUser.value) : [];
 });
 
 const pendingRequestCount = computed(() => {
@@ -276,26 +340,80 @@ const recentRecords = computed(() => {
 });
 
 const formattedLoginAt = computed(() => {
-  const loginAt = currentUser.value?.login_at;
+  const loginAt = profile.value?.login_at || profile.value?.last_login_at;
   if (!loginAt) {
     return "-";
   }
 
-  const resolvedDate = new Date(loginAt);
+  const resolvedDate = new Date(String(loginAt).replace(" ", "T"));
   if (Number.isNaN(resolvedDate.getTime())) {
     return String(loginAt);
   }
 
-  // 统一转为本地展示字符串，避免答辩时看到 ISO 原始格式。
   return resolvedDate.toLocaleString("zh-CN", { hour12: false });
 });
+
+async function loadPageData() {
+  const currentSessionUser = getCurrentUser();
+  if (!currentSessionUser) {
+    profile.value = null;
+    myRequestRecords.value = [];
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const [profileResponse, recordsResponse] = await Promise.all([fetchProfile(), fetchMyDisposals()]);
+    profile.value = profileResponse.data || null;
+    myRequestRecords.value = recordsResponse.data?.items || [];
+
+    if (profile.value) {
+      saveCurrentUser(profile.value);
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+
+function startEditing() {
+  if (!profile.value) {
+    return;
+  }
+
+  Object.assign(editForm, {
+    display_name: profile.value.display_name || "",
+    department: profile.value.department || "",
+    title: profile.value.title || "",
+    email: profile.value.email || "",
+    phone: profile.value.phone || "",
+    bio: profile.value.bio || ""
+  });
+
+  editDialogVisible.value = true;
+}
+
+async function handleSaveProfile() {
+  await editFormRef.value?.validate();
+  submitting.value = true;
+
+  try {
+    const response = await updateProfile(editForm);
+    profile.value = response.data || null;
+    saveCurrentUser(profile.value);
+    editDialogVisible.value = false;
+    ElMessage.success(response.message || "个人资料更新成功");
+  } finally {
+    submitting.value = false;
+  }
+}
 
 function statusTagType(status) {
   if (String(status).includes("通过")) {
     return "success";
   }
 
-  if (String(status).includes("拒绝")) {
+  if (String(status).includes("驳回")) {
     return "danger";
   }
 
@@ -307,17 +425,21 @@ function statusTagType(status) {
 }
 
 function handleBackHome() {
-  if (!currentUser.value) {
+  if (!profile.value) {
     router.push("/login");
     return;
   }
 
-  router.push(getRoleHomePath(currentUser.value.role));
+  router.push(getRoleHomePath(profile.value.role));
 }
 
 function handleGoLogin() {
   router.push("/login");
 }
+
+onMounted(() => {
+  loadPageData();
+});
 </script>
 
 <style scoped>
@@ -374,7 +496,8 @@ function handleGoLogin() {
   border: 1px solid rgba(59, 130, 246, 0.16);
 }
 
-.profile-hero__actions {
+.profile-hero__actions,
+.dialog-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -416,6 +539,10 @@ function handleGoLogin() {
 }
 
 .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -526,7 +653,8 @@ function handleGoLogin() {
 }
 
 @media (max-width: 992px) {
-  .profile-hero {
+  .profile-hero,
+  .section-header {
     flex-direction: column;
     align-items: flex-start;
   }

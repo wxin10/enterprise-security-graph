@@ -1730,3 +1730,91 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 审批流页面闭环与会话持久化
+- 本轮业务改动文件：
+  - `backend/app/services/governance_service.py`
+  - `backend/app/services/auth_service.py`
+  - `backend/app/api/auth_api.py`
+  - `backend/app/data/governance_state.json`
+  - `backend/app/data/session_state.json`
+  - `frontend/src/views/BansView.vue`
+  - `frontend/src/views/AuditLogView.vue`
+  - `frontend/src/views/MyRecordsView.vue`
+  - `frontend/src/views/RequestActionView.vue`
+- 本轮完成内容：
+  - 已在 `BansView.vue` 接入待审批申请列表、通过/驳回动作与审批备注录入，并在审批后同步刷新审批列表与封禁页统计卡片。
+  - 已统一处置申请状态为 `待审批 / 已通过 / 已驳回`，统一审计动作命名为 `提交处置申请 / 审批处置申请`。
+  - 已在后端将会话令牌持久化到 `backend/app/data/session_state.json`，并补齐密码重置、账号停用后的旧会话失效校验。
+  - 已在 `MyRecordsView.vue` 与 `RequestActionView.vue` 补充审批备注展示，在 `AuditLogView.vue` 补充驳回筛选与审批留痕聚焦。
+- 本轮校验：
+  - `frontend` 目录执行 `npm.cmd run build` 成功，产物已生成，仅保留 Vite 大包体积告警。
+  - `python -m py_compile backend/app/services/governance_service.py backend/app/services/auth_service.py backend/app/api/auth_api.py` 成功。
+  - 审批流联调已验证：普通用户提交申请 -> 管理员查看待审批 -> 管理员审批通过 -> 普通用户记录状态更新 -> 审计日志出现审批记录。
+  - 会话持久化已验证：登录成功后令牌写入 `session_state.json`，新进程可继续识别未过期令牌；重置密码与停用账号后旧会话返回 401。
+
+### [批次 42] 2026-04-06
+- 任务目标：完成审批流页面闭环与后端会话持久化收口。
+- 本批实际修改文件：
+  - `backend/app/services/governance_service.py`
+  - `backend/app/services/auth_service.py`
+  - `backend/app/api/auth_api.py`
+  - `backend/app/data/governance_state.json`
+  - `backend/app/data/session_state.json`
+  - `frontend/src/views/BansView.vue`
+  - `frontend/src/views/AuditLogView.vue`
+  - `frontend/src/views/MyRecordsView.vue`
+  - `frontend/src/views/RequestActionView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `governance_service.py`：统一处置申请状态与审计动作命名，新增审批汇总、审批时间、密码版本字段与数据迁移逻辑。
+  - `auth_service.py`：将会话从进程内存改为文件持久化，并在鉴权时校验过期、停用与密码变更失效。
+  - `auth_api.py`：同步接口说明到持久化会话口径。
+  - `governance_state.json` / `session_state.json`：补齐治理基线字段与会话持久化文件。
+  - `BansView.vue`：挂载管理员审批入口并联动刷新页面统计。
+  - `AuditLogView.vue`：补充审批结果筛选与审批留痕聚焦。
+  - `MyRecordsView.vue` / `RequestActionView.vue`：补充审批备注展示，确保用户侧可见审批结果。
+  - `CODEX_PROGRESS.md` / `CODEX_NEXT.md`：同步本轮落地结果与下一批入口。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
+## 2026-04-06 首页审批总览、审批联动封禁与基础 pytest
+### 当前状态
+- `backend/app/services/governance_service.py` 已补齐首页审批总览统计、处置申请 `source_ip / execution_status / execution_message / linked_ban_action_id` 字段，并在封禁申请审批通过后写入联动封禁结果与审计日志。
+- `backend/app/services/graph_service.py` 与 `backend/app/api/graph_api.py` 已在现有 `/api/graph/overview` 链路上扩展审批概览返回，管理员首页可直接读取待审批数量、今日通过/驳回数量、最近待审批申请和最近审批记录。
+- `frontend/src/views/DashboardView.vue` 已新增审批概览卡片、待审批申请区块、最近审批记录区块，并支持管理员首页直接通过/驳回或跳转到封禁审批页。
+- `frontend/src/views/BansView.vue` 已展示审批来源与联动说明；`frontend/src/views/MyRecordsView.vue`、`frontend/src/views/RequestActionView.vue`、`frontend/src/views/AuditLogView.vue` 已同步展示驳回原因、联动结果和统一状态文案。
+- `tests/conftest.py` 与 `tests/test_governance_workflow.py` 已新增基础 pytest 回归，用临时治理文件和临时会话文件承接测试数据，不污染真实数据文件。
+
+### 本轮业务落地文件
+- `backend/app/services/governance_service.py`
+- `backend/app/services/graph_service.py`
+- `backend/app/api/graph_api.py`
+- `frontend/src/views/DashboardView.vue`
+- `frontend/src/views/BansView.vue`
+- `frontend/src/views/MyRecordsView.vue`
+- `frontend/src/views/RequestActionView.vue`
+- `frontend/src/views/AuditLogView.vue`
+- `tests/conftest.py`
+- `tests/test_governance_workflow.py`
+
+### 本轮校验
+- `python -m py_compile backend/app/services/governance_service.py backend/app/services/graph_service.py backend/app/api/graph_api.py` 已执行成功。
+- `pytest -q` 已执行成功，结果：`2 passed`。
+- `frontend` 目录执行 `npm.cmd run build` 已成功，仅保留 Vite 大包体积告警。
+- 脚本联调已验证：普通用户提交封禁申请 -> 管理员首页看到待审批申请 -> 管理员审批通过 -> 我的处理记录更新为 `已通过 / 已封禁` -> 审计日志出现 `联动封禁处置` -> 封禁列表接口返回与申请编号匹配的联动封禁记录。
+
+### 是否完成
+- 是
+
+### 是否发生中断
+- 否
+
+### 是否需要恢复模式
+- 否
+
+### 下一批建议
+- 如继续收口，优先将首页审批概览与封禁联动结果同步到更多管理统计卡片，并补前端级联调或端到端测试。

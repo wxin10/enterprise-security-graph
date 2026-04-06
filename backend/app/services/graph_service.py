@@ -52,7 +52,7 @@ class GraphService:
     def __init__(self, client):
         self.client = client
 
-    def get_graph_overview(self) -> Dict[str, Any]:
+    def get_graph_overview(self, current_user: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """
         获取图谱总览数据。
         """
@@ -133,13 +133,30 @@ LIMIT 5
 
         summary = summary_records[0] if summary_records else {}
 
-        return {
+        overview = {
             "summary": summary,
             "latest_alerts": latest_alerts,
             "top_risk_users": top_risk_users,
             "top_risk_ips": top_risk_ips,
             "top_risk_hosts": top_risk_hosts,
         }
+
+        if current_user:
+            from app.services.governance_service import governance_service
+
+            overview["approval_overview"] = governance_service.get_dashboard_approval_overview(current_user)
+        else:
+            overview["approval_overview"] = {
+                "enabled": False,
+                "pending_disposal_count": 0,
+                "approved_today_count": 0,
+                "rejected_today_count": 0,
+                "recent_action_time": "",
+                "recent_disposals": [],
+                "recent_reviews": [],
+            }
+
+        return overview
 
     def get_graph_stats(self) -> Dict[str, Any]:
         """

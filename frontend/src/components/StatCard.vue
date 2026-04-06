@@ -23,7 +23,7 @@
 // 文件路径：frontend/src/components/StatCard.vue
 // 作用说明：
 // 1. 抽离仪表盘统计卡片，避免 DashboardView 中重复编写结构。
-// 2. 保持样式和交互统一，便于后续继续扩展更多总览指标。
+// 2. 保持总览页面的指标卡片样式和交互一致。
 
 import { computed } from "vue";
 

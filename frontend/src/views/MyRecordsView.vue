@@ -4,13 +4,12 @@
       <div>
         <h1 class="page-title">我的处理记录</h1>
         <p class="page-subtitle">
-          当前页面面向一线运维和值班安全分析员，用于统一查看本人已发起的处置申请、审批状态和最近流转记录，
-          支撑告警研判后的个人处置跟踪。
+          面向一线运维和值班安全分析员，用于统一查看本人已发起的处置申请、审批状态和最近流转记录。
         </p>
       </div>
 
       <div class="page-banner__actions">
-        <el-button type="primary" plain @click="loadRecords">刷新记录</el-button>
+        <el-button type="primary" plain :loading="loading" @click="loadRecords">刷新记录</el-button>
         <el-button v-if="currentUser" type="primary" @click="handleBackHome">返回工作台</el-button>
         <el-button v-else type="primary" @click="handleGoLogin">前往登录</el-button>
       </div>
@@ -21,7 +20,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前身份</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "未登录" }}</div>
-          <div class="summary-card__hint">页面默认面向普通用户，管理员访问时也仅查看本人提交记录</div>
+          <div class="summary-card__hint">页面默认面向普通用户，管理员访问时也仅查看本人提交记录。</div>
         </div>
       </el-col>
 
@@ -29,7 +28,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">我的申请总数</div>
           <div class="summary-card__value summary-card__value--primary">{{ records.length }}</div>
-          <div class="summary-card__hint">统计当前登录账号已发起的全部处置申请</div>
+          <div class="summary-card__hint">统计当前登录账号已发起的全部处置申请。</div>
         </div>
       </el-col>
 
@@ -37,7 +36,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">待审核申请</div>
           <div class="summary-card__value summary-card__value--warning">{{ pendingCount }}</div>
-          <div class="summary-card__hint">表示已提交给管理员，等待审批或最终执行</div>
+          <div class="summary-card__hint">表示已提交给管理员，等待审批或最终执行。</div>
         </div>
       </el-col>
 
@@ -45,7 +44,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">最近更新时间</div>
           <div class="summary-card__value summary-card__value--small">{{ latestUpdatedAt }}</div>
-          <div class="summary-card__hint">用于提示个人处置记录的最近更新状态</div>
+          <div class="summary-card__hint">用于提示个人处置记录的最近更新状态。</div>
         </div>
       </el-col>
     </el-row>
@@ -56,16 +55,16 @@
           <div class="section-header">
             <div>
               <h3>筛选条件</h3>
-              <p>支持按申请状态、紧急程度和关键字筛选，便于普通用户快速回看自己的处理记录。</p>
+              <p>支持按申请状态、紧急程度和关键字筛选，便于快速回看自己的处理记录。</p>
             </div>
           </div>
 
           <el-form :inline="true" :model="filterForm" class="filter-form">
             <el-form-item label="申请状态">
               <el-select v-model="filterForm.status" clearable placeholder="全部状态" style="width: 160px">
-                <el-option label="待审核" value="待审核" />
+                <el-option label="待审批" value="待审批" />
                 <el-option label="已通过" value="已通过" />
-                <el-option label="已拒绝" value="已拒绝" />
+                <el-option label="已驳回" value="已驳回" />
               </el-select>
             </el-form-item>
 
@@ -97,7 +96,7 @@
             <div class="table-header-tip">当前命中 {{ filteredRecords.length }} 条记录</div>
           </div>
 
-          <el-table :data="filteredRecords" empty-text="当前没有个人处置记录">
+          <el-table v-loading="loading" :data="filteredRecords" empty-text="当前没有个人处置记录">
             <el-table-column prop="request_id" label="申请编号" min-width="170" />
             <el-table-column prop="alert_id" label="告警编号" min-width="120" />
             <el-table-column prop="alert_name" label="关联告警" min-width="190" show-overflow-tooltip />
@@ -109,6 +108,7 @@
               </template>
             </el-table-column>
             <el-table-column prop="disposal_type" label="处置类型" min-width="120" />
+            <el-table-column prop="source_ip" label="处置目标 IP" min-width="140" />
             <el-table-column label="紧急程度" min-width="110">
               <template #default="{ row }">
                 <el-tag :type="urgencyTagType(row.urgency_level)" effect="plain">
@@ -123,7 +123,17 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column label="联动结果" min-width="120">
+              <template #default="{ row }">
+                <el-tag v-if="row.execution_status" :type="executionStatusTagType(row.execution_status)" effect="plain">
+                  {{ row.execution_status }}
+                </el-tag>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="updated_at" label="最近更新时间" min-width="170" />
+            <el-table-column prop="review_comment" label="审批备注" min-width="240" show-overflow-tooltip />
+            <el-table-column prop="execution_message" label="联动说明" min-width="260" show-overflow-tooltip />
             <el-table-column prop="disposition_opinion" label="处置意见" min-width="260" show-overflow-tooltip />
           </el-table>
         </section>
@@ -134,7 +144,7 @@
           <div class="section-header">
             <div>
               <h3>个人闭环提示</h3>
-              <p>这里强调普通用户的职责边界：可以研判、申请、回看记录，但不能执行最终高风险操作。</p>
+              <p>这里强调普通用户的职责边界：可以研判、申请、回看记录，但不执行最终高风险操作。</p>
             </div>
           </div>
 
@@ -158,7 +168,7 @@
           <div class="section-header">
             <div>
               <h3>最近三条记录</h3>
-              <p>便于快速查看个人处理闭环的最新进展，无需每次都阅读整张表。</p>
+              <p>便于快速查看个人处置闭环的最新进展，无需每次都浏览整张表。</p>
             </div>
           </div>
 
@@ -172,7 +182,10 @@
               </div>
               <div class="record-card__meta">申请编号：{{ item.request_id }}</div>
               <div class="record-card__meta">处置类型：{{ item.disposal_type }}</div>
+              <div class="record-card__meta">处置目标 IP：{{ item.source_ip || "-" }}</div>
               <div class="record-card__meta">更新时间：{{ item.updated_at || "-" }}</div>
+              <div class="record-card__meta">审批备注：{{ item.review_comment || "待管理员审批" }}</div>
+              <div class="record-card__meta">联动结果：{{ item.execution_status || "-" }}</div>
             </div>
           </div>
 
@@ -184,20 +197,16 @@
 </template>
 
 <script setup>
-// 文件路径：frontend/src/views/MyRecordsView.vue
-// 作用说明：
-// 1. 展示当前登录用户本人提交的处置申请和审批状态。
-// 2. 强化普通用户作为安全分析员的一线角色定位。
-// 3. 为后续路由接入“我的处理记录”菜单提供页面本体。
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
+import { fetchMyDisposals } from "@/api/disposals";
 import { getCurrentUser, getRoleHomePath, getRoleLabel } from "@/utils/auth";
-import { listMyDisposalRequests } from "@/utils/mock-storage";
 
 const router = useRouter();
 
 const currentUser = ref(null);
+const loading = ref(false);
 const records = ref([]);
 
 const filterForm = reactive({
@@ -226,7 +235,15 @@ const filteredRecords = computed(() => {
       return true;
     }
 
-    const haystack = [item.request_id, item.alert_id, item.alert_name, item.disposition_opinion]
+    const haystack = [
+      item.request_id,
+      item.alert_id,
+      item.alert_name,
+      item.disposition_opinion,
+      item.review_comment,
+      item.execution_message,
+      item.source_ip
+    ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
@@ -247,9 +264,22 @@ const recentRecords = computed(() => {
   return records.value.slice(0, 3);
 });
 
-function loadRecords() {
+async function loadRecords() {
   currentUser.value = getCurrentUser();
-  records.value = currentUser.value ? listMyDisposalRequests(currentUser.value) : [];
+
+  if (!currentUser.value) {
+    records.value = [];
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const response = await fetchMyDisposals();
+    records.value = response.data?.items || [];
+  } finally {
+    loading.value = false;
+  }
 }
 
 function statusTagType(status) {
@@ -257,12 +287,24 @@ function statusTagType(status) {
     return "success";
   }
 
-  if (String(status || "").includes("拒绝")) {
+  if (String(status || "").includes("驳回")) {
     return "danger";
   }
 
   if (String(status || "").includes("待")) {
     return "warning";
+  }
+
+  return "info";
+}
+
+function executionStatusTagType(status) {
+  if (status === "已封禁") {
+    return "danger";
+  }
+
+  if (status === "已放行") {
+    return "success";
   }
 
   return "info";
@@ -355,10 +397,7 @@ onMounted(() => {
   color: var(--text-primary);
 }
 
-.summary-card__value--primary {
-  color: var(--text-primary);
-}
-
+.summary-card__value--primary,
 .summary-card__value--warning {
   color: var(--text-primary);
 }

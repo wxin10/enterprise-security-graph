@@ -9,9 +9,9 @@
   <div class="bans-page app-page">
     <section class="security-panel page-banner">
       <div>
-        <h1 class="page-title">封禁管理</h1>
+        <h1 class="page-title">封禁审批</h1>
         <p class="page-subtitle">
-          集中呈现攻击源 IP 的主机级封禁结果、最近动作与执行状态，支持放行与重新封禁双向切换。
+          集中呈现封禁执行结果、处置申请审批状态与最近动作，支持管理员完成审批、放行和重新封禁处理。
         </p>
       </div>
 
@@ -20,8 +20,8 @@
           当前执行模式：{{ formatEnforcementModeDisplay(enforcementProfile.mode) }}
         </el-tag>
 
-        <el-button type="primary" :loading="loading" @click="loadBans">
-          刷新封禁数据
+        <el-button type="primary" :loading="loading || approvalLoading" @click="loadPageData">
+          刷新页面数据
         </el-button>
       </div>
     </section>
@@ -58,13 +58,88 @@
           <div class="summary-card__hint">当前页已完成规则校验并通过的记录数量</div>
         </div>
       </el-col>
+
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="security-panel summary-card">
+          <div class="summary-card__label">待审批申请</div>
+          <div class="summary-card__value summary-card__value--warning">{{ approvalSummary.pending }}</div>
+          <div class="summary-card__hint">待管理员处理的处置申请数量，审批后会立即联动刷新</div>
+        </div>
+      </el-col>
+
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="security-panel summary-card">
+          <div class="summary-card__label">已完成审批</div>
+          <div class="summary-card__value summary-card__value--primary">{{ approvalSummary.approved + approvalSummary.rejected }}</div>
+          <div class="summary-card__hint">已完成通过或驳回的申请数量，可在审计日志中继续追踪</div>
+        </div>
+      </el-col>
     </el-row>
+
+    <section class="security-panel approval-panel">
+      <div class="section-header">
+        <div>
+          <h3>待审批申请</h3>
+          <p>管理员在本页直接处理处置申请，审批结果会同步写入处置记录与审计日志。</p>
+        </div>
+
+        <div class="page-banner__actions">
+          <div class="table-header-tip">待审批 {{ approvalSummary.pending }} 条</div>
+          <el-button plain :loading="approvalLoading" @click="loadApprovalQueue">刷新审批列表</el-button>
+        </div>
+      </div>
+
+      <el-table v-loading="approvalLoading" :data="pendingApprovalItems" empty-text="当前没有待审批申请" stripe>
+        <el-table-column prop="request_id" label="申请编号" min-width="170" />
+        <el-table-column prop="applicant_name" label="申请人" min-width="120" />
+        <el-table-column prop="alert_name" label="关联告警" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="disposal_type" label="处置类型" min-width="120" />
+        <el-table-column label="紧急程度" min-width="110">
+          <template #default="{ row }">
+            <el-tag :type="approvalUrgencyTagType(row.urgency_level)" effect="plain">
+              {{ row.urgency_level || "-" }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="审批状态" min-width="110">
+          <template #default="{ row }">
+            <el-tag :type="approvalStatusTagType(row.status)" effect="plain">
+              {{ row.status || "-" }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="提交时间" min-width="170" />
+        <el-table-column prop="disposition_opinion" label="处置意见" min-width="260" show-overflow-tooltip />
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <div class="action-buttons">
+              <el-button
+                type="primary"
+                link
+                :loading="isApprovalActionLoading(row.request_id)"
+                @click="handleApproval(row, '已通过')"
+              >
+                通过
+              </el-button>
+              <el-button
+                type="danger"
+                link
+                :loading="isApprovalActionLoading(row.request_id)"
+                @click="handleApproval(row, '已驳回')"
+              >
+                驳回
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </section>
 
     <section class="security-panel filter-panel">
       <div class="section-header">
         <div>
           <h3>筛选条件</h3>
-          <p>支持按当前状态和目标 IP 快速定位待复核的处置对象。</p>
+          <p>支持按当前状态和目标 IP 快速定位需要核查的封禁对象。</p>
         </div>
       </div>
 
@@ -103,7 +178,7 @@
         <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
       </div>
 
-      <el-table :data="banItems" v-loading="loading" stripe>
+      <el-table :data="banTableItems" v-loading="loading" stripe>
         <el-table-column prop="action_id" label="记录编号" min-width="120" />
         <el-table-column prop="ip_address" label="目标 IP" min-width="140" />
 
@@ -132,6 +207,27 @@
         </el-table-column>
 
         <el-table-column prop="latest_action_at" label="最近操作时间" min-width="170" />
+
+        <el-table-column label="审批来源" min-width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.approval_source_label" type="warning" effect="plain">
+              {{ row.approval_source_label }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="联动说明" min-width="260" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div v-if="row.approval_request_id" class="linkage-cell">
+              <div>申请编号：{{ row.approval_request_id }}</div>
+              <div>审批人：{{ row.approval_reviewer_name || "-" }}</div>
+              <div>审批时间：{{ row.approval_reviewed_at || "-" }}</div>
+              <div>审批备注：{{ row.approval_review_comment || "-" }}</div>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
 
         <el-table-column label="封禁来源" min-width="100">
           <template #default="{ row }">
@@ -367,10 +463,20 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 import { fetchBanDetail, fetchBans, reblockBan, unbanBan, verifyBan } from "@/api/bans";
+import { fetchDisposals, updateDisposal } from "@/api/disposals";
 
 const loading = ref(false);
 const banItems = ref([]);
 const actionLoadingMap = reactive({});
+const approvalLoading = ref(false);
+const approvalRecords = ref([]);
+const approvalSummary = reactive({
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0
+});
+const approvalActionLoadingMap = reactive({});
 
 const historyDrawerVisible = ref(false);
 const historyLoading = ref(false);
@@ -407,6 +513,58 @@ const releasedCount = computed(() => {
 
 const verifiedCount = computed(() => {
   return banItems.value.filter((item) => item.verification_status === "VERIFIED").length;
+});
+
+const pendingApprovalItems = computed(() => {
+  return approvalRecords.value.filter((item) => item.status === "待审批");
+});
+
+const linkedApprovalMap = computed(() => {
+  const map = new Map();
+
+  approvalRecords.value.forEach((item) => {
+    if (item.status !== "已通过" || !item.linked_ban_action_id) {
+      return;
+    }
+
+    map.set(item.linked_ban_action_id, item);
+  });
+
+  return map;
+});
+
+const banTableItems = computed(() => {
+  return banItems.value.map((item) => {
+    const linkedApproval =
+      linkedApprovalMap.value.get(item.action_id) ||
+      approvalRecords.value.find(
+        (record) =>
+          record.status === "已通过" &&
+          record.source_ip &&
+          item.ip_address &&
+          record.source_ip === item.ip_address
+      );
+
+    if (!linkedApproval) {
+      return {
+        ...item,
+        approval_source_label: "",
+        approval_request_id: "",
+        approval_reviewer_name: "",
+        approval_reviewed_at: "",
+        approval_review_comment: ""
+      };
+    }
+
+    return {
+      ...item,
+      approval_source_label: "处置申请审批",
+      approval_request_id: linkedApproval.request_id || "",
+      approval_reviewer_name: linkedApproval.reviewer_name || "",
+      approval_reviewed_at: linkedApproval.reviewed_at || "",
+      approval_review_comment: linkedApproval.review_comment || ""
+    };
+  });
 });
 
 const activeFilterText = computed(() => {
@@ -513,7 +671,7 @@ function formatEnforcementMode(mode) {
     return "真实执行";
   }
 
-  return "模拟执行";
+  return "策略校验";
 }
 
 function formatEnforcementModeDisplay(mode) {
@@ -528,7 +686,7 @@ function formatEnforcementModeDisplay(mode) {
   }
 
   if (normalizedMode === "MOCK") {
-    return "模拟执行";
+    return "策略校验";
   }
 
   return normalizedMode || "-";
@@ -546,7 +704,7 @@ function formatEnforcementBackend(backend) {
   }
 
   if (normalizedBackend === "MOCK") {
-    return "模拟后端";
+    return "策略引擎";
   }
 
   return normalizedBackend || "-";
@@ -600,7 +758,7 @@ function formatEnforcementStatus(status) {
     REMOVED: "已移除",
     FAILED: "执行失败",
     PENDING: "待执行",
-    SIMULATED: "模拟执行"
+    SIMULATED: "策略校验"
   };
 
   return labelMap[normalizedStatus] || normalizedStatus || "-";
@@ -648,6 +806,34 @@ function isRowActionLoading(actionId) {
   return Boolean(actionLoadingMap[actionId]);
 }
 
+function isApprovalActionLoading(requestId) {
+  return Boolean(approvalActionLoadingMap[requestId]);
+}
+
+function approvalStatusTagType(status) {
+  if (status === "已通过") {
+    return "success";
+  }
+
+  if (status === "已驳回") {
+    return "danger";
+  }
+
+  return "warning";
+}
+
+function approvalUrgencyTagType(level) {
+  if (level === "高") {
+    return "danger";
+  }
+
+  if (level === "中") {
+    return "warning";
+  }
+
+  return "info";
+}
+
 async function loadBans() {
   loading.value = true;
 
@@ -676,6 +862,27 @@ async function loadBans() {
   } finally {
     loading.value = false;
   }
+}
+
+async function loadApprovalQueue() {
+  approvalLoading.value = true;
+
+  try {
+    const response = await fetchDisposals();
+    approvalRecords.value = response?.data?.items || [];
+
+    const summary = response?.data?.summary || {};
+    approvalSummary.total = summary.total || approvalRecords.value.length;
+    approvalSummary.pending = summary.pending || 0;
+    approvalSummary.approved = summary.approved || 0;
+    approvalSummary.rejected = summary.rejected || 0;
+  } finally {
+    approvalLoading.value = false;
+  }
+}
+
+async function loadPageData() {
+  await Promise.all([loadBans(), loadApprovalQueue()]);
 }
 
 async function loadHistoryDetail(actionId) {
@@ -764,6 +971,46 @@ function handleReblock(row) {
   return handleStateToggle(row, "reblock");
 }
 
+async function handleApproval(row, status) {
+  const isApprove = status === "已通过";
+  const dialogTitle = isApprove ? "审批通过" : "审批驳回";
+  const defaultComment = isApprove ? "同意按申请内容执行处置动作" : "驳回当前申请，请补充研判依据后再提交";
+
+  try {
+    const promptResult = await ElMessageBox.prompt(
+      `请填写申请 ${row.request_id} 的审批备注。`,
+      dialogTitle,
+      {
+        confirmButtonText: isApprove ? "确认通过" : "确认驳回",
+        cancelButtonText: "取消",
+        inputType: "textarea",
+        inputValue: defaultComment,
+        inputPlaceholder: "请输入审批备注"
+      }
+    );
+
+    approvalActionLoadingMap[row.request_id] = true;
+    const response = await updateDisposal(row.request_id, {
+      status,
+      review_comment: promptResult.value || defaultComment
+    });
+
+    ElMessage.success(response?.message || (isApprove ? "审批通过成功" : "审批驳回成功"));
+    await loadPageData();
+  } catch (error) {
+    if (
+      error === "cancel" ||
+      error === "close" ||
+      error?.action === "cancel" ||
+      error?.action === "close"
+    ) {
+      return;
+    }
+  } finally {
+    approvalActionLoadingMap[row.request_id] = false;
+  }
+}
+
 function handleSearch() {
   pagination.page = 1;
   loadBans();
@@ -789,7 +1036,7 @@ function handleSizeChange(size) {
 }
 
 onMounted(() => {
-  loadBans();
+  loadPageData();
 });
 </script>
 
@@ -801,6 +1048,7 @@ onMounted(() => {
 }
 
 .page-banner,
+.approval-panel,
 .filter-panel,
 .table-panel,
 .summary-card {
@@ -905,6 +1153,15 @@ onMounted(() => {
 }
 
 .history-summary-text {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.linkage-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
