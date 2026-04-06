@@ -1215,3 +1215,43 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次
+
+## 2026-04-06 AppLayout 与 router 状态文案收口补录
+- 本轮业务改动文件：
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/router/index.js`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `AppLayout.vue` 顶部状态提示改为正式业务表达，并优先读取路由 `statusNote`。
+  - `router/index.js` 已清理顶部状态提示相关的实现层文案，保留既有路由与权限行为。
+  - 用户可见链路不再展示“本地会话 / 前端会话守卫 / 后端接口接入 / 本地状态为主”等实现层描述。
+- 语法检查：
+  - `frontend/src/layouts/AppLayout.vue` 待执行 `@vue/compiler-sfc` 解析检查。
+  - `frontend/src/router/index.js` 待执行 `node --check` 语法检查。
+### [批次 27] 2026-04-06
+- 任务目标：完成 AppLayout 与 router 顶部状态文案正式化，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/router/index.js`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `frontend/src/layouts/AppLayout.vue`
+  - `frontend/src/router/index.js`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `frontend/src/layouts/AppLayout.vue`：将顶部状态提示收口为正式业务表达，并优先消费路由 `statusNote`。
+  - `frontend/src/router/index.js`：将顶部状态提示相关 meta 文案改为业务口径，保留既有路由和权限逻辑。
+  - `CODEX_PROGRESS.md`：补录本轮状态文案收口批次与验证信息。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
+### 本轮校验结果补录
+- `frontend/src/layouts/AppLayout.vue` 已通过 `@vue/compiler-sfc` 语法检查。
+- `frontend/src/router/index.js` 已通过 `node --check` 语法检查。

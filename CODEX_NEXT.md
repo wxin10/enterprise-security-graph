@@ -276,3 +276,19 @@
 - 本轮业务落地文件：`frontend/src/views/ProfileView.vue`、`frontend/src/views/UserManageView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/ProfileView.vue`、`frontend/src/views/UserManageView.vue` 已再次通过 `@vue/compiler-sfc` 语法检查
+
+## 2026-04-06 AppLayout 与 router 状态文案收口
+### 当前状态
+- `frontend/src/layouts/AppLayout.vue` 已将顶部状态提示收口为正式业务表达。
+- `frontend/src/router/index.js` 已清理顶部状态提示相关的实现层 meta 文案。
+- 当前分支仍为 `current-ui-sync`。
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端收口，继续遵守单批最小范围原则。
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/layouts/AppLayout.vue`、`frontend/src/router/index.js`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/layouts/AppLayout.vue` 与 `frontend/src/router/index.js` 将执行语法检查。
+### 校验结果补录
+- `frontend/src/layouts/AppLayout.vue` 已通过 `@vue/compiler-sfc` 语法检查。
+- `frontend/src/router/index.js` 已通过 `node --check` 语法检查。

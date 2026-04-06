@@ -1,11 +1,7 @@
-<template>
+﻿<template>
   <!--
-    文件路径：frontend/src/layouts/AppLayout.vue
-    作用说明：
-    1. 提供系统主布局，采用左侧菜单 + 顶部栏 + 内容区结构。
-    2. 承载仪表盘、告警管理、封禁管理与日志监控中心等业务页面。
-    3. 在现有布局基础上接入角色菜单、用户信息与页面实现状态说明。
-  -->
+    鏂囦欢璺緞锛歠rontend/src/layouts/AppLayout.vue
+    浣滅敤璇存槑锛?    1. 鎻愪緵绯荤粺涓诲竷灞€锛岄噰鐢ㄥ乏渚ц彍鍗?+ 椤堕儴鏍?+ 鍐呭鍖虹粨鏋勩€?    2. 鎵胯浇浠〃鐩樸€佸憡璀︾鐞嗐€佸皝绂佺鐞嗕笌鏃ュ織鐩戞帶涓績绛変笟鍔￠〉闈€?    3. 鍦ㄧ幇鏈夊竷灞€鍩虹涓婃帴鍏ヨ鑹茶彍鍗曘€佺敤鎴蜂俊鎭笌椤甸潰瀹炵幇鐘舵€佽鏄庛€?  -->
   <div class="layout-page">
     <el-container class="layout-shell">
       <el-aside class="layout-aside" width="240px">
@@ -14,7 +10,7 @@
             <el-icon><Monitor /></el-icon>
           </div>
           <div class="brand-text">
-            <div class="brand-title">企业安全图谱平台</div>
+            <div class="brand-title">浼佷笟瀹夊叏鍥捐氨骞冲彴</div>
             <div class="brand-subtitle">Enterprise Security Console</div>
           </div>
         </div>
@@ -63,8 +59,7 @@
             <div class="header-time">{{ currentTimeText }}</div>
             <el-button type="primary" plain @click="handleLogout">
               <el-icon><SwitchButton /></el-icon>
-              退出
-            </el-button>
+              退出</el-button>
           </div>
         </el-header>
 
@@ -78,10 +73,7 @@
 
 <script setup>
 // 文件路径：frontend/src/layouts/AppLayout.vue
-// 作用说明：
-// 1. 管理系统主布局、菜单跳转和顶部标题。
-// 2. 根据当前登录角色筛选可见菜单，并在顶部和侧边栏展示用户信息。
-// 3. 根据当前路由 meta 展示页面实现状态说明，明确区分本地会话链路与分页面数据接入状态。
+// 作用说明：提供控制台主布局、侧边菜单与顶部状态展示。
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Bell, DataLine, Document, DocumentAdd, Lock, Monitor, SetUp, Tickets, User, UserFilled } from "@element-plus/icons-vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
@@ -114,18 +106,22 @@ const currentPageTitle = computed(() => {
 });
 
 const currentPageStatusText = computed(() => {
+  const statusNote = String(route.meta?.statusNote || "").trim();
+  if (statusNote) {
+    return statusNote;
+  }
+
   const dataSource = String(route.meta?.dataSource || "").trim();
   if (dataSource === "backend-api") {
-    return "当前控制台登录与菜单权限按本地会话状态生效，本页数据已接入后端接口。";
+    return "当前页面支持业务数据查看与风险处置，请按页面指引完成相关操作。";
   }
 
   if (dataSource === "local-state") {
-    return "当前控制台登录与菜单权限按本地会话状态生效，本页数据仍以本地状态为主。";
+    return "当前页面支持信息维护与流程处理，请按职责范围办理相关事项。";
   }
 
-  return "当前控制台登录与菜单权限按本地会话状态生效，模块数据按页面实现分别接入。";
+  return "当前页面状态正常，请按业务流程处理相关事项。";
 });
-
 const currentRoleLabel = computed(() => {
   return currentUser.value ? getRoleLabel(currentUser.value.role) : "未登录";
 });

@@ -1,8 +1,4 @@
-// 文件路径：frontend/src/router/index.js
-// 作用说明：
-// 1. 统一管理前端页面路由。
-// 2. 保持登录页与业务控制台布局分离，便于后续继续扩展权限系统。
-// 3. 当前阶段的访问控制由前端会话守卫生效，并通过路由 meta 明确区分“后端接口数据页”和“本地状态页”。
+﻿// 文件路径：frontend/src/router/index.js
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
 
@@ -35,12 +31,12 @@ const DATA_SOURCE_BACKEND = "backend-api";
 const DATA_SOURCE_LOCAL = "local-state";
 
 const ROUTE_STATUS_NOTES = {
-  [DATA_SOURCE_BACKEND]: "当前页面数据已接入后端接口，访问范围按前端会话守卫生效",
-  [DATA_SOURCE_LOCAL]: "当前页面数据仍以本地状态为主，访问范围按前端会话守卫生效"
+  [DATA_SOURCE_BACKEND]: "当前页面支持业务数据查看与风险处置，请按页面指引完成相关操作。",
+  [DATA_SOURCE_LOCAL]: "当前页面支持信息维护与流程处理，请按职责范围办理相关事项。"
 };
 
 function getRouteStatusNote(dataSource) {
-  return ROUTE_STATUS_NOTES[dataSource] || "当前页面访问范围按前端会话守卫生效，模块数据按页面实现分别接入";
+  return ROUTE_STATUS_NOTES[dataSource] || "当前页面状态正常，请按业务流程处理相关事项。";
 }
 
 function findNearestRouteRecord(to, predicate) {
@@ -70,7 +66,7 @@ const router = createRouter({
         roles: CONSOLE_ROLES,
         authMode: AUTH_MODE_FRONTEND_SESSION,
         dataSource: DATA_SOURCE_LOCAL,
-        statusNote: "当前控制台访问范围按前端会话守卫生效，页面数据按模块分别接入"
+        statusNote: "当前控制台运行正常，请按职责范围查看业务信息与处理待办事项。"
       },
       children: [
         {
@@ -228,7 +224,6 @@ router.beforeEach(async (to) => {
   return true;
 });
 
-// 保留原有标题更新逻辑，同时让角色接入后依然便于调试和答辩演示。
 router.afterEach((to) => {
   const pageTitle = to.meta?.title ? `${to.meta.title} - 企业安全图谱平台` : "企业安全图谱平台";
   document.title = pageTitle;
