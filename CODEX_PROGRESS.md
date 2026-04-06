@@ -1382,3 +1382,38 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 ProfileView 文本修复补录
+- 本轮业务改动文件：
+  - `frontend/src/views/ProfileView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `ProfileView.vue` 已修复页面中的乱码、问号占位与异常字符。
+  - 顶部副标题已恢复为完整、自然的正式中文句子。
+  - 未登录头像显示与 `userInitial` 兜底字符已改为正常中文字符。
+  - 本轮未改动页面结构、功能逻辑、权限边界、数据结构与白色后台风格。
+- 语法检查：
+  - `frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 32] 2026-04-06
+- 任务目标：修复 `ProfileView.vue` 文本显示异常，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/ProfileView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/ProfileView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/ProfileView.vue`：修复顶部副标题、未登录头像字符与 `userInitial` 兜底字符中的异常文本显示。
+  - `CODEX_PROGRESS.md`：补录本轮 ProfileView 文本修复批次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。

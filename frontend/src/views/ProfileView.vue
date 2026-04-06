@@ -9,13 +9,17 @@
           <div class="profile-hero__role">{{ currentRoleLabel }}</div>
           <h1 class="page-title">{{ currentUser.display_name }}</h1>
           <p class="page-subtitle">
-            {{ currentUser.title }}?{{ currentUser.department }}??????????????????????????????????????????
+            {{
+              [currentUser.title, currentUser.department, "负责当前岗位的安全运营、告警研判与处置跟踪工作。"]
+                .filter(Boolean)
+                .join("，")
+            }}
           </p>
         </div>
       </div>
 
       <div v-else class="profile-hero__content">
-        <div class="profile-hero__avatar">?</div>
+        <div class="profile-hero__avatar">登</div>
         <div>
           <h1 class="page-title">个人中心</h1>
           <p class="page-subtitle">当前未检测到有效登录信息，请登录后查看个人资料、权限边界和最近处置记录。</p>
@@ -247,7 +251,7 @@ const currentRoleLabel = computed(() => {
 
 const userInitial = computed(() => {
   if (!currentUser.value?.display_name) {
-    return "?";
+    return "登";
   }
 
   return String(currentUser.value.display_name).trim().slice(0, 1).toUpperCase();
