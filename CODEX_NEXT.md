@@ -475,3 +475,19 @@
 - 本轮业务落地文件：`frontend/src/views/RequestActionView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/RequestActionView.vue` 已通过 `@vue/compiler-sfc` 语法检查。
+
+## 2026-04-06 BansView 正式化收尾
+### 当前状态
+- `frontend/src/views/BansView.vue` 已完成正式系统口径文案收口。
+- `frontend/src/views/BansView.vue` 已完成本地样式收口并统一为白色企业后台风格。
+- 当前收尾仅同步进度文件并准备提交推送。
+- 当前分支仍为 `current-ui-sync`。
+
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端收口，继续遵守单文件最小范围原则。
+
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/views/BansView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/views/BansView.vue` 已通过 `@vue/compiler-sfc` 语法检查。

@@ -2,16 +2,16 @@
   <!--
     文件路径：frontend/src/views/BansView.vue
     作用说明：
-    1. 在当前封禁管理页面中展示“当前状态管理 + 历史动作审计 + 真实执行结果 + 规则校验结果”。
+    1. 在封禁管理页面中呈现当前状态、历史动作、执行结果和规则校验结果。
     2. 支持已封禁 -> 放行、已放行 -> 重新封禁，以及对当前状态执行规则校验。
-    3. 保持现有深蓝安全平台风格，便于答辩演示“业务状态”和“宿主机真实状态”两层语义。
+    3. 通过业务状态与主机执行状态的联动信息，帮助用户核查封禁处置结果。
   -->
   <div class="bans-page app-page">
     <section class="security-panel page-banner">
       <div>
         <h1 class="page-title">封禁管理</h1>
         <p class="page-subtitle">
-          展示攻击源 IP 的主机级封禁结果、最近动作与真实执行状态，支持放行与重新封禁双向切换。
+          集中呈现攻击源 IP 的主机级封禁结果、最近动作与执行状态，支持放行与重新封禁双向切换。
         </p>
       </div>
 
@@ -31,7 +31,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">总记录数</div>
           <div class="summary-card__value summary-card__value--primary">{{ pagination.total }}</div>
-          <div class="summary-card__hint">当前接口返回的封禁目标总数</div>
+          <div class="summary-card__hint">统计当前查询条件下的封禁目标数量</div>
         </div>
       </el-col>
 
@@ -55,7 +55,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">校验通过数</div>
           <div class="summary-card__value summary-card__value--warning">{{ verifiedCount }}</div>
-          <div class="summary-card__hint">verification_status 为 VERIFIED 的当前页记录数量</div>
+          <div class="summary-card__hint">当前页已完成规则校验并通过的记录数量</div>
         </div>
       </el-col>
     </el-row>
@@ -97,7 +97,7 @@
       <div class="section-header">
         <div>
           <h3>当前状态列表</h3>
-          <p>列表重点展示当前状态、最近动作、目标 IP 和必要的执行结果标签。</p>
+          <p>列表集中呈现当前状态、最近动作、目标 IP 以及关键执行结果。</p>
         </div>
 
         <div class="table-header-tip">当前筛选：{{ activeFilterText }}</div>
@@ -362,7 +362,7 @@
 // 作用说明：
 // 1. 通过封禁管理接口加载当前状态列表和执行结果。
 // 2. 支持放行、重新封禁和规则校验，并在成功后即时刷新列表与历史抽屉。
-// 3. 通过执行模式概览和规则校验字段，帮助用户验证封禁是否真正下发到 Windows 防火墙。
+// 3. 通过执行模式概览和规则校验字段，帮助用户核查封禁是否已下发到 Windows 防火墙。
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 
@@ -827,36 +827,36 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 32px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--danger {
-  color: #ff6f7d;
+  color: var(--text-primary);
 }
 
 .summary-card__value--warning {
-  color: #ffbf5a;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
-  color: #67a8ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--success {
-  color: #5dd598;
+  color: var(--text-primary);
 }
 
 .summary-card__hint {
   margin-top: 10px;
   font-size: 12px;
-  color: #7f98be;
+  color: var(--text-secondary);
   line-height: 1.7;
 }
 
@@ -871,18 +871,18 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
 
 .table-header-tip {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -905,7 +905,7 @@ onMounted(() => {
 }
 
 .history-summary-text {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -915,7 +915,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: #dce7fb;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -947,41 +947,41 @@ onMounted(() => {
 .history-overview__card {
   padding: 16px;
   border-radius: 16px;
-  background: rgba(8, 20, 35, 0.76);
-  border: 1px solid rgba(84, 129, 194, 0.14);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .history-overview__label {
   font-size: 12px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .history-overview__value {
   margin-top: 10px;
   font-size: 16px;
   line-height: 1.5;
-  color: #eef5ff;
+  color: var(--text-primary);
   word-break: break-word;
 }
 
 .timeline-card {
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(8, 20, 35, 0.78);
-  border: 1px solid rgba(84, 129, 194, 0.14);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .timeline-card__title {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #eef5ff;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .timeline-card__meta {
   margin-top: 8px;
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }

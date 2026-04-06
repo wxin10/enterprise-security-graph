@@ -117,6 +117,7 @@
 - [x] frontend/src/views/ProfileView.vue
 - [x] frontend/src/views/MyRecordsView.vue
 - [x] frontend/src/views/RequestActionView.vue
+- [x] frontend/src/views/BansView.vue
 - [x] frontend/src/views/UserManageView.vue
 - [x] frontend/src/views/RuleManageView.vue
 - [x] frontend/src/views/AuditLogView.vue
@@ -1652,6 +1653,41 @@
   - `CODEX_NEXT.md`：同步本轮收尾状态并重置为等待用户指定下一批。
 - 语法检查：
   - `frontend/src/views/RequestActionView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
+
+## 2026-04-06 BansView 正式化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/BansView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - 已清理页面摘要卡片、筛选区、当前状态列表与历史处置记录抽屉中的说明性文案，统一为正式系统表达。
+  - 已移除用户可见文案和本页注释中的“答辩”“演示”“深蓝安全平台风格”“开发期说明”等非正式表述。
+  - 已收口本页本地样式中的深色硬编码与深色背景，改为复用 `var(--text-primary)`、`var(--text-secondary)`、`var(--panel-border)`、`var(--page-bg-accent)`。
+- 语法检查：
+  - `frontend/src/views/BansView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+
+### [批次 40] 2026-04-06
+- 任务目标：完成【完整系统收口批 1-13：BansView 正式化文案和样式收口】，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/BansView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/BansView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/BansView.vue`：收口用户可见文案、注释与本地深色样式硬编码，保持页面结构、功能逻辑、抽屉行为和数据结构不变。
+  - `CODEX_PROGRESS.md`：补录本轮 BansView 正式化批次与校验结果。
+  - `CODEX_NEXT.md`：同步本轮收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/BansView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
 - 是否完成：是
 - 是否发生中断：否
 - 是否需要恢复模式：否
