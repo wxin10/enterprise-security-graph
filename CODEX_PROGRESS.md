@@ -1869,3 +1869,26 @@
 - `frontend` 目录执行 `npm.cmd run test:e2e` 已通过，结果为 `2 passed`，并已实际命中真实 Flask `/api/auth/login`、`/api/graph/overview`、`/api/disposals`、`/api/bans`、`/api/audit/logs` 等接口。
 ### 是否完成
 - 是
+
+## 2026-04-07 自助改密与口令轮换闭环
+### 当前状态
+- `backend/app/api/profile_api.py` 已新增 `POST /api/profile/change-password`，要求登录态、校验当前密码、校验新密码确认、阻止复用旧密码，并在成功后返回“密码已更新，请重新登录”。
+- `backend/app/services/governance_service.py` 已补齐自助改密能力、密码复杂度校验和审计留痕；治理数据继续仅保存 `password_hash`，不回落明文密码字段。
+- `backend/app/services/auth_service.py` 已新增按 `user_id` 批量撤销会话的方法，改密成功后会清理该账号全部旧会话，继续沿用 `password_updated_at` 的失效判定。
+- `frontend/src/views/ProfileView.vue` 已在个人中心接入“修改密码”入口与表单校验；改密成功后会清理本地登录态并跳转回登录页。
+- `frontend/src/api/profile.js` 已补齐修改密码请求封装；`tests/test_governance_workflow.py` 与 `frontend/tests/e2e/approval-closure.spec.js` 已补齐自助改密回归。
+### 本轮落地文件
+- `backend/app/api/profile_api.py`
+- `backend/app/services/auth_service.py`
+- `backend/app/services/governance_service.py`
+- `frontend/src/api/profile.js`
+- `frontend/src/views/ProfileView.vue`
+- `tests/test_governance_workflow.py`
+- `frontend/tests/e2e/approval-closure.spec.js`
+### 本轮校验
+- `frontend` 目录执行 `npm.cmd run build` 成功，仅保留 Vite chunk 体积告警。
+- `python -m py_compile backend/app/services/auth_service.py backend/app/services/governance_service.py backend/app/api/profile_api.py tests/test_governance_workflow.py` 成功。
+- `pytest -q` 成功，结果为 `5 passed`。
+- `frontend` 目录执行 `npm.cmd run test:e2e` 成功，结果为 `3 passed`。
+### 是否完成
+- 是

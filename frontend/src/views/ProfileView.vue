@@ -69,7 +69,10 @@
               <h3>基本信息</h3>
               <p>集中维护当前登录账号的基础资料、岗位信息和最近登录时间。</p>
             </div>
-            <el-button v-if="profile" type="primary" plain @click="startEditing">编辑资料</el-button>
+            <div v-if="profile" class="section-actions">
+              <el-button type="primary" plain @click="startEditing">编辑资料</el-button>
+              <el-button type="primary" @click="startChangingPassword">修改密码</el-button>
+            </div>
           </div>
 
           <div v-if="profile" class="info-list">
@@ -216,6 +219,37 @@
         </div>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="passwordDialogVisible"
+      title="修改登录密码"
+      width="520px"
+      destroy-on-close
+      @closed="resetPasswordForm"
+    >
+      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="108px">
+        <el-form-item label="当前密码" prop="current_password">
+          <el-input v-model="passwordForm.current_password" type="password" show-password autocomplete="current-password" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="new_password">
+          <el-input v-model="passwordForm.new_password" type="password" show-password autocomplete="new-password" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirm_password">
+          <el-input v-model="passwordForm.confirm_password" type="password" show-password autocomplete="new-password" />
+        </el-form-item>
+      </el-form>
+
+      <div class="password-policy-tip">
+        新密码长度不少于 8 位，不能全为空格，且需同时包含字母和数字。密码更新后系统会撤销当前账号已有会话，并要求重新登录。
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <el-button @click="passwordDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="passwordSubmitting" @click="handleChangePassword">更新密码</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -225,8 +259,9 @@ import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 
 import { fetchMyDisposals } from "@/api/disposals";
-import { fetchProfile, updateProfile } from "@/api/profile";
+import { changeProfilePassword, fetchProfile, updateProfile } from "@/api/profile";
 import {
+  clearCurrentSession,
   PERMISSION_KEYS,
   getCurrentUser,
   getPermissionList,
@@ -287,10 +322,13 @@ const PERMISSION_META = [
 
 const loading = ref(false);
 const submitting = ref(false);
+const passwordSubmitting = ref(false);
 const profile = ref(null);
 const myRequestRecords = ref([]);
 const editDialogVisible = ref(false);
+const passwordDialogVisible = ref(false);
 const editFormRef = ref(null);
+const passwordFormRef = ref(null);
 
 const editForm = reactive({
   display_name: "",
@@ -301,10 +339,55 @@ const editForm = reactive({
   bio: ""
 });
 
+const passwordForm = reactive({
+  current_password: "",
+  new_password: "",
+  confirm_password: ""
+});
+
 const editRules = {
   display_name: [{ required: true, message: "请输入姓名", trigger: "blur" }],
   department: [{ required: true, message: "请输入所属部门", trigger: "blur" }],
   title: [{ required: true, message: "请输入岗位职责", trigger: "blur" }]
+};
+
+function validateNewPassword(rule, value, callback) {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    callback(new Error("请输入新密码"));
+    return;
+  }
+
+  if (normalizedValue.length < 8) {
+    callback(new Error("新密码长度不能少于 8 位"));
+    return;
+  }
+
+  if (!/[A-Za-z]/.test(normalizedValue) || !/\d/.test(normalizedValue)) {
+    callback(new Error("新密码需同时包含字母和数字"));
+    return;
+  }
+
+  callback();
+}
+
+function validateConfirmPassword(rule, value, callback) {
+  if (String(value || "").trim() !== String(passwordForm.new_password || "").trim()) {
+    callback(new Error("两次输入的新密码不一致"));
+    return;
+  }
+
+  callback();
+}
+
+const passwordRules = {
+  current_password: [{ required: true, message: "请输入当前密码", trigger: "blur" }],
+  new_password: [{ validator: validateNewPassword, trigger: "blur" }],
+  confirm_password: [
+    { required: true, message: "请再次确认新密码", trigger: "blur" },
+    { validator: validateConfirmPassword, trigger: "blur" }
+  ]
 };
 
 const currentRoleLabel = computed(() => {
@@ -393,6 +476,24 @@ function startEditing() {
   editDialogVisible.value = true;
 }
 
+function resetPasswordForm() {
+  Object.assign(passwordForm, {
+    current_password: "",
+    new_password: "",
+    confirm_password: ""
+  });
+  passwordFormRef.value?.clearValidate?.();
+}
+
+function startChangingPassword() {
+  if (!profile.value) {
+    return;
+  }
+
+  resetPasswordForm();
+  passwordDialogVisible.value = true;
+}
+
 async function handleSaveProfile() {
   await editFormRef.value?.validate();
   submitting.value = true;
@@ -405,6 +506,22 @@ async function handleSaveProfile() {
     ElMessage.success(response.message || "个人资料更新成功");
   } finally {
     submitting.value = false;
+  }
+}
+
+async function handleChangePassword() {
+  await passwordFormRef.value?.validate();
+  passwordSubmitting.value = true;
+
+  try {
+    const response = await changeProfilePassword(passwordForm);
+    passwordDialogVisible.value = false;
+    resetPasswordForm();
+    clearCurrentSession();
+    ElMessage.success(response.message || "密码已更新，请重新登录");
+    await router.replace("/login");
+  } finally {
+    passwordSubmitting.value = false;
   }
 }
 
@@ -498,6 +615,12 @@ onMounted(() => {
 
 .profile-hero__actions,
 .dialog-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -644,6 +767,17 @@ onMounted(() => {
   color: var(--text-primary);
   line-height: 1.8;
   font-size: 13px;
+}
+
+.password-policy-tip {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
 }
 
 @media (max-width: 1200px) {

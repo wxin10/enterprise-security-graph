@@ -7,3 +7,7 @@ export function fetchProfile() {
 export function updateProfile(payload) {
   return http.patch("/api/profile", payload);
 }
+
+export function changeProfilePassword(payload) {
+  return http.post("/api/profile/change-password", payload);
+}

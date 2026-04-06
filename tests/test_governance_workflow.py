@@ -69,6 +69,124 @@ def test_password_reset_invalidates_legacy_session_and_keeps_hash_only(app_clien
     assert analyst_user["password_hash"]
 
 
+def test_self_service_password_rotation_forces_relogin(app_client):
+    analyst_session = login(app_client, "analyst")
+    analyst_headers = build_headers(analyst_session["session_token"])
+    admin_session = login(app_client, "admin")
+    admin_headers = build_headers(admin_session["session_token"])
+
+    change_response = app_client.post(
+        "/api/profile/change-password",
+        headers=analyst_headers,
+        json={
+            "current_password": "123456",
+            "new_password": "Analyst2026",
+            "confirm_password": "Analyst2026",
+        },
+    )
+    assert change_response.status_code == 200
+    change_payload = change_response.get_json()
+    assert change_payload["code"] == 0
+    assert change_payload["message"] == "密码已更新，请重新登录"
+    assert change_payload["data"]["reauth_required"] is True
+    assert change_payload["data"]["session_scope"] == "all"
+    assert change_payload["data"]["invalidated_session_count"] >= 1
+
+    expired_response = app_client.get("/api/auth/me", headers=analyst_headers)
+    assert expired_response.status_code == 401
+
+    old_login_response = app_client.post(
+        "/api/auth/login",
+        json={"username": "analyst", "password": "123456"},
+    )
+    assert old_login_response.status_code == 401
+
+    refreshed_session = login(app_client, "analyst", "Analyst2026")
+    refreshed_headers = build_headers(refreshed_session["session_token"])
+    me_response = app_client.get("/api/auth/me", headers=refreshed_headers)
+    assert me_response.status_code == 200
+
+    governance_payload = json.loads(app_client.governance_file.read_text(encoding="utf-8"))
+    analyst_user = next(item for item in governance_payload["users"] if item["username"] == "analyst")
+    assert "password" not in analyst_user
+    assert analyst_user["password_hash"]
+
+    audit_response = app_client.get("/api/audit/logs", headers=admin_headers)
+    assert audit_response.status_code == 200
+    audit_items = audit_response.get_json()["data"]["items"]
+    assert any(
+        item["module"] == "个人中心"
+        and item["action"] == "修改登录密码"
+        and item["operator"] == refreshed_session["user"]["display_name"]
+        for item in audit_items
+    )
+
+
+def test_self_service_password_rotation_validation(app_client):
+    analyst_session = login(app_client, "analyst")
+    analyst_headers = build_headers(analyst_session["session_token"])
+
+    wrong_current_response = app_client.post(
+        "/api/profile/change-password",
+        headers=analyst_headers,
+        json={
+            "current_password": "bad-password",
+            "new_password": "Analyst2026",
+            "confirm_password": "Analyst2026",
+        },
+    )
+    assert wrong_current_response.status_code == 400
+    assert wrong_current_response.get_json()["message"] == "当前密码不正确"
+
+    mismatch_response = app_client.post(
+        "/api/profile/change-password",
+        headers=analyst_headers,
+        json={
+            "current_password": "123456",
+            "new_password": "Analyst2026",
+            "confirm_password": "Analyst2027",
+        },
+    )
+    assert mismatch_response.status_code == 400
+    assert mismatch_response.get_json()["message"] == "两次输入的新密码不一致"
+
+    weak_response = app_client.post(
+        "/api/profile/change-password",
+        headers=analyst_headers,
+        json={
+            "current_password": "123456",
+            "new_password": "1234567",
+            "confirm_password": "1234567",
+        },
+    )
+    assert weak_response.status_code == 400
+    assert weak_response.get_json()["message"] == "密码长度不能少于 8 位"
+
+    complexity_response = app_client.post(
+        "/api/profile/change-password",
+        headers=analyst_headers,
+        json={
+            "current_password": "123456",
+            "new_password": "abcdefgh",
+            "confirm_password": "abcdefgh",
+        },
+    )
+    assert complexity_response.status_code == 400
+    assert complexity_response.get_json()["message"] == "密码需同时包含字母和数字"
+
+    same_password_response = app_client.post(
+        "/api/profile/change-password",
+        headers=analyst_headers,
+        json={
+            "current_password": "123456",
+            "new_password": "123456",
+            "confirm_password": "123456",
+        },
+    )
+    assert same_password_response.status_code == 400
+    assert same_password_response.get_json()["message"] == "新密码不能与当前密码相同"
+
+
 def test_disposal_workflow_and_audit_linkage(app_client, monkeypatch):
     analyst_session = login(app_client, "analyst")
     admin_session = login(app_client, "admin")

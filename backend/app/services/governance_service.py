@@ -6,6 +6,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import re
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,8 @@ class GovernanceService:
     DISPOSAL_AUDIT_ACTION_BAN_LINK = "联动封禁处置"
     BAN_EXECUTION_STATUS_BLOCKED = "已封禁"
     BAN_RELATED_DISPOSAL_TYPES = {"封禁申请"}
+
+    PASSWORD_MIN_LENGTH = 8
 
     def __init__(self) -> None:
         self._lock = RLock()
@@ -693,11 +696,76 @@ class GovernanceService:
 
         return self._update_state(mutation)
 
+    def change_profile_password(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        current_password = str(payload.get("current_password") or "").strip()
+        new_password = str(payload.get("new_password") or "").strip()
+        confirm_password = str(payload.get("confirm_password") or "").strip()
+
+        if not current_password:
+            raise ValidationError("当前密码不能为空", data={"field": "current_password"})
+        if not new_password:
+            raise ValidationError("新密码不能为空", data={"field": "new_password"})
+        if not confirm_password:
+            raise ValidationError("请再次确认新密码", data={"field": "confirm_password"})
+        if new_password != confirm_password:
+            raise ValidationError("两次输入的新密码不一致", data={"field": "confirm_password"})
+
+        now = self._now_text()
+
+        def mutation(state: dict[str, Any]) -> dict[str, Any]:
+            user = self._find_user(state, user_id)
+
+            if not self.verify_password(current_password, user):
+                raise ValidationError("当前密码不正确", data={"field": "current_password"})
+            if self.verify_password(new_password, user):
+                raise ValidationError("新密码不能与当前密码相同", data={"field": "new_password"})
+            self.validate_password_complexity(new_password, field_name="new_password")
+
+            user["password_hash"] = self.build_password_hash(new_password)
+            user.pop("password", None)
+            user["password_updated_at"] = now
+            user["updated_at"] = now
+
+            operator = self._build_public_user(user) or {}
+            self._append_audit_log(
+                state,
+                module="个人中心",
+                action="修改登录密码",
+                operator=operator,
+                target=f"{user['display_name']} / {user['user_id']}",
+                result="已完成",
+                risk_level="中",
+                detail="用户已完成登录密码轮换，系统已撤销该账号原有登录会话。",
+            )
+            return {
+                "user_id": user["user_id"],
+                "reauth_required": True,
+                "session_scope": "all",
+                "password_updated_at": user["password_updated_at"],
+            }
+
+        return self._update_state(mutation)
+
     def build_password_hash(self, password: Any) -> str:
         normalized_password = str(password or "").strip()
         if not normalized_password:
             raise ValidationError("密码不能为空", data={"field": "password"})
         return generate_password_hash(normalized_password)
+
+    def validate_password_complexity(self, password: Any, *, field_name: str = "password") -> str:
+        normalized_password = str(password or "").strip()
+        if not normalized_password:
+            raise ValidationError("密码不能为空", data={"field": field_name})
+        if len(normalized_password) < self.PASSWORD_MIN_LENGTH:
+            raise ValidationError(
+                f"密码长度不能少于 {self.PASSWORD_MIN_LENGTH} 位",
+                data={"field": field_name},
+            )
+        if not normalized_password.strip():
+            raise ValidationError("密码不能全为空格", data={"field": field_name})
+        if not re.search(r"[A-Za-z]", normalized_password) or not re.search(r"\d", normalized_password):
+            raise ValidationError("密码需同时包含字母和数字", data={"field": field_name})
+        return normalized_password
 
     def verify_password(self, password: Any, user: dict[str, Any] | None) -> bool:
         if not user:

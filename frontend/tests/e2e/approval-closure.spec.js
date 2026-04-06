@@ -18,12 +18,19 @@ async function clearSession(page) {
   });
 }
 
-async function login(page, username) {
+async function login(page, username, password = "123456") {
   await page.goto("/login");
   await page.locator(".login-form input").nth(0).fill(username);
-  await page.locator(".login-form input").nth(1).fill("123456");
+  await page.locator(".login-form input").nth(1).fill(password);
   await page.locator(".login-button").click();
   await page.waitForURL("**/console/dashboard");
+}
+
+async function attemptLogin(page, username, password) {
+  await page.goto("/login");
+  await page.locator(".login-form input").nth(0).fill(username);
+  await page.locator(".login-form input").nth(1).fill(password);
+  await page.locator(".login-button").click();
 }
 
 async function submitBanDisposal(page, payload) {
@@ -122,4 +129,30 @@ test("管理员驳回后，我的处理记录与审计日志同步显示驳回�
   const analystRow = page.locator(".el-table__row").filter({ hasText: requestId }).first();
   await expect(analystRow).toContainText("已驳回");
   await expect(analystRow).toContainText("证据不足，驳回当前申请。");
+});
+
+test("用户在个人中心修改密码后需要重新登录，并且旧密码失效", async ({ page }) => {
+  const suffix = buildUniqueSuffix().replace(/-/g, "");
+  const newPassword = `Analyst${suffix}Pass1`;
+
+  await login(page, "analyst");
+  await page.goto("/console/profile");
+  await page.getByRole("button", { name: "修改密码" }).click();
+
+  const dialog = page.locator(".el-dialog").filter({ hasText: "修改登录密码" }).last();
+  const passwordInputs = dialog.locator("input.el-input__inner");
+  await passwordInputs.nth(0).fill("123456");
+  await passwordInputs.nth(1).fill(newPassword);
+  await passwordInputs.nth(2).fill(newPassword);
+  await dialog.getByRole("button", { name: "更新密码" }).click();
+
+  await page.waitForURL("**/login");
+  await expect(page.locator(".el-message").last()).toContainText("密码已更新，请重新登录");
+
+  await attemptLogin(page, "analyst", "123456");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.locator(".el-message").last()).toContainText("账号或密码错误");
+
+  await login(page, "analyst", newPassword);
+  await expect(page).toHaveURL(/\/console\/dashboard$/);
 });

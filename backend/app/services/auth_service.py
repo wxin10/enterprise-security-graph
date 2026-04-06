@@ -133,6 +133,28 @@ class AuthService:
             "user": deepcopy(current_user),
         }
 
+    def invalidate_user_sessions(self, user_id: str) -> int:
+        normalized_user_id = str(user_id or "").strip()
+        if not normalized_user_id:
+            return 0
+
+        removed_tokens: list[str] = []
+
+        with self._lock:
+            for token, session_payload in self._session_store.items():
+                if str(session_payload.get("user_id") or "").strip() == normalized_user_id:
+                    removed_tokens.append(token)
+
+            if not removed_tokens:
+                return 0
+
+            for token in removed_tokens:
+                self._session_store.pop(token, None)
+
+            self._save_session_store()
+
+        return len(removed_tokens)
+
     def _cleanup_expired_sessions(self) -> None:
         now = self._now()
         expired_tokens: list[str] = []
