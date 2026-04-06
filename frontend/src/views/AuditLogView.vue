@@ -38,7 +38,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">日志总数</div>
           <div class="summary-card__value summary-card__value--primary">{{ auditRecords.length }}</div>
-          <div class="summary-card__hint">汇聚账号治理、规则管理、审批流转与处置申请的前端演示留痕</div>
+          <div class="summary-card__hint">汇聚账号治理、规则管理、审批流转与处置申请的关键操作留痕</div>
         </div>
       </el-col>
 
@@ -54,7 +54,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">高风险记录</div>
           <div class="summary-card__value summary-card__value--danger">{{ highRiskCount }}</div>
-          <div class="summary-card__hint">用于展示需要复盘或二次确认的高风险配置、封禁与审计事项</div>
+          <div class="summary-card__hint">用于标识需要复盘或二次确认的高风险配置、封禁与审计事项</div>
         </div>
       </el-col>
     </el-row>
@@ -65,7 +65,7 @@
           <div class="section-header">
             <div>
               <h3>日志筛选</h3>
-              <p>支持按模块、结果和关键字快速定位审计记录，便于答辩时说明管理员如何追溯关键操作。</p>
+              <p>支持按模块、结果和关键字快速定位审计记录，便于统一追溯关键操作过程。</p>
             </div>
           </div>
 
@@ -103,7 +103,7 @@
           <div class="section-header">
             <div>
               <h3>审计记录</h3>
-              <p>表格集中展示“谁在什么时间对什么对象执行了什么操作以及结果如何”，形成最小可演示闭环。</p>
+              <p>表格集中呈现“谁在什么时间对什么对象执行了什么操作以及结果如何”，便于统一核查关键操作留痕。</p>
             </div>
             <div class="table-header-tip">当前命中 {{ filteredAuditRecords.length }} 条记录</div>
           </div>
@@ -180,8 +180,8 @@
               <div class="tip-item__desc">只有管理员可查看规则发布、账号治理、封禁审批与完整审计日志等高风险记录。</div>
             </div>
             <div class="tip-item">
-              <div class="tip-item__title">审计日志用于答辩展示闭环</div>
-              <div class="tip-item__desc">通过时间、对象、结果与风险级别，展示系统具备“可审计、可复盘”的后台管理能力。</div>
+              <div class="tip-item__title">审计日志支撑完整留痕追溯</div>
+              <div class="tip-item__desc">通过时间、对象、结果与风险级别，支撑关键操作满足可审计、可复盘的管理要求。</div>
             </div>
           </div>
         </section>
@@ -190,7 +190,7 @@
           <div class="section-header">
             <div>
               <h3>高风险动作提醒</h3>
-              <p>优先展示待复核或风险级别较高的管理员动作，便于聚焦系统关键治理场景。</p>
+              <p>优先呈现待复核或风险级别较高的管理员动作，便于聚焦系统关键治理场景。</p>
             </div>
           </div>
 
@@ -264,9 +264,9 @@
 <script setup>
 // 文件路径：frontend/src/views/AuditLogView.vue
 // 作用说明：
-// 1. 补齐管理员端“审计日志”页面本体，承接高风险操作留痕展示。
+// 1. 补齐管理员端“审计日志”页面本体，承接高风险操作留痕查看。
 // 2. 明确普通用户仍可处理核心安全业务，但不能查看完整审计日志或执行管理员审计动作。
-// 3. 当前阶段复用本地模拟处置申请记录，并补充管理员治理日志，保证前端演示链路闭环。
+// 3. 复用本地处置申请记录，并补充管理员治理日志，保持关键治理留痕链路完整。
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -507,31 +507,31 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
-  color: #67a8ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--warning {
-  color: #ffbf5a;
+  color: var(--text-primary);
 }
 
 .summary-card__value--danger {
-  color: #ff6f7d;
+  color: var(--text-primary);
 }
 
 .summary-card__hint {
   margin-top: 10px;
-  color: #7f98be;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -547,12 +547,12 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -564,7 +564,7 @@ onMounted(() => {
 }
 
 .table-header-tip {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -588,15 +588,15 @@ onMounted(() => {
 .detail-block {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(10, 26, 48, 0.72);
-  border: 1px solid rgba(101, 146, 219, 0.12);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .tip-item__title,
 .focus-card__title {
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .tip-item__desc,
@@ -606,7 +606,7 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .focus-card__header {
@@ -632,14 +632,14 @@ onMounted(() => {
   margin-top: 10px;
   font-size: 15px;
   line-height: 1.6;
-  color: #eef5ff;
+  color: var(--text-primary);
   word-break: break-word;
 }
 
 .detail-block__title {
   font-size: 14px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 @media (max-width: 992px) {
