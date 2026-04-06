@@ -1589,3 +1589,37 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+## 2026-04-06 MyRecordsView 正式化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/MyRecordsView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - 已清理页面摘要卡片、筛选区、记录列表、个人闭环提示与最近三条记录中的说明式文案，统一为正式系统表达。
+  - 已移除用户可见文案中的“演示”“答辩”“访客角色”等非正式表述。
+  - 已收口本页本地样式中的深色硬编码与深色半透明背景，改为复用 `var(--text-primary)`、`var(--text-secondary)`、`var(--panel-border)`、`var(--page-bg-accent)`。
+- 语法检查：
+  - `frontend/src/views/MyRecordsView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+
+### [批次 38] 2026-04-06
+- 任务目标：完成【完整系统收口批 1-11：MyRecordsView 正式化文案和样式收口】，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/MyRecordsView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/MyRecordsView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/MyRecordsView.vue`：收口用户可见文案并清理本地深色样式硬编码，保持页面结构、功能逻辑与数据结构不变。
+  - `CODEX_PROGRESS.md`：补录本轮 MyRecordsView 正式化批次与校验结果。
+  - `CODEX_NEXT.md`：同步本轮收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/MyRecordsView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。

@@ -4,8 +4,8 @@
       <div>
         <h1 class="page-title">我的处理记录</h1>
         <p class="page-subtitle">
-          当前页面面向一线运维 / 值班安全分析员，集中展示本人已发起的处置申请、审批状态和最近流转记录，
-          用于支撑告警研判后的个人闭环追踪。
+          当前页面面向一线运维和值班安全分析员，用于统一查看本人已发起的处置申请、审批状态和最近流转记录，
+          支撑告警研判后的个人处置跟踪。
         </p>
       </div>
 
@@ -21,7 +21,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前身份</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "未登录" }}</div>
-          <div class="summary-card__hint">页面默认面向普通用户，但管理员访问时也只展示本人提交记录</div>
+          <div class="summary-card__hint">页面默认面向普通用户，管理员访问时也仅查看本人提交记录</div>
         </div>
       </el-col>
 
@@ -45,7 +45,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">最近更新时间</div>
           <div class="summary-card__value summary-card__value--small">{{ latestUpdatedAt }}</div>
-          <div class="summary-card__hint">用于答辩演示个人处置闭环仍在持续流转</div>
+          <div class="summary-card__hint">用于提示个人处置记录的最近更新状态</div>
         </div>
       </el-col>
     </el-row>
@@ -92,7 +92,7 @@
           <div class="section-header">
             <div>
               <h3>记录列表</h3>
-              <p>列表以最近更新时间倒序展示，突出申请编号、风险等级、处置类型和审批状态。</p>
+              <p>列表按最近更新时间倒序呈现，便于统一查看申请编号、风险等级、处置类型和审批状态。</p>
             </div>
             <div class="table-header-tip">当前命中 {{ filteredRecords.length }} 条记录</div>
           </div>
@@ -141,7 +141,7 @@
           <div class="tip-list">
             <div class="tip-item">
               <div class="tip-item__title">1. 继续研判</div>
-              <div class="tip-item__desc">普通用户可以持续查看告警、图谱分析和详情信息，不是访客角色。</div>
+              <div class="tip-item__desc">普通用户可以持续查看告警、图谱分析和详情信息，承担一线研判与跟踪职责。</div>
             </div>
             <div class="tip-item">
               <div class="tip-item__title">2. 发起申请</div>
@@ -158,7 +158,7 @@
           <div class="section-header">
             <div>
               <h3>最近三条记录</h3>
-              <p>便于在答辩时快速展示个人处理闭环，不必每次都阅读整张表。</p>
+              <p>便于快速查看个人处理闭环的最新进展，无需每次都阅读整张表。</p>
             </div>
           </div>
 
@@ -187,7 +187,7 @@
 // 文件路径：frontend/src/views/MyRecordsView.vue
 // 作用说明：
 // 1. 展示当前登录用户本人提交的处置申请和审批状态。
-// 2. 强化普通用户是安全分析员而非访客的角色定位。
+// 2. 强化普通用户作为安全分析员的一线角色定位。
 // 3. 为后续路由接入“我的处理记录”菜单提供页面本体。
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -345,22 +345,22 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
-  color: #67a8ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--warning {
-  color: #ffbf5a;
+  color: var(--text-primary);
 }
 
 .summary-card__value--small {
@@ -371,7 +371,7 @@ onMounted(() => {
 
 .summary-card__hint {
   margin-top: 10px;
-  color: #7f98be;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -387,12 +387,12 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -404,7 +404,7 @@ onMounted(() => {
 }
 
 .table-header-tip {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -419,15 +419,15 @@ onMounted(() => {
 .record-card {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(10, 26, 48, 0.72);
-  border: 1px solid rgba(101, 146, 219, 0.12);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .tip-item__title,
 .record-card__title {
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .tip-item__desc,
@@ -435,7 +435,7 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .record-card__header {
