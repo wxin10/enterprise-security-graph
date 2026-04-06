@@ -1252,6 +1252,38 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 AlertsView 正式化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/AlertsView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `AlertsView.vue` 已清理非正式系统口径的用户可见文案。
+  - `AlertsView.vue` 已保留页面摘要卡片、筛选区、告警表格与攻击链抽屉原有结构。
+  - `AlertsView.vue` 已收口本地样式中的明显深色硬编码，并改为复用现有主题变量。
+  - 本轮未改动布局结构、功能逻辑、攻击链功能与数据结构。
+- 语法检查：
+  - `frontend/src/views/AlertsView.vue` 已再次通过 `@vue/compiler-sfc` 解析检查。
+### [批次 30] 2026-04-06
+- 任务目标：完成 AlertsView 正式化收口后的文档同步、语法复核与版本提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：补录本轮 AlertsView 正式化批次的落地结果、语法检查与收尾状态。
+  - `CODEX_NEXT.md`：同步当前批次已完成并重置为等待用户指定下一批任务。
+- 语法检查：
+  - `frontend/src/views/AlertsView.vue` 已再次通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
 ### 本轮校验结果补录
 - `frontend/src/layouts/AppLayout.vue` 已通过 `@vue/compiler-sfc` 语法检查。
 - `frontend/src/router/index.js` 已通过 `node --check` 语法检查。

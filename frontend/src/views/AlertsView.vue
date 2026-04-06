@@ -9,15 +9,14 @@
   <div class="alerts-page app-page">
     <section class="security-panel page-banner">
       <div>
-        <h1 class="page-title">告警管理</h1>
+        <h1 class="page-title">告警中心</h1>
         <p class="page-subtitle">
-          当前页面用于展示图谱分析后的安全告警列表，可按状态、严重等级和关键字进行查询，
-          并支持围绕单条告警查看真实攻击链图谱。
+          统一展示安全告警记录与处置态势，支持按状态、严重等级和关键字检索，并可查看单条告警关联的攻击链信息。
         </p>
       </div>
 
       <el-button type="primary" :loading="loading" @click="loadAlerts">
-        刷新告警数据
+        刷新告警列表
       </el-button>
     </section>
 
@@ -26,15 +25,15 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前页告警数</div>
           <div class="summary-card__value">{{ alertItems.length }}</div>
-          <div class="summary-card__hint">当前分页中返回的告警记录数量</div>
+          <div class="summary-card__hint">当前分页返回的告警记录数量</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">高危告警数</div>
+          <div class="summary-card__label">高风险告警数</div>
           <div class="summary-card__value summary-card__value--danger">{{ criticalAlertCount }}</div>
-          <div class="summary-card__hint">当前页中 HIGH / CRITICAL 级别的告警</div>
+          <div class="summary-card__hint">当前页中 HIGH 与 CRITICAL 级别的告警数量</div>
         </div>
       </el-col>
 
@@ -42,13 +41,13 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">联动处置数</div>
           <div class="summary-card__value summary-card__value--warning">{{ blockedLinkedCount }}</div>
-          <div class="summary-card__hint">当前页中已出现封禁或处置动作的告警</div>
+          <div class="summary-card__hint">当前页中已触发封禁或处置动作的告警数量</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">总记录数</div>
+          <div class="summary-card__label">告警总量</div>
           <div class="summary-card__value summary-card__value--primary">{{ pagination.total }}</div>
           <div class="summary-card__hint">接口返回的告警总量，用于分页展示</div>
         </div>
@@ -59,7 +58,7 @@
       <div class="section-header">
         <div>
           <h3>筛选条件</h3>
-          <p>支持按告警状态、严重等级和关键字进行基础联调测试。</p>
+          <p>支持按告警状态、严重等级和关键字快速筛选当前告警记录。</p>
         </div>
       </div>
 
@@ -107,7 +106,7 @@
       <div class="section-header">
         <div>
           <h3>告警列表</h3>
-          <p>表格字段对齐后端接口返回结构，并在每条告警上提供“查看攻击链”入口。</p>
+          <p>展示符合筛选条件的告警记录，并提供对应攻击链查看入口。</p>
         </div>
 
         <div class="table-header-tip">
@@ -122,7 +121,7 @@
 
         <el-table-column label="严重等级" min-width="110">
           <template #default="{ row }">
-            <el-tag :type="severityTagType(row.severity)" effect="dark">
+            <el-tag :type="severityTagType(row.severity)" effect="plain">
               {{ row.severity || "-" }}
             </el-tag>
           </template>
@@ -214,7 +213,7 @@
           <div>
             <div class="drawer-title">攻击链图谱</div>
             <div class="drawer-subtitle">
-              {{ selectedAlert?.alert_name || "当前告警" }} ｜ {{ selectedAlert?.alert_id || "-" }}
+              {{ selectedAlert?.alert_name || "当前告警" }} · {{ selectedAlert?.alert_id || "-" }}
             </div>
           </div>
         </div>
@@ -229,7 +228,7 @@
         </div>
 
         <div class="security-panel attack-chain-hint">
-          <div class="attack-chain-hint__title">链路说明</div>
+          <div class="attack-chain-hint__title">链路摘要</div>
           <div class="attack-chain-hint__text">{{ attackChainData.summary.message || defaultAttackChainMessage }}</div>
         </div>
 
@@ -260,7 +259,7 @@ const attackChainVisible = ref(false);
 const alertItems = ref([]);
 const selectedAlert = ref(null);
 
-const defaultAttackChainMessage = "当前告警缺少足够的攻击事件证据，无法完整展示攻击链。";
+const defaultAttackChainMessage = "当前告警缺少足够的关联证据，暂无法完整展示攻击链。";
 
 const queryForm = reactive({
   status: "",
@@ -300,15 +299,15 @@ const activeFilterText = computed(() => {
   const segments = [];
 
   if (queryForm.status) {
-    segments.push(`状态 ${queryForm.status}`);
+    segments.push(`状态：${queryForm.status}`);
   }
 
   if (queryForm.severity) {
-    segments.push(`等级 ${queryForm.severity}`);
+    segments.push(`等级：${queryForm.severity}`);
   }
 
   if (queryForm.keyword) {
-    segments.push(`关键字 ${queryForm.keyword}`);
+    segments.push(`关键字：${queryForm.keyword}`);
   }
 
   return segments.length > 0 ? segments.join(" / ") : "未设置筛选条件";
@@ -453,7 +452,7 @@ async function handleOpenAttackChain(row) {
     attackChainData.summary = {
       ...attackChainData.summary,
       alert_level: row?.severity || "-",
-      message: "当前告警暂时无法构建完整攻击链，已保留基础告警摘要，请稍后重试或检查后端证据数据。"
+      message: "当前告警暂时无法生成完整攻击链，已保留基础告警摘要，请稍后重试或核查关联证据数据。"
     };
   } finally {
     attackChainLoading.value = false;
@@ -517,14 +516,14 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 32px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--danger {
@@ -542,8 +541,15 @@ onMounted(() => {
 .summary-card__hint {
   margin-top: 10px;
   font-size: 12px;
-  color: #7f98be;
+  color: var(--text-secondary);
   line-height: 1.7;
+}
+
+.summary-card,
+.attack-chain-summary-card,
+.attack-chain-hint {
+  border: 1px solid var(--panel-border);
+  background: var(--page-bg-accent);
 }
 
 .section-header {
@@ -557,18 +563,18 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
 
 .table-header-tip {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -592,12 +598,12 @@ onMounted(() => {
 .drawer-title {
   font-size: 20px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .drawer-subtitle {
   margin-top: 6px;
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -619,14 +625,14 @@ onMounted(() => {
 
 .attack-chain-summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .attack-chain-summary-card__value {
   margin-top: 10px;
   font-size: 18px;
   line-height: 1.6;
-  color: #edf4ff;
+  color: var(--text-primary);
   font-weight: 700;
   word-break: break-word;
 }
@@ -654,12 +660,12 @@ onMounted(() => {
 .attack-chain-hint__title {
   font-size: 14px;
   font-weight: 700;
-  color: #edf4ff;
+  color: var(--text-primary);
 }
 
 .attack-chain-hint__text {
   margin-top: 8px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   line-height: 1.8;
   font-size: 13px;
 }
