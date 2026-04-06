@@ -305,3 +305,16 @@
 - 本轮业务落地文件：`frontend/src/views/DashboardView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/DashboardView.vue` 已执行语法检查。
+
+## 2026-04-06 ForbiddenView 正式化收尾
+### 当前状态
+- `frontend/src/views/ForbiddenView.vue` 已完成正式系统口径文案收口。
+- `frontend/src/views/ForbiddenView.vue` 已完成本地样式收口并统一为白色企业后台风格。
+- 当前分支仍为 `current-ui-sync`。
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端收口，继续遵守单文件最小范围原则。
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/views/ForbiddenView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/views/ForbiddenView.vue` 已执行语法检查。

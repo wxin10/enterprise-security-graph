@@ -1287,3 +1287,35 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 ForbiddenView 正式化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/ForbiddenView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `ForbiddenView.vue` 已清理非正式系统口径的用户可见文案。
+  - `ForbiddenView.vue` 在保留原有结构、逻辑和权限边界的前提下，统一为正式企业后台表达。
+  - `ForbiddenView.vue` 已收口本地样式，移除深色硬编码和深色半透明背景。
+- 语法检查：
+  - `frontend/src/views/ForbiddenView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 29] 2026-04-06
+- 任务目标：完成 ForbiddenView 正式化文案与样式收口，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `frontend/src/views/ForbiddenView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `frontend/src/views/ForbiddenView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `frontend/src/views/ForbiddenView.vue`：统一访问受限页的正式文案与本地样式，保留现有结构、跳转逻辑与权限边界。
+  - `CODEX_PROGRESS.md`：补录本轮 ForbiddenView 正式化批次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
