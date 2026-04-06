@@ -1253,6 +1253,37 @@
 - 下一批建议：
   - 等待用户指定新的最小批次。
 
+## 2026-04-06 AlertsView 二次收尾补录
+- 本轮业务改动文件：
+  - 无
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - 未再修改 `frontend/src/views/AlertsView.vue` 业务代码。
+  - 已对 `frontend/src/views/AlertsView.vue` 再次执行语法检查。
+  - 已同步当前批次的收尾状态并准备提交推送。
+- 语法检查：
+  - `frontend/src/views/AlertsView.vue` 已再次通过 `@vue/compiler-sfc` 解析检查。
+### [批次 31] 2026-04-06
+- 任务目标：在不再修改 AlertsView 业务代码的前提下完成二次收尾、语法复核与版本提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `CODEX_PROGRESS.md`：补录本轮二次收尾、语法检查与提交推送状态。
+  - `CODEX_NEXT.md`：同步当前批次已完成并重置为等待用户指定下一批任务。
+- 语法检查：
+  - `frontend/src/views/AlertsView.vue` 已再次通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
+
 ## 2026-04-06 AlertsView 正式化补录
 - 本轮业务改动文件：
   - `frontend/src/views/AlertsView.vue`
