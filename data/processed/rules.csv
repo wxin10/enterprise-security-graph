@@ -1,4 +1,4 @@
 rule_id,rule_name,rule_category,rule_level,threshold_desc,description,enabled
-R001,连续失败登录阈值规则,THRESHOLD,HIGH,5分钟失败登录次数>=5,检测外部来源对单主机的暴力破解行为,true
-R002,横向移动访问规则,GRAPH_PATTERN,CRITICAL,10分钟访问高价值主机数量>=2,检测同一账号短时间访问多台关键主机,true
-R003,高频访问规则,FREQUENCY,HIGH,1分钟访问次数>=200,检测脚本化或异常自动化访问行为,true
+R_ACC_01,异常时段高频文件访问,FREQUENCY,MEDIUM,非工作时间1分钟内访问流量超过阈值,根据安全告警日志抽取的检测规则,true
+R_BF_01,外部IP暴力破解检测,THRESHOLD,HIGH,5分钟内同一IP登录失败大于3次,根据安全告警日志抽取的检测规则,true
+R_LM_01,跨界横向访问高危核心资产,GRAPH_PATTERN,CRITICAL,单一会话短时间横向跳板访问多台特权资产,根据安全告警日志抽取的检测规则,true
