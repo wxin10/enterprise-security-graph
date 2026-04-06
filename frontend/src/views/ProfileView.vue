@@ -9,8 +9,7 @@
           <div class="profile-hero__role">{{ currentRoleLabel }}</div>
           <h1 class="page-title">{{ currentUser.display_name }}</h1>
           <p class="page-subtitle">
-            {{ currentUser.title }}，所属 {{ currentUser.department }}。当前页面用于展示登录身份、权限边界和个人处置概览，
-            便于普通用户和管理员在演示时快速确认各自职责范围。
+            {{ currentUser.title }}?{{ currentUser.department }}??????????????????????????????????????????
           </p>
         </div>
       </div>
@@ -19,7 +18,7 @@
         <div class="profile-hero__avatar">?</div>
         <div>
           <h1 class="page-title">个人中心</h1>
-          <p class="page-subtitle">当前未检测到登录用户，请先登录后查看个人身份、权限边界和处理记录概览。</p>
+          <p class="page-subtitle">当前未检测到有效登录信息，请登录后查看个人资料、权限边界和最近处置记录。</p>
         </div>
       </div>
 
@@ -38,15 +37,15 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">角色身份</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "-" }}</div>
-          <div class="summary-card__hint">角色决定审批、规则管理与审计日志等高风险能力边界</div>
+          <div class="summary-card__hint">角色身份决定账号可执行的审批、规则管理和审计查看范围</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">可用权限项</div>
+          <div class="summary-card__label">权限项目</div>
           <div class="summary-card__value summary-card__value--primary">{{ availablePermissionItems.length }}</div>
-          <div class="summary-card__hint">基于当前前端模拟权限模型计算，后续可直接对接真实权限接口</div>
+          <div class="summary-card__hint">汇总当前账号已开通的业务能力与管理权限范围</div>
         </div>
       </el-col>
 
@@ -54,15 +53,15 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">我的处置记录</div>
           <div class="summary-card__value summary-card__value--warning">{{ myRequestRecords.length }}</div>
-          <div class="summary-card__hint">展示当前账号已发起的处置申请，用于普通用户侧工作量追踪</div>
+          <div class="summary-card__hint">统计当前账号已发起的处置申请与近期跟踪记录</div>
         </div>
       </el-col>
 
       <el-col :xs="24" :sm="12" :lg="6">
         <div class="security-panel summary-card">
-          <div class="summary-card__label">待审核申请</div>
+          <div class="summary-card__label">待办事项</div>
           <div class="summary-card__value summary-card__value--danger">{{ pendingRequestCount }}</div>
-          <div class="summary-card__hint">若为普通用户，表示已提交待管理员审批；若为管理员，可视为待处理入口</div>
+          <div class="summary-card__hint">用于提示当前账号仍需关注的审批流转与后续处理事项</div>
         </div>
       </el-col>
     </el-row>
@@ -73,7 +72,7 @@
           <div class="section-header">
             <div>
               <h3>基本信息</h3>
-              <p>当前登录账号的展示信息来自模拟登录态，可直接映射到后端用户档案接口。</p>
+              <p>展示当前登录账号的基础资料、岗位信息与最近登录时间。</p>
             </div>
           </div>
 
@@ -95,7 +94,7 @@
               <span class="info-row__value">{{ currentUser.department }}</span>
             </div>
             <div class="info-row">
-              <span class="info-row__label">岗位说明</span>
+              <span class="info-row__label">岗位职责</span>
               <span class="info-row__value">{{ currentUser.title }}</span>
             </div>
             <div class="info-row">
@@ -104,7 +103,7 @@
             </div>
           </div>
 
-          <el-empty v-else description="未登录状态下无法展示个人资料。" />
+          <el-empty v-else description="当前未登录，无法查看个人资料" />
         </section>
       </el-col>
 
@@ -113,7 +112,7 @@
           <div class="section-header">
             <div>
               <h3>权限边界</h3>
-              <p>这里同时展示当前可执行能力和受限能力，突出普通用户不是访客，但也不能执行高风险管理动作。</p>
+              <p>集中展示当前账号可执行与受限的能力范围，便于按职责开展日常处置与管理操作。</p>
             </div>
           </div>
 
@@ -126,7 +125,7 @@
                   <div class="permission-item__desc">{{ item.description }}</div>
                 </div>
               </div>
-              <el-empty v-else description="当前没有可展示的权限项。" />
+              <el-empty v-else description="当前暂无可展示的权限项目" />
             </div>
 
             <div class="permission-block">
@@ -138,7 +137,7 @@
                 </div>
               </div>
               <div v-else class="permission-admin-tip">
-                当前账号已拥有配置、审批与审计等管理员能力，可继续进入管理类页面执行操作。
+                当前账号已具备配置、审批与审计等管理能力，可继续进入相应管理页面执行操作。
               </div>
             </div>
           </div>
@@ -150,15 +149,15 @@
       <div class="section-header">
         <div>
           <h3>最近处置记录</h3>
-          <p>记录来自前端本地模拟存储，后续可替换为“我的处理记录”接口。</p>
+            <p>展示当前账号最近参与的处置记录，便于跟踪个人处理进度与结果。</p>
         </div>
       </div>
 
-      <el-table :data="recentRecords" empty-text="当前没有个人处置记录">
+      <el-table :data="recentRecords" empty-text="当前暂无个人处置记录">
         <el-table-column prop="request_id" label="申请编号" min-width="170" />
         <el-table-column prop="alert_name" label="关联告警" min-width="180" show-overflow-tooltip />
         <el-table-column prop="disposal_type" label="处置类型" min-width="120" />
-        <el-table-column prop="urgency_level" label="紧急程度" min-width="110" />
+        <el-table-column prop="urgency_level" label="紧急等级" min-width="110" />
         <el-table-column label="当前状态" min-width="110">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" effect="plain">
@@ -342,6 +341,7 @@ function handleGoLogin() {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), var(--page-bg-accent));
 }
 
 .profile-hero__content {
@@ -359,9 +359,9 @@ function handleGoLogin() {
   justify-content: center;
   font-size: 28px;
   font-weight: 700;
-  color: #eef5ff;
-  background: linear-gradient(135deg, rgba(72, 127, 255, 0.78), rgba(34, 198, 255, 0.72));
-  box-shadow: 0 18px 34px rgba(40, 108, 233, 0.24);
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.92), rgba(14, 165, 233, 0.86));
+  box-shadow: 0 16px 28px rgba(59, 130, 246, 0.18);
 }
 
 .profile-hero__role {
@@ -369,10 +369,11 @@ function handleGoLogin() {
   align-items: center;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(93, 165, 255, 0.16);
-  color: #8fc6ff;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--text-primary);
   font-size: 12px;
   margin-bottom: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.16);
 }
 
 .profile-hero__actions {
@@ -387,33 +388,33 @@ function handleGoLogin() {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
-  color: #6eb3ff;
+  color: #2563eb;
 }
 
 .summary-card__value--warning {
-  color: #ffca62;
+  color: #d97706;
 }
 
 .summary-card__value--danger {
-  color: #ff808d;
+  color: #dc2626;
 }
 
 .summary-card__hint {
   margin-top: 10px;
   font-size: 12px;
   line-height: 1.8;
-  color: #7f98be;
+  color: var(--text-secondary);
 }
 
 .section-header {
@@ -423,14 +424,14 @@ function handleGoLogin() {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .info-list {
@@ -445,17 +446,17 @@ function handleGoLogin() {
   gap: 16px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: rgba(11, 26, 48, 0.68);
-  border: 1px solid rgba(98, 138, 207, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  border: 1px solid var(--panel-border);
 }
 
 .info-row__label {
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 .info-row__value {
-  color: #eef5ff;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
   text-align: right;
@@ -472,7 +473,7 @@ function handleGoLogin() {
   margin-bottom: 12px;
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .permission-list {
@@ -488,34 +489,34 @@ function handleGoLogin() {
 }
 
 .permission-item--available {
-  background: rgba(12, 39, 46, 0.54);
-  border-color: rgba(85, 207, 189, 0.16);
+  background: rgba(14, 165, 233, 0.06);
+  border-color: rgba(14, 165, 233, 0.14);
 }
 
 .permission-item--restricted {
-  background: rgba(58, 24, 24, 0.38);
-  border-color: rgba(255, 120, 120, 0.14);
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.14);
 }
 
 .permission-item__title {
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .permission-item__desc {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .permission-admin-tip {
   padding: 16px;
   border-radius: 16px;
-  background: rgba(12, 39, 46, 0.54);
-  border: 1px solid rgba(85, 207, 189, 0.16);
-  color: #9adccc;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.14);
+  color: var(--text-primary);
   line-height: 1.8;
   font-size: 13px;
 }

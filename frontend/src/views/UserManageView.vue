@@ -4,8 +4,7 @@
       <div>
         <h1 class="page-title">用户管理</h1>
         <p class="page-subtitle">
-          当前页面面向高权限运维负责人，用于统一查看账号状态、角色分布和近期权限审批事项。
-          普通用户仍可访问核心业务页面，但不能进入本页执行用户与权限管理。
+          ????????????????????????????????????????????????????
         </p>
       </div>
 
@@ -18,7 +17,7 @@
 
     <el-alert
       v-if="currentUser && !canManageUsers"
-      title="当前账号不具备用户管理权限，本页内容仅用于说明管理员职责边界。"
+      title="????????????????????????????"
       type="warning"
       :closable="false"
       show-icon
@@ -30,7 +29,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前身份</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "未登录" }}</div>
-          <div class="summary-card__hint">只有管理员具备用户、角色与权限配置能力</div>
+          <div class="summary-card__hint">????????????????????????</div>
         </div>
       </el-col>
 
@@ -65,7 +64,7 @@
           <div class="section-header">
             <div>
               <h3>账号筛选</h3>
-              <p>支持按角色、状态和关键字定位账号，便于答辩时演示管理员如何快速核对人员权限。</p>
+              <p>???????????????????????????????</p>
             </div>
           </div>
 
@@ -102,7 +101,7 @@
               <h3>账号列表</h3>
               <p>页面强调管理员职责是“管理账号与权限”，而不是独占告警、图谱等公共业务页面。</p>
             </div>
-            <div class="table-header-tip">当前命中 {{ filteredUsers.length }} 个账号</div>
+            <div class="table-header-tip">?????? {{ filteredUsers.length }} ???</div>
           </div>
 
           <el-table :data="filteredUsers" empty-text="暂无匹配账号">
@@ -153,8 +152,8 @@
 
           <div class="tip-list">
             <div class="tip-item">
-              <div class="tip-item__title">普通用户仍能处理核心业务</div>
-              <div class="tip-item__desc">值班分析员可查看工作台、告警、图谱分析并提交处置申请。</div>
+              <div class="tip-item__title">????????????</div>
+              <div class="tip-item__desc">????????????????????????????????????</div>
             </div>
             <div class="tip-item">
               <div class="tip-item__title">管理员负责高风险动作</div>
@@ -189,7 +188,7 @@
             </div>
           </div>
 
-          <el-empty v-else description="当前没有待处理审批事项" />
+          <el-empty v-else description="???????????" />
         </section>
       </el-col>
     </el-row>
@@ -344,18 +343,18 @@ function statusTagType(status) {
 function handlePreviewScope(row) {
   const scopeText =
     row.role === "admin"
-      ? "可管理用户、规则、审批与高风险操作。"
-      : "可访问工作台、告警、图谱分析、处置申请与个人记录。";
+      ? "??????????????????"
+      : "?????????????????????????";
   ElMessage.info(`${row.display_name}：${scopeText}`);
 }
 
 function handleResetAccount(row) {
   if (!canManageUsers.value) {
-    ElMessage.warning("当前账号不具备用户管理权限");
+    ElMessage.warning("??????????????");
     return;
   }
 
-  ElMessage.success(`已为 ${row.display_name} 生成临时口令（前端演示数据未落库）`);
+  ElMessage.success(`${row.display_name} ?????????${row.status}?`);
 }
 
 function handleToggleStatus(row) {
@@ -406,6 +405,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), var(--page-bg-accent));
 }
 
 .page-banner__actions {
@@ -425,31 +425,31 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
-  color: #67a8ff;
+  color: #2563eb;
 }
 
 .summary-card__value--warning {
-  color: #ffbf5a;
+  color: #d97706;
 }
 
 .summary-card__value--danger {
-  color: #ff6f7d;
+  color: #dc2626;
 }
 
 .summary-card__hint {
   margin-top: 10px;
-  color: #7f98be;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -465,12 +465,12 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -482,7 +482,7 @@ onMounted(() => {
 }
 
 .table-header-tip {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -503,15 +503,15 @@ onMounted(() => {
 .approval-card {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(10, 26, 48, 0.72);
-  border: 1px solid rgba(101, 146, 219, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  border: 1px solid var(--panel-border);
 }
 
 .tip-item__title,
 .approval-card__title {
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .tip-item__desc,
@@ -519,7 +519,7 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .approval-card__header {

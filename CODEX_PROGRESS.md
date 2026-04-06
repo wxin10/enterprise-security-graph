@@ -1175,3 +1175,43 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次
+
+---
+
+## 2026-04-06 Profile 与 UserManage 收尾补录
+- 本轮业务改动文件：
+  - `frontend/src/views/ProfileView.vue`
+  - `frontend/src/views/UserManageView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `ProfileView.vue` 已完成正式系统口径文案收口，并将本地深色样式调整为白色后台风格
+  - `UserManageView.vue` 已完成正式系统口径文案收口，并将本地深色样式调整为白色后台风格
+  - 两个页面均保留原有信息结构、功能逻辑、权限边界与数据结构
+- 语法检查：
+  - `frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 解析检查
+  - `frontend/src/views/UserManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查
+
+### [批次 26] 2026-04-06
+- 任务目标：完成 ProfileView 与 UserManageView 的正式化文案和样式收口，并同步进度文件后提交推送
+- 本批允许修改文件：
+  - `frontend/src/views/ProfileView.vue`
+  - `frontend/src/views/UserManageView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `frontend/src/views/ProfileView.vue`
+  - `frontend/src/views/UserManageView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `frontend/src/views/ProfileView.vue`：清理非正式系统口径文案，保留个人信息、角色身份、权限边界、最近处置记录结构，并收口本地样式
+  - `frontend/src/views/UserManageView.vue`：清理非正式系统口径文案，保留账号统计、筛选、账号列表、角色边界说明、待审批事项结构，并收口本地样式
+  - `CODEX_PROGRESS.md`：补录本次页面正式化批次与收尾状态
+  - `CODEX_NEXT.md`：更新当前状态为等待用户指定下一批任务
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次
