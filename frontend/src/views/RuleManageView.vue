@@ -38,7 +38,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">启用规则数</div>
           <div class="summary-card__value summary-card__value--primary">{{ enabledRuleCount }}</div>
-          <div class="summary-card__hint">覆盖识别规则与封禁策略，用于演示规则治理入口已补齐</div>
+          <div class="summary-card__hint">覆盖识别规则与封禁策略，便于统一掌握当前生效中的规则配置。</div>
         </div>
       </el-col>
 
@@ -65,7 +65,7 @@
           <div class="section-header">
             <div>
               <h3>规则筛选</h3>
-              <p>支持按规则类型、状态和关键字快速定位，便于展示管理员的规则治理效率。</p>
+              <p>支持按规则类型、状态和关键字快速定位，便于高效筛选和核对目标规则。</p>
             </div>
           </div>
 
@@ -171,7 +171,7 @@
           <div class="section-header">
             <div>
               <h3>待评估变更</h3>
-              <p>这里展示规则调整待办，让管理员页具备最小演示价值，而不是空白占位。</p>
+              <p>用于汇总规则调整待办，便于管理员统一跟踪待评估的规则变更事项。</p>
             </div>
           </div>
 
@@ -201,7 +201,7 @@
 // 作用说明：
 // 1. 补齐管理员端“规则管理”页面本体，承接识别规则和封禁策略治理入口。
 // 2. 强调普通用户可以做分析与申请，但不能越权修改关键识别规则与封禁策略。
-// 3. 当前阶段先以内置模拟规则数据支撑前端演示，不额外改动仓库中的全局数据结构。
+// 3. 当前以页面内置规则数据支撑交互，不额外改动仓库中的全局数据结构。
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
@@ -434,14 +434,14 @@ onMounted(() => {
 
 .summary-card__label {
   font-size: 13px;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .summary-card__value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .summary-card__value--primary {
@@ -458,7 +458,7 @@ onMounted(() => {
 
 .summary-card__hint {
   margin-top: 10px;
-  color: #7f98be;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -474,12 +474,12 @@ onMounted(() => {
 .section-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #ecf4ff;
+  color: var(--text-primary);
 }
 
 .section-header p {
   margin: 8px 0 0;
-  color: #8aa3c8;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -491,7 +491,7 @@ onMounted(() => {
 }
 
 .table-header-tip {
-  color: #8fa7ca;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -512,15 +512,15 @@ onMounted(() => {
 .change-card {
   padding: 14px;
   border-radius: 16px;
-  background: rgba(10, 26, 48, 0.72);
-  border: 1px solid rgba(101, 146, 219, 0.12);
+  background: var(--page-bg-accent);
+  border: 1px solid var(--panel-border);
 }
 
 .tip-item__title,
 .change-card__title {
   font-size: 15px;
   font-weight: 700;
-  color: #eef5ff;
+  color: var(--text-primary);
 }
 
 .tip-item__desc,
@@ -528,7 +528,7 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.7;
-  color: #8aa3c8;
+  color: var(--text-secondary);
 }
 
 .change-card__header {

@@ -1520,3 +1520,38 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 RuleManageView 正式化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/RuleManageView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `RuleManageView.vue` 已清理不符合正式系统口径的用户可见文案。
+  - 已保留页面摘要卡片、筛选区、规则列表、规则变更流程与待评估变更原有结构。
+  - 已收口本页本地样式中的深色硬编码与深色半透明背景，并统一为白色企业后台风格。
+  - 本轮未改动功能逻辑、权限边界、数据结构与接口调用。
+- 语法检查：
+  - `frontend/src/views/RuleManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 36] 2026-04-06
+- 任务目标：完成【完整系统收口批 1-9：RuleManageView 正式化文案和样式收口】，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/RuleManageView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/RuleManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/RuleManageView.vue`：收口正式化文案，移除说明页式表达，并将本地深色样式调整为白色企业后台风格。
+  - `CODEX_PROGRESS.md`：补录本轮 RuleManageView 正式化批次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/RuleManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
