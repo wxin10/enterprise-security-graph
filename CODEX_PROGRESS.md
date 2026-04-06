@@ -1132,3 +1132,46 @@
 > 这里是用户保留区，Codex 不得改动本区已有内容。
 
 （用户手动备注）
+
+---
+
+## 2026-04-06 最新进度补录
+
+### 本次收尾说明
+- 本轮仅做收尾，未再修改 `frontend/src/views/DashboardView.vue` 的业务逻辑。
+- 已对 `frontend/src/views/DashboardView.vue` 完成第二次语法检查，结果通过。
+- 当前工作分支仍为 `current-ui-sync`。
+
+### Dashboard 图表批次补录
+- 本次实际业务改动文件：
+  - `frontend/src/views/DashboardView.vue`
+- 本次文档收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- `DashboardView.vue` 本次已落地内容：
+  - 移除对 `ChartPlaceholder` 的使用
+  - 在页面内直接实现“告警等级分布”图表
+  - 在页面内直接实现“高风险对象分布”图表
+  - 无数据时使用正式空状态展示
+
+### [批次 25] 2026-04-06
+- 任务目标：为仪表盘首页补齐真实图表展示，并在收尾阶段同步更新进度文件后提交推送
+- 本批允许修改文件：
+  - `frontend/src/views/DashboardView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 实际修改文件：
+  - `frontend/src/views/DashboardView.vue`
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 每个文件改动摘要：
+  - `frontend/src/views/DashboardView.vue`：移除占位图表组件，新增基于 `latest_alerts` 的告警等级分布图与基于 `top_risk_users / top_risk_ips / top_risk_hosts` 的高风险对象分布图
+  - `CODEX_PROGRESS.md`：补录本次 Dashboard 图表批次与收尾状态
+  - `CODEX_NEXT.md`：将当前状态切换为待用户指定下一批任务
+- 语法检查：
+  - `frontend/src/views/DashboardView.vue` 已通过 `@vue/compiler-sfc` 解析检查
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次

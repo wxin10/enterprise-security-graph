@@ -113,10 +113,58 @@
 
     <el-row :gutter="18" class="charts-section">
       <el-col :xs="24" :lg="12">
-        <ChartPlaceholder title="告警等级趋势分析" subtitle="ECharts 预留区" />
+        <div class="security-panel section-panel chart-panel">
+          <div class="section-header">
+            <div>
+              <h3>告警等级分布</h3>
+              <p>基于 latest_alerts 聚合展示当前首页告警等级结构。</p>
+            </div>
+          </div>
+
+          <div v-if="alertSeverityChartData.length" class="chart-stack">
+            <div v-for="item in alertSeverityChartData" :key="item.key" class="chart-row">
+              <div class="chart-row__meta">
+                <span class="chart-row__label">{{ item.label }}</span>
+                <span class="chart-row__value">{{ item.value }} 条</span>
+              </div>
+              <div class="chart-row__track">
+                <div
+                  class="chart-row__fill"
+                  :style="{ width: `${item.percent}%`, background: item.color }"
+                />
+              </div>
+              <span class="chart-row__percent">{{ item.percentText }}</span>
+            </div>
+          </div>
+          <el-empty v-else description="暂无告警等级分布数据" />
+        </div>
       </el-col>
       <el-col :xs="24" :lg="12">
-        <ChartPlaceholder title="高风险实体分布" subtitle="ECharts 预留区" />
+        <div class="security-panel section-panel chart-panel">
+          <div class="section-header">
+            <div>
+              <h3>高风险对象分布</h3>
+              <p>基于高风险用户、IP 与主机列表聚合展示重点对象占比。</p>
+            </div>
+          </div>
+
+          <div v-if="riskEntityChartData.length" class="chart-stack">
+            <div v-for="item in riskEntityChartData" :key="item.key" class="chart-row">
+              <div class="chart-row__meta">
+                <span class="chart-row__label">{{ item.label }}</span>
+                <span class="chart-row__value">{{ item.value }} 个</span>
+              </div>
+              <div class="chart-row__track">
+                <div
+                  class="chart-row__fill"
+                  :style="{ width: `${item.percent}%`, background: item.color }"
+                />
+              </div>
+              <span class="chart-row__percent">{{ item.percentText }}</span>
+            </div>
+          </div>
+          <el-empty v-else description="暂无高风险对象分布数据" />
+        </div>
       </el-col>
     </el-row>
   </div>
@@ -131,7 +179,6 @@
 import { computed, onMounted, reactive, ref } from "vue";
 
 import { fetchGraphOverview } from "@/api/dashboard";
-import ChartPlaceholder from "@/components/ChartPlaceholder.vue";
 import StatCard from "@/components/StatCard.vue";
 
 const loading = ref(false);
@@ -171,6 +218,90 @@ async function loadOverview() {
   }
 }
 
+const alertSeverityConfig = {
+  CRITICAL: { label: "严重", color: "#dc2626" },
+  HIGH: { label: "高危", color: "#f97316" },
+  MEDIUM: { label: "中危", color: "#f59e0b" },
+  LOW: { label: "低危", color: "#3b82f6" },
+  INFO: { label: "提示", color: "#6366f1" },
+  UNKNOWN: { label: "未分类", color: "#94a3b8" }
+};
+
+const riskEntityConfig = [
+  { key: "users", label: "高风险用户", color: "#ef4444", source: "top_risk_users" },
+  { key: "ips", label: "高风险 IP", color: "#f97316", source: "top_risk_ips" },
+  { key: "hosts", label: "高风险主机", color: "#3b82f6", source: "top_risk_hosts" }
+];
+
+function normalizeSeverity(severity) {
+  const key = String(severity || "UNKNOWN").toUpperCase();
+  return alertSeverityConfig[key] ? key : "UNKNOWN";
+}
+
+function formatPercent(value, total) {
+  if (!total) {
+    return {
+      percent: 0,
+      percentText: "0%"
+    };
+  }
+
+  const rawPercent = Number(((value / total) * 100).toFixed(1));
+
+  return {
+    percent: rawPercent,
+    percentText: `${rawPercent % 1 === 0 ? rawPercent.toFixed(0) : rawPercent}%`
+  };
+}
+
+const alertSeverityChartData = computed(() => {
+  const counts = overviewData.latest_alerts.reduce((accumulator, item) => {
+    const key = normalizeSeverity(item?.severity);
+    accumulator[key] = (accumulator[key] || 0) + 1;
+    return accumulator;
+  }, {});
+  const total = Object.values(counts).reduce((sum, current) => sum + current, 0);
+
+  return Object.entries(alertSeverityConfig)
+    .map(([key, config]) => {
+      const value = counts[key] || 0;
+      const { percent, percentText } = formatPercent(value, total);
+
+      return {
+        key,
+        label: config.label,
+        color: config.color,
+        value,
+        percent,
+        percentText
+      };
+    })
+    .filter((item) => item.value > 0);
+});
+
+const riskEntityChartData = computed(() => {
+  const items = riskEntityConfig.map((item) => ({
+    key: item.key,
+    label: item.label,
+    color: item.color,
+    value: overviewData[item.source].length
+  }));
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+
+  return items
+    .map((item) => {
+      const { percent, percentText } = formatPercent(item.value, total);
+
+      return {
+        ...item,
+        percent,
+        percentText
+      };
+    })
+    .filter((item) => item.value > 0);
+});
+
+/*
 const summaryCards = computed(() => [
   {
     key: "node_total",
@@ -200,6 +331,50 @@ const summaryCards = computed(() => [
     key: "blocked_ip_total",
     title: "封禁 IP 数量",
     hint: "已被联动封禁或标记为封禁状态的 IP 数量",
+    value: overviewData.summary.blocked_ip_total,
+    tone: "warning",
+    icon: "Lock"
+  },
+  {
+    key: "high_risk_event_total",
+    title: "高风险事件数",
+    hint: "风险分值大于等于 80 的事件总数",
+    value: overviewData.summary.high_risk_event_total,
+    tone: "danger",
+    icon: "Warning"
+  }
+]);
+*/
+
+const summaryCards = computed(() => [
+  {
+    key: "node_total",
+    title: "图谱节点总量",
+    hint: "当前 Neo4j 中所有业务实体节点的数量统计",
+    value: overviewData.summary.node_total,
+    tone: "primary",
+    icon: "Connection"
+  },
+  {
+    key: "relation_total",
+    title: "图谱关系总量",
+    hint: "当前图谱中的访问、告警与处置关系数量",
+    value: overviewData.summary.relation_total,
+    tone: "success",
+    icon: "Share"
+  },
+  {
+    key: "alert_total",
+    title: "告警总量",
+    hint: "当前图数据库中的告警节点总数",
+    value: overviewData.summary.alert_total,
+    tone: "danger",
+    icon: "Bell"
+  },
+  {
+    key: "blocked_ip_total",
+    title: "封禁 IP 数量",
+    hint: "当前已被封禁或标记为封禁状态的 IP 数量",
     value: overviewData.summary.blocked_ip_total,
     tone: "warning",
     icon: "Lock"
@@ -329,6 +504,55 @@ onMounted(() => {
   color: var(--text-primary) !important;
 }
 
+.chart-panel {
+  min-height: 320px;
+}
+
+.chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 132px) minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chart-row__label {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chart-row__value,
+.chart-row__percent {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.chart-row__track {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(226, 232, 240, 0.92);
+}
+
+.chart-row__fill {
+  height: 100%;
+  min-width: 10px;
+  border-radius: inherit;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.16);
+}
+
 :deep(.chart-placeholder__header h3) {
   color: var(--text-primary) !important;
 }
@@ -360,6 +584,14 @@ onMounted(() => {
   .dashboard-hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .chart-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-row__percent {
+    justify-self: flex-start;
   }
 }
 </style>
