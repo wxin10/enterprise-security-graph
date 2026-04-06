@@ -1451,3 +1451,38 @@
 - 是否需要恢复模式：否
 - 下一批建议：
   - 等待用户指定新的最小批次。
+
+## 2026-04-06 UserManageView 文本修复补录
+- 本轮业务改动文件：
+  - `frontend/src/views/UserManageView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - `UserManageView.vue` 已修复页面中的乱码、问号占位与异常字符。
+  - 已恢复页面副标题、权限提醒、筛选说明、列表提示、角色边界说明、空状态和操作提示文本的正常中文表达。
+  - 本轮未改动账号统计、筛选区、账号列表、角色边界说明、待审批事项的页面结构。
+  - 本轮未改动功能逻辑、权限边界、数据结构与现有白色后台风格。
+- 语法检查：
+  - `frontend/src/views/UserManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+### [批次 34] 2026-04-06
+- 任务目标：修复 `UserManageView.vue` 剩余文本显示异常，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/UserManageView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/UserManageView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/UserManageView.vue`：修复页面副标题、权限提醒、摘要说明、筛选说明、列表提示、角色边界说明、空状态与操作反馈文本。
+  - `CODEX_PROGRESS.md`：补录本轮 UserManageView 文本修复批次与校验结果。
+  - `CODEX_NEXT.md`：同步当前批次收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/UserManageView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。

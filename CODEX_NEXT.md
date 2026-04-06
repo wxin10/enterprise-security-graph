@@ -382,3 +382,19 @@
 - 本轮业务落地文件：`frontend/src/views/ProfileView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/ProfileView.vue` 已通过 `@vue/compiler-sfc` 语法检查。
+
+## 2026-04-06 UserManageView 文本修复收尾
+### 当前状态
+- `frontend/src/views/UserManageView.vue` 已修复页面中的异常文本显示。
+- `frontend/src/views/UserManageView.vue` 已恢复副标题、筛选说明、列表提示、角色边界说明、空状态与操作提示的正常中文表达。
+- 当前收尾仅同步进度文件并准备提交推送。
+- 当前分支：`current-ui-sync`。
+
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端增量开发，继续遵守单批最小范围原则。
+
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/views/UserManageView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/views/UserManageView.vue` 已通过 `@vue/compiler-sfc` 语法检查。

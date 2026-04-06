@@ -4,7 +4,7 @@
       <div>
         <h1 class="page-title">用户管理</h1>
         <p class="page-subtitle">
-          ????????????????????????????????????????????????????
+          用于统一维护平台账号、角色分工与启停状态，确保管理员权限配置、岗位边界和审批流转清晰可控。
         </p>
       </div>
 
@@ -17,7 +17,7 @@
 
     <el-alert
       v-if="currentUser && !canManageUsers"
-      title="????????????????????????????"
+      title="当前账号仅可查看账号治理范围，如需执行用户管理操作，请使用管理员账号登录。"
       type="warning"
       :closable="false"
       show-icon
@@ -29,7 +29,7 @@
         <div class="security-panel summary-card">
           <div class="summary-card__label">当前身份</div>
           <div class="summary-card__value">{{ currentUser ? currentRoleLabel : "未登录" }}</div>
-          <div class="summary-card__hint">????????????????????????</div>
+          <div class="summary-card__hint">用于确认当前账号在用户管理、审批流转和高风险操作中的权限边界。</div>
         </div>
       </el-col>
 
@@ -64,7 +64,7 @@
           <div class="section-header">
             <div>
               <h3>账号筛选</h3>
-              <p>???????????????????????????????</p>
+              <p>支持按角色、状态和关键字筛选平台账号，便于快速定位待处理对象与岗位分工。</p>
             </div>
           </div>
 
@@ -101,7 +101,7 @@
               <h3>账号列表</h3>
               <p>页面强调管理员职责是“管理账号与权限”，而不是独占告警、图谱等公共业务页面。</p>
             </div>
-            <div class="table-header-tip">?????? {{ filteredUsers.length }} ???</div>
+            <div class="table-header-tip">当前筛选结果：{{ filteredUsers.length }} 个账号</div>
           </div>
 
           <el-table :data="filteredUsers" empty-text="暂无匹配账号">
@@ -152,8 +152,8 @@
 
           <div class="tip-list">
             <div class="tip-item">
-              <div class="tip-item__title">????????????</div>
-              <div class="tip-item__desc">????????????????????????????????????</div>
+              <div class="tip-item__title">普通用户参与核心业务处置</div>
+              <div class="tip-item__desc">普通用户可访问工作台、检测结果、告警中心、图谱分析等核心业务页面，用于日常研判与处置申请。</div>
             </div>
             <div class="tip-item">
               <div class="tip-item__title">管理员负责高风险动作</div>
@@ -188,7 +188,7 @@
             </div>
           </div>
 
-          <el-empty v-else description="???????????" />
+          <el-empty v-else description="当前暂无待审批事项" />
         </section>
       </el-col>
     </el-row>
@@ -343,18 +343,18 @@ function statusTagType(status) {
 function handlePreviewScope(row) {
   const scopeText =
     row.role === "admin"
-      ? "??????????????????"
-      : "?????????????????????????";
+      ? "可管理平台账号、调整角色权限、审批封禁申请，并查看完整审计日志与关键配置。"
+      : "可查看核心业务页面、分析告警与图谱、提交处置申请，并查看个人处理记录。";
   ElMessage.info(`${row.display_name}：${scopeText}`);
 }
 
 function handleResetAccount(row) {
   if (!canManageUsers.value) {
-    ElMessage.warning("??????????????");
+    ElMessage.warning("当前账号不具备用户管理权限，无法执行口令重置。");
     return;
   }
 
-  ElMessage.success(`${row.display_name} ?????????${row.status}?`);
+  ElMessage.success(`${row.display_name} 的登录口令已重置，请提醒该账号尽快更新初始口令并重新登录。`);
 }
 
 function handleToggleStatus(row) {
