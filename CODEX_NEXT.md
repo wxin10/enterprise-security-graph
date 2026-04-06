@@ -15,16 +15,16 @@
 
 请选择并维护当前模式：
 
-- [x] 正常模式：本批最多 2 个文件
+- [ ] 正常模式：本批最多 2 个文件
 - [ ] 降级模式：本批只处理 1 个文件
 - [ ] 恢复模式：先核对上一批是否真实落地
-- [ ] 验收模式：本轮只核验，不改代码
+- [x] 验收模式：本轮只核验，不改代码
 
 ## 当前建议模式
-- 当前进入“完整系统收口批 1-2：菜单、路由、权限单一来源”
-- 本轮只处理菜单、路由、权限来源统一，不扩展到图表、文案、排版或 backend
-- 本轮允许修改 5 个文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`、`frontend/src/utils/auth.js`、`frontend/src/router/index.js`、`frontend/src/layouts/AppLayout.vue`
-- 本轮目标是收口唯一菜单来源，修复 `detections / graph / monitor` 不一致，并去掉布局层本地菜单注册
+- 当前进入“完整系统收口批 1-14：MonitorCenterView 正式化文案和样式收口”收尾阶段
+- 本轮只同步进度文件、复核语法并准备提交推送，不再改动业务代码
+- 本轮允许修改 2 个文件：`CODEX_NEXT.md`、`CODEX_PROGRESS.md`
+- 本轮完成后重置为等待用户指定新的最小批次
 
 ---
 
@@ -33,31 +33,27 @@
 > 下面内容每次只保留“当前真正要做的一批”。
 
 ## 当前批次标题
-完整系统收口批 1-2：菜单、路由、权限单一来源
+完整系统收口批 1-14：MonitorCenterView 正式化文案和样式收口
 
 ## 当前批次目标
-- 统一 `auth.js`、`router/index.js`、`AppLayout.vue` 的菜单、路由、权限来源，不再各自维护一套
-- 以 `auth.js` 中的正式菜单配置为唯一来源
-- 修复 `/console/detections`、`/console/graph`、`/console/monitor` 的不一致
-- 去掉 `AppLayout.vue` 中的 `localMenuRegistry`
-- 保持管理员与普通用户现有权限边界不变，不顺手修改页面本体、样式或文案
+- 同步 `frontend/src/views/MonitorCenterView.vue` 正式化文案与样式收口结果到进度文件
+- 再次复核 `frontend/src/views/MonitorCenterView.vue` 的语法状态
+- 完成本轮版本提交与推送准备
+- 本轮不再改动任何业务代码
 
 ## 当前批次允许修改的文件
 - `CODEX_NEXT.md`
 - `CODEX_PROGRESS.md`
-- `frontend/src/utils/auth.js`
-- `frontend/src/router/index.js`
-- `frontend/src/layouts/AppLayout.vue`
 
 ## 当前批次禁止修改的文件
-- 除本批允许修改的 5 个文件外，其余业务文件默认禁止修改
+- 除本批允许修改的 2 个文件外，其余业务文件默认禁止修改
 - 尤其不要回改：
-  - `backend/app.py`
-  - `backend/app/api/`
-  - `backend/app/services/`
-  - `frontend/src/styles/global.css`
-  - `frontend/src/utils/mock-storage.js`
+  - `frontend/src/views/MonitorCenterView.vue`
   - `frontend/src/views/`
+  - `frontend/src/router/`
+  - `frontend/src/layouts/`
+  - `frontend/src/utils/`
+  - `backend/`
   - `AGENTS.md`
 
 ## 当前批次进入条件
@@ -65,19 +61,16 @@
 - 已读 `CODEX_NEXT.md`
 - 已检查 `git status --short`
 - 已确认当前分支为 `current-ui-sync`
-- 已检查 `frontend/src/utils/auth.js`
-- 已检查 `frontend/src/router/index.js`
-- 已检查 `frontend/src/layouts/AppLayout.vue`
-- 已确认当前工作区干净，当前分支为 `current-ui-sync`
+- 已确认 `frontend/src/views/MonitorCenterView.vue` 已完成正式化文案与样式收口
+- 已确认当前工作区仅包含本轮相关变更
 - 已确认本轮不是恢复模式
-- 已确认本轮只处理菜单、路由、权限来源统一，不触碰 backend 和无关页面
+- 已确认本轮只做文档同步、语法复核与提交推送准备
 
 ## 当前批次验收标准
-- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已切换为“完整系统收口批 1-2：菜单、路由、权限单一来源”状态
-- `frontend/src/utils/auth.js` 已成为菜单、路由权限的唯一正式来源
-- `frontend/src/router/index.js` 已直接消费统一菜单来源，不再与 `MENU_ITEMS` 分离维护
-- `frontend/src/layouts/AppLayout.vue` 已去掉 `localMenuRegistry`，并直接消费统一菜单来源
-- `/console/detections`、`/console/graph`、`/console/monitor` 已完成收口，不再出现菜单和路由打架
+- `CODEX_PROGRESS.md` 与 `CODEX_NEXT.md` 已同步记录“完整系统收口批 1-14：MonitorCenterView 正式化文案和样式收口”
+- `frontend/src/views/MonitorCenterView.vue` 已再次通过 `@vue/compiler-sfc` 语法检查
+- 当前分支保持为 `current-ui-sync`
+- 本轮完成后进入“等待用户指定下一批任务”状态
 
 ---
 
@@ -177,9 +170,9 @@
 - 状态：已完成
 
 ### 当前业务批状态
-- 当前处于“完整系统收口批 1-2：菜单、路由、权限单一来源”
-- 本轮只处理菜单、路由、权限来源统一，不扩展业务页面，不处理图表、文案、排版或 backend
-- 本轮完成后，如需继续推进，再进入下一批收口任务
+- 当前处于“完整系统收口批 1-14：MonitorCenterView 正式化文案和样式收口”收尾阶段
+- 本轮只同步进度文件、复核语法并准备提交推送
+- 本轮完成后重置为等待用户指定新的最小批次
 
 ---
 
@@ -491,3 +484,19 @@
 - 本轮业务落地文件：`frontend/src/views/BansView.vue`
 - 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
 - 本轮校验：`frontend/src/views/BansView.vue` 已通过 `@vue/compiler-sfc` 语法检查。
+
+## 2026-04-06 MonitorCenterView 正式化收尾
+### 当前状态
+- `frontend/src/views/MonitorCenterView.vue` 已完成正式系统口径文案收口。
+- `frontend/src/views/MonitorCenterView.vue` 已完成本地样式收口并统一为白色企业后台风格。
+- 当前收尾仅同步进度文件、复核语法并准备提交推送。
+- 当前分支仍为 `current-ui-sync`。
+
+### 下一批建议
+- 等待用户指定新的最小批次。
+- 如继续前端收口，继续遵守单文件最小范围原则。
+
+### 收尾批次说明
+- 本轮业务落地文件：`frontend/src/views/MonitorCenterView.vue`
+- 本轮收尾文件：`CODEX_PROGRESS.md`、`CODEX_NEXT.md`
+- 本轮校验：`frontend/src/views/MonitorCenterView.vue` 已再次通过 `@vue/compiler-sfc` 语法检查。

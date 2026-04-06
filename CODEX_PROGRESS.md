@@ -65,6 +65,7 @@
   - `frontend/src/router/index.js`
   - `frontend/src/layouts/AppLayout.vue`
   - `frontend/src/views/DashboardView.vue`
+  - `frontend/src/views/MonitorCenterView.vue`
   - `frontend/src/views/ForbiddenView.vue`
   - `frontend/src/views/ProfileView.vue`
   - `frontend/src/views/MyRecordsView.vue`
@@ -112,6 +113,7 @@
 - [x] frontend/src/router/index.js
 - [x] frontend/src/layouts/AppLayout.vue
 - [x] frontend/src/views/DashboardView.vue
+- [x] frontend/src/views/MonitorCenterView.vue
 - [x] frontend/src/styles/global.css
 - [x] frontend/src/views/ForbiddenView.vue
 - [x] frontend/src/views/ProfileView.vue
@@ -1688,6 +1690,41 @@
   - `CODEX_NEXT.md`：同步本轮收尾状态并重置为等待用户指定下一批。
 - 语法检查：
   - `frontend/src/views/BansView.vue` 已通过 `@vue/compiler-sfc` 解析检查。
+- 是否完成：是
+- 是否发生中断：否
+- 是否需要恢复模式：否
+- 下一批建议：
+  - 等待用户指定新的最小批次。
+
+## 2026-04-06 MonitorCenterView 正式化补录
+- 本轮业务改动文件：
+  - `frontend/src/views/MonitorCenterView.vue`
+- 本轮收尾文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+- 本轮完成内容：
+  - 已清理页面摘要卡片、监控控制、监听目录、最近处理记录、自动监控流程图与节点详情卡片中的说明式文案，统一为正式系统表达。
+  - 已移除用户可见文案和本页注释中的“最小闭环”“当前版本”“本地最小可运行”“预留”等非正式表述。
+  - 已收口本页本地样式中的深色硬编码、深色背景与深色渐变背景，改为优先复用 `var(--text-primary)`、`var(--text-secondary)`、`var(--panel-border)`、`var(--page-bg-accent)`。
+- 语法检查：
+  - `frontend/src/views/MonitorCenterView.vue` 已再次通过 `@vue/compiler-sfc` 解析检查。
+
+### [批次 41] 2026-04-06
+- 任务目标：完成【完整系统收口批 1-14：MonitorCenterView 正式化文案和样式收口】，并同步进度文件后提交推送。
+- 本批允许修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/MonitorCenterView.vue`
+- 实际修改文件：
+  - `CODEX_PROGRESS.md`
+  - `CODEX_NEXT.md`
+  - `frontend/src/views/MonitorCenterView.vue`
+- 每个文件改动摘要：
+  - `frontend/src/views/MonitorCenterView.vue`：收口用户可见文案、页面注释与本地深色样式硬编码，保持页面结构、功能逻辑、流程图交互、自动刷新行为和数据结构不变。
+  - `CODEX_PROGRESS.md`：补录本轮 MonitorCenterView 正式化批次与校验结果。
+  - `CODEX_NEXT.md`：同步本轮收尾状态并重置为等待用户指定下一批。
+- 语法检查：
+  - `frontend/src/views/MonitorCenterView.vue` 已再次通过 `@vue/compiler-sfc` 解析检查。
 - 是否完成：是
 - 是否发生中断：否
 - 是否需要恢复模式：否
