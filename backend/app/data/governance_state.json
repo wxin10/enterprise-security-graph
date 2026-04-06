@@ -3,7 +3,7 @@
     {
       "user_id": "ADMIN-001",
       "username": "admin",
-      "password": "123456",
+      "password_hash": "scrypt:32768:8:1$pzFbSCok72drIg2g$224b65d4a55d85c62bd533aabb2f4bf3c5dccce059c374e5e786d94f68365844464cf2ed8ab121c8c8a0a9924bda25012e4b9ad09f81a279288b8d6a93fcae34",
       "password_updated_at": "2026-04-03 09:00:00",
       "display_name": "平台管理员",
       "department": "安全运营中心",
@@ -20,7 +20,7 @@
     {
       "user_id": "OPS-001",
       "username": "analyst",
-      "password": "123456",
+      "password_hash": "scrypt:32768:8:1$afNuq7Hk5TrDIXM7$ab7b40e1055eb30c21eb456705de0ab10f29a30629a585b85848c0ba45b470aa92e627b47e3ec56c5d5956a82d880834ec305141376bc9fb07f4e48305588c23",
       "password_updated_at": "2026-04-03 09:12:00",
       "display_name": "值班分析员",
       "department": "安全运营中心",
@@ -37,7 +37,7 @@
     {
       "user_id": "OPS-002",
       "username": "user",
-      "password": "123456",
+      "password_hash": "scrypt:32768:8:1$XauhRar8HldKvgjk$7b22b4b01930ee5928dadb3c16526a6149e533474b7d40d87c7594c1a780ce4077169e1494910df8a73e4b5e8cda243ec09c9916800bdc24307e4982388e0d87",
       "password_updated_at": "2026-04-04 21:30:00",
       "display_name": "研判专员",
       "department": "安全运营中心",
@@ -54,7 +54,7 @@
     {
       "user_id": "OPS-003",
       "username": "nightwatch",
-      "password": "123456",
+      "password_hash": "scrypt:32768:8:1$wn6VpsRFlPYnqehy$7ff5a4bc38a4849282723da79c9b7d7d48c2a21aeb23e4976972b819e8fda0085b6a106d3de2552e0d1411ca940a75e31d433cbd926a0fe5719691986b5917f2",
       "password_updated_at": "2026-04-03 18:00:00",
       "display_name": "夜班值守",
       "department": "态势感知组",

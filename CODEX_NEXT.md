@@ -552,3 +552,13 @@
 ### 当前批次收尾说明
 - 本轮业务落地文件：`backend/app/services/governance_service.py`、`backend/app/services/ban_service.py`、`frontend/src/views/BansView.vue`、`tests/test_governance_workflow.py`、`frontend/package.json`、`frontend/package-lock.json`、`frontend/playwright.config.js`、`frontend/tests/e2e/approval-closure.spec.js`
 - 本轮校验：`npm.cmd run build`、`python -m py_compile ...`、`pytest -q`、`npx.cmd playwright install chromium`、`npm.cmd run test:e2e` 均已执行成功。
+
+## 2026-04-06 下一批建议
+### 当前状态
+- 真实 Flask + 前端 Playwright 端到端回归已落地，审批提交、首页审批、封禁联动、我的记录和审计日志两条主链路均已通过真实浏览器验证。
+- 账号口令已从明文方案切换为哈希方案，治理基线文件已移除明文 `password` 字段。
+- 当前分支仍为 `current-ui-sync`，本轮已完成用户指定的真实 E2E 与密码安全收口。
+### 下一批建议
+- 如继续做质量收口，可补“真实 Flask + 前端 + Neo4j”完整三层端到端回归，替换当前测试启动脚本里的图数据与封禁读模型测试适配层。
+- 如继续做安全收口，可为个人修改密码、自助口令轮换和更细粒度会话撤销补专门接口与回归测试。
+- 如无新任务，本批可直接作为当前收口节点提交归档。

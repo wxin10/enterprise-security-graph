@@ -5,17 +5,22 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import os
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
 from typing import Any, Callable
 
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from app.core.errors import NotFoundError, ValidationError
 
 
 class GovernanceService:
-    DATA_FILE_PATH = Path(__file__).resolve().parents[1] / "data" / "governance_state.json"
+    DEFAULT_DATA_FILE_PATH = Path(__file__).resolve().parents[1] / "data" / "governance_state.json"
+    DATA_FILE_PATH = DEFAULT_DATA_FILE_PATH
+    DATA_FILE_ENV = "GOVERNANCE_STATE_FILE"
     DEFAULT_PASSWORD = "123456"
     DISPOSAL_STATUS_PENDING = "待审批"
     DISPOSAL_STATUS_APPROVED = "已通过"
@@ -88,7 +93,7 @@ class GovernanceService:
             next_user = {
                 "user_id": self._next_id(state["users"], "user_id", "ADMIN-" if role == "admin" else "OPS-"),
                 "username": username,
-                "password": password,
+                "password_hash": self.build_password_hash(password),
                 "password_updated_at": now,
                 "display_name": display_name,
                 "department": department,
@@ -180,7 +185,8 @@ class GovernanceService:
 
         def mutation(state: dict[str, Any]) -> dict[str, Any]:
             user = self._find_user(state, user_id)
-            user["password"] = self.DEFAULT_PASSWORD
+            user["password_hash"] = self.build_password_hash(self.DEFAULT_PASSWORD)
+            user.pop("password", None)
             user["password_updated_at"] = now
             user["updated_at"] = now
             self._append_audit_log(
@@ -687,6 +693,27 @@ class GovernanceService:
 
         return self._update_state(mutation)
 
+    def build_password_hash(self, password: Any) -> str:
+        normalized_password = str(password or "").strip()
+        if not normalized_password:
+            raise ValidationError("密码不能为空", data={"field": "password"})
+        return generate_password_hash(normalized_password)
+
+    def verify_password(self, password: Any, user: dict[str, Any] | None) -> bool:
+        if not user:
+            return False
+
+        normalized_password = str(password or "").strip()
+        if not normalized_password:
+            return False
+
+        password_hash = str(user.get("password_hash") or "").strip()
+        if password_hash:
+            return check_password_hash(password_hash, normalized_password)
+
+        legacy_password = str(user.get("password") or "").strip()
+        return bool(legacy_password) and legacy_password == normalized_password
+
     def get_login_user(self, username: str) -> dict[str, Any] | None:
         state = self._read_state()
         user = self._find_user_by_username(state, self._normalize_username(username))
@@ -714,16 +741,24 @@ class GovernanceService:
 
         return self._update_state(mutation)
 
+    def _get_data_file_path(self) -> Path:
+        env_value = str(os.getenv(self.DATA_FILE_ENV, "") or "").strip()
+        if env_value:
+            return Path(env_value)
+        return Path(self.DATA_FILE_PATH or self.DEFAULT_DATA_FILE_PATH)
+
     def _ensure_state_file(self) -> None:
+        data_file_path = self._get_data_file_path()
         with self._lock:
-            self.DATA_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            if not self.DATA_FILE_PATH.exists():
+            data_file_path.parent.mkdir(parents=True, exist_ok=True)
+            if not data_file_path.exists():
                 self._write_state(self._build_default_state())
 
     def _read_state(self) -> dict[str, Any]:
+        data_file_path = self._get_data_file_path()
         with self._lock:
             self._ensure_state_file()
-            with self.DATA_FILE_PATH.open("r", encoding="utf-8") as file:
+            with data_file_path.open("r", encoding="utf-8") as file:
                 state = json.load(file)
 
             if self._migrate_state(state):
@@ -732,10 +767,11 @@ class GovernanceService:
             return state
 
     def _write_state(self, state: dict[str, Any]) -> None:
-        temp_path = self.DATA_FILE_PATH.with_suffix(".tmp")
+        data_file_path = self._get_data_file_path()
+        temp_path = data_file_path.with_suffix(".tmp")
         with temp_path.open("w", encoding="utf-8") as file:
             json.dump(state, file, ensure_ascii=False, indent=2)
-        temp_path.replace(self.DATA_FILE_PATH)
+        temp_path.replace(data_file_path)
 
     def _update_state(self, mutation: Callable[[dict[str, Any]], Any]) -> Any:
         with self._lock:
@@ -748,6 +784,15 @@ class GovernanceService:
         changed = False
 
         for user in state.get("users", []):
+            if not user.get("password_hash"):
+                legacy_password = str(user.get("password") or self.DEFAULT_PASSWORD).strip() or self.DEFAULT_PASSWORD
+                user["password_hash"] = self.build_password_hash(legacy_password)
+                changed = True
+
+            if "password" in user:
+                user.pop("password", None)
+                changed = True
+
             if not user.get("password_updated_at"):
                 user["password_updated_at"] = user.get("updated_at") or user.get("created_at") or self._now_text()
                 changed = True
@@ -1069,7 +1114,7 @@ LIMIT 1
                 {
                     "user_id": "ADMIN-001",
                     "username": "admin",
-                    "password": self.DEFAULT_PASSWORD,
+                    "password_hash": self.build_password_hash(self.DEFAULT_PASSWORD),
                     "password_updated_at": "2026-04-03 09:00:00",
                     "display_name": "平台管理员",
                     "department": "安全运营中心",
@@ -1086,7 +1131,7 @@ LIMIT 1
                 {
                     "user_id": "OPS-001",
                     "username": "analyst",
-                    "password": self.DEFAULT_PASSWORD,
+                    "password_hash": self.build_password_hash(self.DEFAULT_PASSWORD),
                     "password_updated_at": "2026-04-03 09:12:00",
                     "display_name": "值班分析员",
                     "department": "安全运营中心",
@@ -1103,7 +1148,7 @@ LIMIT 1
                 {
                     "user_id": "OPS-002",
                     "username": "user",
-                    "password": self.DEFAULT_PASSWORD,
+                    "password_hash": self.build_password_hash(self.DEFAULT_PASSWORD),
                     "password_updated_at": "2026-04-04 21:30:00",
                     "display_name": "研判专员",
                     "department": "安全运营中心",
@@ -1120,7 +1165,7 @@ LIMIT 1
                 {
                     "user_id": "OPS-003",
                     "username": "nightwatch",
-                    "password": self.DEFAULT_PASSWORD,
+                    "password_hash": self.build_password_hash(self.DEFAULT_PASSWORD),
                     "password_updated_at": "2026-04-03 18:00:00",
                     "display_name": "夜班值守",
                     "department": "态势感知组",

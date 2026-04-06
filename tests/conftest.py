@@ -68,4 +68,6 @@ def app_client(tmp_path, monkeypatch):
     app.config.update(TESTING=True)
 
     with app.test_client() as client:
+        client.governance_file = governance_file
+        client.session_file = session_file
         yield client

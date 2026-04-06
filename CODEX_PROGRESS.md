@@ -1845,3 +1845,27 @@
 
 ### 是否完成
 - 是
+
+## 2026-04-06 真实 Flask E2E 与密码哈希化收口
+### 当前状态
+- `backend/app/services/governance_service.py` 已切换为 `password_hash` 存储，创建账号、重置密码、默认基线用户和旧数据迁移都统一落到哈希方案。
+- `backend/app/services/auth_service.py` 已改为哈希校验口令，并通过环境变量切换 `session_state.json` 路径，保持现有会话持久化、停用失效和密码更新时间失效逻辑不变。
+- `tests/e2e_backend_server.py` 已提供真实 Flask E2E 启动入口，运行时会在 `%TEMP%\\design-real-e2e` 下创建临时 `governance_state.json`、`session_state.json`、`ban_state.json` 和 `blocklist.json`，不污染正式数据文件。
+- `frontend/playwright.config.js` 与 `frontend/tests/e2e/approval-closure.spec.js` 已切换为真实前端 + 真实 Flask 浏览器回归，不再使用 `page.context().route("http://127.0.0.1:5000/api/**")` 这类整套 API mock。
+- `tests/test_governance_workflow.py` 与 `tests/conftest.py` 已补充哈希口令与旧会话失效断言，后端回归继续使用临时治理文件和临时会话文件。
+### 本轮落地文件
+- `backend/app/data/governance_state.json`
+- `backend/app/services/auth_service.py`
+- `backend/app/services/governance_service.py`
+- `tests/conftest.py`
+- `tests/test_governance_workflow.py`
+- `tests/e2e_backend_server.py`
+- `frontend/playwright.config.js`
+- `frontend/tests/e2e/approval-closure.spec.js`
+### 本轮校验
+- `python -m py_compile backend/app/services/auth_service.py backend/app/services/governance_service.py tests/conftest.py tests/test_governance_workflow.py tests/e2e_backend_server.py` 已通过。
+- `pytest -q` 已通过，结果为 `3 passed`。
+- `frontend` 目录执行 `npm.cmd run build` 已通过，仅保留 Vite chunk 体积告警。
+- `frontend` 目录执行 `npm.cmd run test:e2e` 已通过，结果为 `2 passed`，并已实际命中真实 Flask `/api/auth/login`、`/api/graph/overview`、`/api/disposals`、`/api/bans`、`/api/audit/logs` 等接口。
+### 是否完成
+- 是

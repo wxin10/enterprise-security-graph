@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import secrets
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
@@ -22,7 +23,9 @@ class AuthenticationError(APIError):
 
 class AuthService:
     SESSION_TTL_SECONDS = 8 * 60 * 60
-    SESSION_FILE_PATH = Path(__file__).resolve().parents[1] / "data" / "session_state.json"
+    DEFAULT_SESSION_FILE_PATH = Path(__file__).resolve().parents[1] / "data" / "session_state.json"
+    SESSION_FILE_PATH = DEFAULT_SESSION_FILE_PATH
+    SESSION_FILE_ENV = "SESSION_STATE_FILE"
 
     def __init__(self) -> None:
         self._lock = RLock()
@@ -53,7 +56,7 @@ class AuthService:
                 data={"field": "username"},
             )
 
-        if normalized_password != str(account_profile.get("password") or "").strip():
+        if not governance_service.verify_password(normalized_password, account_profile):
             raise AuthenticationError(
                 message="账号或密码错误",
                 code=4012,
@@ -157,20 +160,22 @@ class AuthService:
             self._save_session_store()
 
     def _ensure_session_file(self) -> None:
+        session_file_path = self._get_session_file_path()
         with self._lock:
-            self.SESSION_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            if self.SESSION_FILE_PATH.exists():
+            session_file_path.parent.mkdir(parents=True, exist_ok=True)
+            if session_file_path.exists():
                 return
 
-            self.SESSION_FILE_PATH.write_text(
+            session_file_path.write_text(
                 json.dumps({"sessions": []}, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
 
     def _load_session_store(self) -> dict[str, dict[str, Any]]:
+        session_file_path = self._get_session_file_path()
         with self._lock:
             self._ensure_session_file()
-            raw_text = self.SESSION_FILE_PATH.read_text(encoding="utf-8").strip() or '{"sessions": []}'
+            raw_text = session_file_path.read_text(encoding="utf-8").strip() or '{"sessions": []}'
             payload = json.loads(raw_text)
             sessions = payload.get("sessions") or []
 
@@ -181,6 +186,7 @@ class AuthService:
             }
 
     def _save_session_store(self) -> None:
+        session_file_path = self._get_session_file_path()
         data = {
             "sessions": sorted(
                 [deepcopy(item) for item in self._session_store.values()],
@@ -188,9 +194,9 @@ class AuthService:
                 reverse=True,
             )
         }
-        temp_path = self.SESSION_FILE_PATH.with_suffix(".tmp")
+        temp_path = session_file_path.with_suffix(".tmp")
         temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        temp_path.replace(self.SESSION_FILE_PATH)
+        temp_path.replace(session_file_path)
 
     def _resolve_password_version(self, user: dict[str, Any]) -> str:
         return str(user.get("password_updated_at") or user.get("updated_at") or user.get("created_at") or "").strip()
@@ -206,6 +212,12 @@ class AuthService:
 
     def _normalize_token(self, session_token: Any) -> str:
         return str(session_token or "").strip()
+
+    def _get_session_file_path(self) -> Path:
+        env_value = str(os.getenv(self.SESSION_FILE_ENV, "") or "").strip()
+        if env_value:
+            return Path(env_value)
+        return Path(self.SESSION_FILE_PATH or self.DEFAULT_SESSION_FILE_PATH)
 
     def _now(self) -> datetime:
         return datetime.now(timezone.utc)

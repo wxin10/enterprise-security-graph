@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from app.services.auth_service import auth_service
 from app.services.ban_service import ban_service
 
@@ -32,6 +34,39 @@ def test_login_and_session_restore(app_client):
 
     assert me_payload["code"] == 0
     assert me_payload["data"]["user"]["username"] == "analyst"
+
+    governance_text = app_client.governance_file.read_text(encoding="utf-8")
+    assert '"password":' not in governance_text
+    assert '"password_hash":' in governance_text
+
+
+def test_password_reset_invalidates_legacy_session_and_keeps_hash_only(app_client):
+    analyst_session = login(app_client, "analyst")
+    admin_session = login(app_client, "admin")
+
+    reset_response = app_client.post(
+        "/api/users/OPS-001/reset-password",
+        headers=build_headers(admin_session["session_token"]),
+    )
+    assert reset_response.status_code == 200
+    reset_payload = reset_response.get_json()
+    assert reset_payload["code"] == 0
+    assert reset_payload["data"]["temporary_password"] == "123456"
+
+    expired_response = app_client.get(
+        "/api/auth/me",
+        headers=build_headers(analyst_session["session_token"]),
+    )
+    assert expired_response.status_code == 401
+
+    refreshed_session = login(app_client, "analyst", "123456")
+    assert refreshed_session["user"]["username"] == "analyst"
+
+    governance_payload = json.loads(app_client.governance_file.read_text(encoding="utf-8"))
+    analyst_user = next(item for item in governance_payload["users"] if item["username"] == "analyst")
+    assert "password" not in analyst_user
+    assert isinstance(analyst_user.get("password_hash"), str)
+    assert analyst_user["password_hash"]
 
 
 def test_disposal_workflow_and_audit_linkage(app_client, monkeypatch):
