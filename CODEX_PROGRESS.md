@@ -1892,3 +1892,16 @@
 - `frontend` 目录执行 `npm.cmd run test:e2e` 成功，结果为 `3 passed`。
 ### 是否完成
 - 是
+
+## 2026-04-10 MonitorCenterView 正式化补录
+### 当前状态
+- `frontend/src/views/MonitorCenterView.vue` 已补充收口正式系统文案，页面摘要、处理记录、流程图说明与节点详情提示统一为正式表达。
+- `frontend/src/views/MonitorCenterView.vue` 已继续清理本地深色背景与渐变背景，流程图区容器改为复用 `var(--page-bg-accent)` 与 `var(--panel-border)`。
+- 当前分支继续保持 `current-ui-sync`，本轮仅处理指定页面与进度文件。
+### 本轮业务改动文件
+- `frontend/src/views/MonitorCenterView.vue`
+### 本轮收尾文件
+- `CODEX_PROGRESS.md`
+- `CODEX_NEXT.md`
+### 本轮校验
+- `frontend/src/views/MonitorCenterView.vue` 已通过 `@vue/compiler-sfc` 语法检查。

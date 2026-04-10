@@ -5,7 +5,7 @@
       <div>
         <h1 class="page-title">日志监控中心</h1>
         <p class="page-subtitle">
-          当前页面集中展示日志接入、检测研判、处置执行与运行状态，便于持续跟踪自动化监控链路。
+          集中展示日志接入、检测研判、处置执行与运行状态，便于持续掌握自动化监控链路。
         </p>
       </div>
       <el-tag :type="monitorStatus.running ? 'success' : 'info'" effect="light" size="large">
@@ -70,7 +70,7 @@
       <div class="section-header">
         <div>
           <h3>最近处理记录</h3>
-          <p>展示最近监控批次的检测、告警与处置结果，便于快速跟踪自动化处理状态。</p>
+          <p>展示近期监控批次的检测、告警与处置结果，便于快速核查自动化处理状态。</p>
         </div>
         <div class="table-header-tip">记录数：{{ recentRecords.length }}</div>
       </div>
@@ -157,7 +157,7 @@
         <span class="legend-item"><i class="legend-dot legend-dot--success"></i>最近成功链路高亮</span>
         <span class="legend-item"><i class="legend-dot legend-dot--danger"></i>最近失败链路标红</span>
         <span class="legend-item"><i class="legend-line legend-line--dashed"></i>处置执行链路</span>
-        <span class="legend-item legend-item--tip">提示：支持拖拽节点、滚轮缩放、点击节点高亮邻接关系</span>
+        <span class="legend-item legend-item--tip">交互说明：支持拖拽节点、滚轮缩放、点击节点高亮邻接关系</span>
       </div>
       <div class="topology-layout-tools">
         <el-tag size="small" effect="light" :type="topologyLayoutMode === 'force' ? 'warning' : 'success'">
@@ -167,7 +167,7 @@
       </div>
       <div class="topology-chart-shell" v-loading="topologyLoading">
         <div ref="topologyChartRef" class="topology-chart"></div>
-        <div v-if="!topologyLoading && topologyData.nodes.length === 0" class="topology-empty">当前暂无可展示的监控链路，请先启动监控任务或确认监听目录中存在待处理文件。</div>
+        <div v-if="!topologyLoading && topologyData.nodes.length === 0" class="topology-empty">暂无可展示的监控链路，请先启动监控任务或确认监听目录中存在待处理文件。</div>
       </div>
       <div class="security-panel topology-detail-card">
         <template v-if="selectedTopologyNodeMeta">
@@ -185,7 +185,7 @@
               <div class="detail-card__label">关键属性</div>
               <div class="detail-card__value detail-card__value--multiline">
                 <template v-if="selectedTopologyNodeMeta.detailLines.length > 0"><div v-for="line in selectedTopologyNodeMeta.detailLines" :key="line">{{ line }}</div></template>
-                <template v-else>当前节点暂无额外说明</template>
+                <template v-else>当前节点暂无补充属性</template>
               </div>
             </div>
           </div>
@@ -226,10 +226,10 @@ const detectionStatusClass = computed(() => monitorStatus.latest_detection_statu
 const latestRecentRecord = computed(() => recentRecords.value?.[0] || {});
 const summaryCards = computed(() => [
   { label: "当前状态", value: monitorStatus.running ? "运行中" : "已停止", className: monitorStatus.running ? "summary-card__value--success" : "summary-card__value--muted", hint: "结合任务运行状态与最近心跳信息实时更新" },
-  { label: "最近自动封禁 IP", value: latestRecentRecord.value.auto_blocked_ips?.[0] || "-", className: "summary-card__value--danger summary-card__value--small", hint: "展示最近一个处理批次命中的自动处置对象" },
+  { label: "最近自动封禁 IP", value: latestRecentRecord.value.auto_blocked_ips?.[0] || "-", className: "summary-card__value--danger summary-card__value--small", hint: "反映最近批次命中的自动处置对象" },
   { label: "自动封禁 / 持续拦截", value: `${latestRecentRecord.value.auto_block_success_count ?? 0} / ${latestRecentRecord.value.truly_blocked_count ?? 0}`, className: "summary-card__value--primary", hint: "反映最近批次的处置执行结果与持续拦截状态" },
-  { label: "最近处理时间", value: monitorStatus.latest_processed_at || "-", className: "summary-card__value--warning summary-card__value--small", hint: "用于确认最新监控批次的完成时间" },
-  { label: "最近检测状态", value: monitorStatus.latest_detection_status || "IDLE", className: detectionStatusClass.value, hint: "用于快速确认自动检测链路的最新执行结果" }
+  { label: "最近处理时间", value: monitorStatus.latest_processed_at || "-", className: "summary-card__value--warning summary-card__value--small", hint: "确认最新监控批次的完成时间" },
+  { label: "最近检测状态", value: monitorStatus.latest_detection_status || "IDLE", className: detectionStatusClass.value, hint: "快速确认自动检测链路的最新执行结果" }
 ]);
 const selectedTopologyNodeMeta = computed(() => {
   if (!selectedTopologyNode.value) return null;
@@ -265,8 +265,8 @@ function topologyStatusColor(status) { return status === "FAILED" ? "#ff7285" : 
 function topologyTypeColor(type) { return ({ incoming_root: "#2b7cff", watch_directory: "#468df9", log_file: "#33b5ff", adapter: "#25d0b5", neo4j: "#3fd5a1", detection_engine: "#ffb34d", alert: "#ff7a86", ban_action: "#a3b7d7" }[type] || "#6f86ab"); }
 function topologyTypeLabel(type) { return ({ incoming_root: "incoming 根目录", watch_directory: "监听子目录", log_file: "处理日志文件", adapter: "日志适配器", neo4j: "Neo4j 图数据库", detection_engine: "检测引擎", alert: "告警节点", ban_action: "处置执行节点" }[type] || "流程节点"); }
 function shortenText(text, maxLength = 16) { return !text || text.length <= maxLength ? (text || "") : `${text.slice(0, maxLength - 3)}...`; }
-function buildTooltipHtml(title, detailLines) { const lines = Array.isArray(detailLines) ? detailLines.filter(Boolean) : []; return `<div style="min-width:220px;max-width:360px;color:#5b6b80;"><div style="font-size:14px;font-weight:700;color:#243247;">${title}</div>${lines.length ? `<div style="margin-top:6px;line-height:1.7;">${lines.join("<br/>")}</div>` : ""}</div>`; }
-function buildTopologyDetailLines(node) { if (Array.isArray(node?.detail_lines) && node.detail_lines.length) return node.detail_lines.filter(Boolean); return [node?.type ? `节点类型：${topologyTypeLabel(node.type)}` : "", node?.status ? `当前状态：${node.status}` : ""].filter(Boolean); }
+function buildTooltipHtml(title, detailLines) { const lines = Array.isArray(detailLines) ? detailLines.filter(Boolean) : []; return `<div style="min-width:220px;max-width:360px;color:var(--text-secondary);"><div style="font-size:14px;font-weight:700;color:var(--text-primary);">${title}</div>${lines.length ? `<div style="margin-top:6px;line-height:1.7;">${lines.join("<br/>")}</div>` : ""}</div>`; }
+function buildTopologyDetailLines(node) { if (Array.isArray(node?.detail_lines) && node.detail_lines.length) return node.detail_lines.filter(Boolean); return [node?.type ? `节点类型：${topologyTypeLabel(node.type)}` : "", node?.status ? `节点状态：${node.status}` : ""].filter(Boolean); }
 function buildAdjacencyMap(links) { const map = new Map(); links.forEach((item) => { if (!map.has(item.source)) map.set(item.source, new Set()); if (!map.has(item.target)) map.set(item.target, new Set()); map.get(item.source).add(item.target); map.get(item.target).add(item.source); }); return map; }
 function isNodeRelated(nodeId, selectedId, adjacencyMap) { return !selectedId || nodeId === selectedId || adjacencyMap.get(selectedId)?.has(nodeId) || false; }
 function isDirectlyConnected(link, selectedId) { return !selectedId || link.source === selectedId || link.target === selectedId; }
@@ -562,7 +562,7 @@ onBeforeUnmount(() => { stopAutoRefresh(); if (resizeHandler) { window.removeEve
   min-height: 520px;
   border-radius: 18px;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(43, 124, 255, 0.06), rgba(248, 250, 252, 0.92));
+  background: var(--page-bg-accent);
   border: 1px solid var(--panel-border);
 }
 
